@@ -2,6 +2,11 @@
 
 .globl main
 
+.data
+    framebuffer: .word 0xA0100000
+
+.text
+
 main:
     // Initialize the VI to display a 16-bit 256x224 framebuffer
     lui  t0, 0xA440     // VI register upper address
@@ -54,6 +59,9 @@ main:
     li   a1, 512
     jal  set_VI_interrupt
 
+    // Initialize the emulator
+    jal  memory_init
+
     // Wait for interrupts
 loop:
     j    loop
@@ -96,7 +104,3 @@ set_buffer:
     li   t0, 0x0001     // Clear halt
     sw   t0, 0xA4040010 // SP_STATUS_REG
     jr   ra
-
-
-.data
-    framebuffer: .word 0xA0100000

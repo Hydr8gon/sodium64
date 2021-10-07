@@ -2,6 +2,12 @@
 
 .set reorder
 
+.data
+    scanline: .space 256 * 2
+    framebuffer: .word 0xA0120000
+
+.text
+
 draw_frame:
     // Set initial values for the frame
     li   t0, 0   // Current X coordinate
@@ -68,8 +74,3 @@ set_buffer:
     // Update the offset and draw a new frame
     addi t7, t7, 1
     j    draw_frame
-
-
-.data
-    scanline: .space 0x200
-    framebuffer: .word 0xA0120000
