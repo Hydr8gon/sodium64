@@ -3,8 +3,9 @@
 .set reorder
 
 .data
-    scanline: .space 256 * 2
-    framebuffer: .word 0xA0120000
+
+scanline: .space 256 * 2
+framebuffer: .word 0xA0120000
 
 .text
 

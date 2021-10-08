@@ -3,7 +3,8 @@
 .globl main
 
 .data
-    framebuffer: .word 0xA0100000
+
+framebuffer: .word 0xA0100000
 
 .text
 
@@ -61,10 +62,10 @@ main:
 
     // Initialize the emulator
     jal  memory_init
+    jal  cpu_init
 
-    // Wait for interrupts
-loop:
-    j    loop
+    // Start execution
+    j    cpu_execute
 
 
 rsp_upload: // a0: RSP address, a1: DRAM address

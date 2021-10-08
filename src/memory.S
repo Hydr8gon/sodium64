@@ -5,9 +5,10 @@
 .globl memory_write
 
 .data
-    rom: .incbin "rom.sfc"
-    wram: .space 0x20000
-    memory_map: .space 0x800 * 4
+
+rom: .incbin "rom.sfc"
+wram: .space 0x20000
+memory_map: .space 0x800 * 4
 
 .text
 
@@ -78,7 +79,7 @@ map_block:
     jr   ra
 
 
-memory_read: // a0: address, a1: 16-bit toggle - v0: cycles, v1: value
+memory_read: // a0: address, a1: 16-bit toggle - v0: value
     // Get the pointer to the block from the memory map
     srl  t0, a0, 13
     sll  t0, t0, 2
@@ -96,25 +97,24 @@ memory_read: // a0: address, a1: 16-bit toggle - v0: cycles, v1: value
     add  t0, t0, t1
 
     // Read a value from the resulting memory address
-    lb   t1, 0(t0)
+    lbu  v0, 0(t0)
     beq  a1, zero, end_read // 8-bit
-    lb   t2, 1(t0)
-    sll  t2, t2, 8
-    or   t1, t1, t2
+    lbu  t1, 1(t0)
+    sll  t1, t1, 8
+    or   v0, v0, t1
 
-    // Return the read value and cycle count
+    // Increment the cycle count and return
 end_read:
-    li   v0, 8
-    move v1, t1
+    add  s5, s5, 8
     jr   ra
 
 io_read: // TODO
-    li   v0, 6
-    li   v1, 0
+    li   v0, 0
+    add  s5, s5, 6
     jr   ra
 
 
-memory_write: // a0: address, a1: 16-bit toggle, a2: value - v0: cycles
+memory_write: // a0: address, a1: 16-bit toggle, a2: value
     // Get the pointer to the block from the memory map
     srl  t0, a0, 13
     sll  t0, t0, 2
@@ -125,12 +125,9 @@ memory_write: // a0: address, a1: 16-bit toggle, a2: value - v0: cycles
 
     // Ensure the block is writable
     andi t1, t0, 1
-    bne  t1, zero, can_write
-    li   v0, 6
-    jr   ra
+    beq  t1, zero, no_write
 
     // Clear the write bit before using the pointer
-can_write:
     li   t1, 0xFFFFFFFE
     and  t0, t0, t1
 
@@ -144,11 +141,12 @@ can_write:
     srl  a2, a2, 8
     sb   a2, 1(t0)
 
-    // Return the cycle count
+    // Increment the cycle count and return
 end_write:
-    li   v0, 8
+    add  s5, s5, 8
     jr   ra
 
 io_write: // TODO
-    li   v0, 6
+no_write:
+    add  s5, s5, 6
     jr   ra
