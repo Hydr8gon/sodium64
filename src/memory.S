@@ -1,8 +1,10 @@
 #include <regdef.h>
 
 .globl memory_init
-.globl memory_read
-.globl memory_write
+.globl memory_read8
+.globl memory_read16
+.globl memory_write8
+.globl memory_write16
 
 .data
 
@@ -79,7 +81,7 @@ map_block:
     jr   ra
 
 
-memory_read: // a0: address, a1: 16-bit toggle - v0: value
+memory_read8: // a0: address - v0: value
     // Get the pointer to the block from the memory map
     srl  t0, a0, 13
     sll  t0, t0, 2
@@ -89,32 +91,58 @@ memory_read: // a0: address, a1: 16-bit toggle - v0: value
     beq  t0, zero, io_read // I/O register fallback
 
     // Clear the write bit before using the pointer
-    li   t1, 0xFFFFFFFE
+    li   t1, ~1
     and  t0, t0, t1
 
     // Apply the offset within the 8KB block
     andi t1, a0, 0x1FFF
     add  t0, t0, t1
 
-    // Read a value from the resulting memory address
+    // Read a byte from memory and increase the cycle count
     lbu  v0, 0(t0)
-    beq  a1, zero, end_read // 8-bit
-    lbu  t1, 1(t0)
-    sll  t1, t1, 8
-    or   v0, v0, t1
-
-    // Increment the cycle count and return
-end_read:
     add  s5, s5, 8
     jr   ra
 
-io_read: // TODO
-    li   v0, 0
-    add  s5, s5, 6
+
+memory_read16: // a0: address - v0: value
+    // Get the pointer to the block from the memory map
+    srl  t0, a0, 13
+    sll  t0, t0, 2
+    la   t1, memory_map
+    add  t0, t0, t1
+    lw   t0, (t0)
+    beq  t0, zero, io_read16 // I/O register fallback
+
+    // Clear the write bit before using the pointer
+    li   t1, ~1
+    and  t0, t0, t1
+
+    // Apply the offset within the 8KB block
+    andi t1, a0, 0x1FFF
+    add  t0, t0, t1
+
+    // Read two bytes from memory and increase the cycle count
+    lbu  v0, 0(t0)
+    lbu  t0, 1(t0)
+    sll  t0, t0, 8
+    or   v0, v0, t0
+    add  s5, s5, 8 * 2
     jr   ra
 
+    // Read from I/O registers twice
+io_read16:
+    move s0, ra
+    jal  io_read
+    move s1, v0
+    addi a0, a0, 1
+    jal  io_read
+    addi a0, a0, -1
+    sll  v0, v0, 8
+    or   v0, v0, s1
+    jr   s0
 
-memory_write: // a0: address, a1: 16-bit toggle, a2: value
+
+memory_write8: // a0: address, a1: value
     // Get the pointer to the block from the memory map
     srl  t0, a0, 13
     sll  t0, t0, 2
@@ -125,28 +153,73 @@ memory_write: // a0: address, a1: 16-bit toggle, a2: value
 
     // Ensure the block is writable
     andi t1, t0, 1
-    beq  t1, zero, no_write
+    bne  t1, zero, can_write8
+    add  s5, s5, 6
+    jr   ra
 
     // Clear the write bit before using the pointer
-    li   t1, 0xFFFFFFFE
+can_write8:
+    li   t1, ~1
     and  t0, t0, t1
 
     // Apply the offset within the 8KB block
     andi t1, a0, 0x1FFF
     add  t0, t0, t1
 
-    // Write a value to the resulting memory address
-    sb   a2, 0(t0)
-    beq  a1, zero, end_write // 8-bit
-    srl  a2, a2, 8
-    sb   a2, 1(t0)
-
-    // Increment the cycle count and return
-end_write:
+    // Write a byte to memory and increase the cycle count
+    sb   a1, 0(t0)
     add  s5, s5, 8
     jr   ra
 
+
+memory_write16: // a0: address, a1: value
+    // Get the pointer to the block from the memory map
+    srl  t0, a0, 13
+    sll  t0, t0, 2
+    la   t1, memory_map
+    add  t0, t0, t1
+    lw   t0, (t0)
+    beq  t0, zero, io_write16 // I/O register fallback
+
+    // Ensure the block is writable
+    andi t1, t0, 1
+    bne  t1, zero, can_write16
+    add  s5, s5, 6 * 2
+    jr   ra
+
+    // Clear the write bit before using the pointer
+can_write16:
+    li   t1, ~1
+    and  t0, t0, t1
+
+    // Apply the offset within the 8KB block
+    andi t1, a0, 0x1FFF
+    add  t0, t0, t1
+
+    // Write two bytes to memory and increase the cycle count
+    sb   a1, 0(t0)
+    srl  a1, a1, 8
+    sb   a1, 1(t0)
+    add  s5, s5, 8 * 2
+    jr   ra
+
+    // Write to I/O registers twice
+io_write16:
+    move s0, ra
+    jal  io_write
+    addi a0, a0, 1
+    srl  a1, a1, 8
+    jal  io_write
+    addi a0, a0, -1
+    jr   s0
+
+
+io_read: // TODO
+    li   v0, 0
+    add  s5, s5, 6
+    jr   ra
+
+
 io_write: // TODO
-no_write:
     add  s5, s5, 6
     jr   ra
