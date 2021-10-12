@@ -1,4 +1,4 @@
-#include <regdef.h>
+#include "cpu_address.h"
 
 .globl tay_8
 .globl tay_16
@@ -316,1674 +316,234 @@ tcs: // TCS
     j    cpu_execute
 
 
-lda_8: // LDA #nn (8-bit)
-    // Load an immediate value to the accumulator and set flags (8-bit)
-    addi a0, s7, 1
-    jal  memory_read8
-    move a0, v0
-    sb   a0, accumulator + 1
-    addi s7, s7, 2
-    j    set_nz8
-
-
-lda_16: // LDA #nnnn (16-bit)
-    // Load an immediate value to the accumulator and set flags (16-bit)
-    addi a0, s7, 1
-    jal  memory_read16
-    move a0, v0
-    sh   a0, accumulator
-    addi s7, s7, 3
-    j    set_nz16
-
-
-ldadir_8: // LDA nn (8-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
+.macro LDA_8 // LDA op (8-bit)
     // Load a value to the accumulator and set flags (8-bit)
     jal  memory_read8
     move a0, v0
     sb   a0, accumulator + 1
-    addi s7, s7, 2
     j    set_nz8
+.endm
+
+lda_8:    IM8; LDA_8 // LDA #nn      (8-bit)
+ldadir_8: DIR; LDA_8 // LDA nn       (8-bit)
+ldadrx_8: DRX; LDA_8 // LDA nn,X     (8-bit)
+ldadrs_8: DRS; LDA_8 // LDA nn,S     (8-bit)
+ldaabs_8: ABS; LDA_8 // LDA nnnn     (8-bit)
+ldaabx_8: ABX; LDA_8 // LDA nnnn,X   (8-bit)
+ldaaby_8: ABY; LDA_8 // LDA nnnn,Y   (8-bit)
+ldalng_8: LNG; LDA_8 // LDA nnnnnn   (8-bit)
+ldalnx_8: LNX; LDA_8 // LDA nnnnnn,X (8-bit)
+ldaind_8: IND; LDA_8 // LDA (nn)     (8-bit)
+ldaidx_8: IDX; LDA_8 // LDA (nn,X)   (8-bit)
+ldaidy_8: IDY; LDA_8 // LDA (nn),Y   (8-bit)
+ldaisy_8: ISY; LDA_8 // LDA (nn,S),Y (8-bit)
+ldaidl_8: IDL; LDA_8 // LDA [nn]     (8-bit)
+ldaily_8: ILY; LDA_8 // LDA [nn],Y   (8-bit)
 
 
-ldadir_16: // LDA nn (16-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
+.macro LDA_16 // LDA op (16-bit)
     // Load a value to the accumulator and set flags (16-bit)
     jal  memory_read16
     move a0, v0
     sh   a0, accumulator
-    addi s7, s7, 2
     j    set_nz16
-
-
-ldadrx_8: // LDA nn,X (8-bit)
-    // Get the 8-bit immediate value plus register X added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  t0, register_x
-    add  t0, t0, v0
-    andi t0, t0, 0xFF
-    lhu  a0, direct_ofs
-    add  a0, a0, t0
-
-    // Load a value to the accumulator and set flags (8-bit)
-    jal  memory_read8
-    move a0, v0
-    sb   a0, accumulator + 1
-    addi s7, s7, 2
-    j    set_nz8
-
-
-ldadrx_16: // LDA nn,X (16-bit)
-    // Get the 8-bit immediate value plus register X added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  t0, register_x
-    add  t0, t0, v0
-    andi t0, t0, 0xFF
-    lhu  a0, direct_ofs
-    add  a0, a0, t0
-
-    // Load a value to the accumulator and set flags (16-bit)
-    jal  memory_read16
-    move a0, v0
-    sh   a0, accumulator
-    addi s7, s7, 2
-    j    set_nz16
-
-
-ldadrs_8: // LDA nn,S (8-bit)
-    // Get the 8-bit immediate value added to the stack pointer as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, stack_ptr
-    add  a0, a0, v0
-
-    // Load a value to the accumulator and set flags (8-bit)
-    jal  memory_read8
-    move a0, v0
-    sb   a0, accumulator + 1
-    addi s7, s7, 2
-    j    set_nz8
-
-
-ldadrs_16: // LDA nn,S (16-bit)
-    // Get the 8-bit immediate value added to the stack pointer as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, stack_ptr
-    add  a0, a0, v0
-
-    // Load a value to the accumulator and set flags (16-bit)
-    jal  memory_read16
-    move a0, v0
-    sh   a0, accumulator
-    addi s7, s7, 2
-    j    set_nz16
-
-
-ldaabs_8: // LDA nnnn (8-bit)
-    // Get the 16-bit immediate value added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, v0
-
-    // Load a value to the accumulator and set flags (8-bit)
-    jal  memory_read8
-    move a0, v0
-    sb   a0, accumulator + 1
-    addi s7, s7, 3
-    j    set_nz8
-
-
-ldaabs_16: // LDA nnnn (16-bit)
-    // Get the 16-bit immediate value added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, v0
-
-    // Load a value to the accumulator and set flags (16-bit)
-    jal  memory_read16
-    move a0, v0
-    sh   a0, accumulator
-    addi s7, s7, 3
-    j    set_nz16
-
-
-ldaabx_8: // LDA nnnn,X (8-bit)
-    // Get the 16-bit immediate value plus register X added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lhu  t0, register_x
-    add  t0, t0, v0
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, t0
-
-    // Load a value to the accumulator and set flags (8-bit)
-    jal  memory_read8
-    move a0, v0
-    sb   a0, accumulator + 1
-    addi s7, s7, 3
-    j    set_nz8
-
-
-ldaabx_16: // LDA nnnn,X (16-bit)
-    // Get the 16-bit immediate value plus register X added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lhu  t0, register_x
-    add  t0, t0, v0
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, t0
-
-    // Load a value to the accumulator and set flags (16-bit)
-    jal  memory_read16
-    move a0, v0
-    sh   a0, accumulator
-    addi s7, s7, 3
-    j    set_nz16
-
-
-ldaaby_8: // LDA nnnn,Y (8-bit)
-    // Get the 16-bit immediate value plus register Y added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lhu  t0, register_y
-    add  t0, t0, v0
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, t0
-
-    // Load a value to the accumulator and set flags (8-bit)
-    jal  memory_read8
-    move a0, v0
-    sb   a0, accumulator + 1
-    addi s7, s7, 3
-    j    set_nz8
-
-
-ldaaby_16: // LDA nnnn,Y (16-bit)
-    // Get the 16-bit immediate value plus register Y added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lhu  t0, register_y
-    add  t0, t0, v0
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, t0
-
-    // Load a value to the accumulator and set flags (16-bit)
-    jal  memory_read16
-    move a0, v0
-    sh   a0, accumulator
-    addi s7, s7, 3
-    j    set_nz16
-
-
-ldalng_8: // LDA nnnnnn (8-bit)
-    // Get the 24-bit immediate value as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    move s0, v0
-    addi a0, s7, 3
-    jal  memory_read8
-    sll  a0, v0, 16
-    add  a0, a0, s0
-
-    // Load a value to the accumulator and set flags (8-bit)
-    jal  memory_read8
-    move a0, v0
-    sb   a0, accumulator + 1
-    addi s7, s7, 4
-    j    set_nz8
-
-
-ldalng_16: // LDA nnnnnn (16-bit)
-    // Get the 24-bit immediate value as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    move s0, v0
-    addi a0, s7, 3
-    jal  memory_read8
-    sll  a0, v0, 16
-    add  a0, a0, s0
-
-    // Load a value to the accumulator and set flags (16-bit)
-    jal  memory_read16
-    move a0, v0
-    sh   a0, accumulator
-    addi s7, s7, 4
-    j    set_nz16
-
-
-ldalnx_8: // LDA nnnnnn,X (8-bit)
-    // Get the 24-bit immediate value plus register X as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lhu  s0, register_x
-    add  s0, s0, v0
-    addi a0, s7, 3
-    jal  memory_read8
-    sll  a0, v0, 16
-    add  a0, a0, s0
-
-    // Load a value to the accumulator and set flags (8-bit)
-    jal  memory_read8
-    move a0, v0
-    sb   a0, accumulator + 1
-    addi s7, s7, 4
-    j    set_nz8
-
-
-ldalnx_16: // LDA nnnnnn,X (16-bit)
-    // Get the 24-bit immediate value plus register X as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lhu  s0, register_x
-    add  s0, s0, v0
-    addi a0, s7, 3
-    jal  memory_read8
-    sll  a0, v0, 16
-    add  a0, a0, s0
-
-    // Load a value to the accumulator and set flags (16-bit)
-    jal  memory_read16
-    move a0, v0
-    sh   a0, accumulator
-    addi s7, s7, 4
-    j    set_nz16
-
-
-ldaind_8: // LDA (nn) (8-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
-    // Read a 16-bit value from memory as an address
-    jal  memory_read16
-    move a0, v0
-
-    // Load a value to the accumulator and set flags (8-bit)
-    jal  memory_read8
-    move a0, v0
-    sb   a0, accumulator + 1
-    addi s7, s7, 2
-    j    set_nz8
-
-
-ldaind_16: // LDA (nn) (16-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
-    // Read a 16-bit value from memory as an address
-    jal  memory_read16
-    move a0, v0
-
-    // Load a value to the accumulator and set flags (16-bit)
-    jal  memory_read16
-    move a0, v0
-    sh   a0, accumulator
-    addi s7, s7, 2
-    j    set_nz16
-
-
-ldaidx_8: // LDA (nn,X) (8-bit)
-    // Get the 8-bit immediate value plus register X added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  t0, register_x
-    add  t0, t0, v0
-    andi t0, t0, 0xFF
-    lhu  a0, direct_ofs
-    add  a0, a0, t0
-
-    // Read a 16-bit value from memory as an address
-    jal  memory_read16
-    move a0, v0
-
-    // Load a value to the accumulator and set flags (8-bit)
-    jal  memory_read8
-    move a0, v0
-    sb   a0, accumulator + 1
-    addi s7, s7, 2
-    j    set_nz8
-
-
-ldaidx_16: // LDA (nn,X) (16-bit)
-    // Get the 8-bit immediate value plus register X added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  t0, register_x
-    add  t0, t0, v0
-    andi t0, t0, 0xFF
-    lhu  a0, direct_ofs
-    add  a0, a0, t0
-
-    // Read a 16-bit value from memory as an address
-    jal  memory_read16
-    move a0, v0
-
-    // Load a value to the accumulator and set flags (16-bit)
-    jal  memory_read16
-    move a0, v0
-    sh   a0, accumulator
-    addi s7, s7, 2
-    j    set_nz16
-
-
-ldaidy_8: // LDA (nn),Y (8-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
-    // Read a 16-bit value from memory plus register Y as an address
-    jal  memory_read16
-    lhu  a0, register_y
-    add  a0, a0, v0
-
-    // Load a value to the accumulator and set flags (8-bit)
-    jal  memory_read8
-    move a0, v0
-    sb   a0, accumulator + 1
-    addi s7, s7, 2
-    j    set_nz8
-
-
-ldaidy_16: // LDA (nn),Y (16-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
-    // Read a 16-bit value from memory plus register Y as an address
-    jal  memory_read16
-    lhu  a0, register_y
-    add  a0, a0, v0
-
-    // Load a value to the accumulator and set flags (16-bit)
-    jal  memory_read16
-    move a0, v0
-    sh   a0, accumulator
-    addi s7, s7, 2
-    j    set_nz16
-
-
-ldaisy_8: // LDA (nn,S),Y (8-bit)
-    // Get the 8-bit immediate value added to the stack pointer as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, stack_ptr
-    add  a0, a0, v0
-
-    // Read a 16-bit value from memory plus register Y as an address
-    jal  memory_read16
-    lhu  a0, register_y
-    add  a0, a0, v0
-
-    // Load a value to the accumulator and set flags (8-bit)
-    jal  memory_read8
-    move a0, v0
-    sb   a0, accumulator + 1
-    addi s7, s7, 2
-    j    set_nz8
-
-
-ldaisy_16: // LDA (nn,S),Y (16-bit)
-    // Get the 8-bit immediate value added to the stack pointer as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, stack_ptr
-    add  a0, a0, v0
-
-    // Read a 16-bit value from memory plus register Y as an address
-    jal  memory_read16
-    lhu  a0, register_y
-    add  a0, a0, v0
-
-    // Load a value to the accumulator and set flags (16-bit)
-    jal  memory_read16
-    move a0, v0
-    sh   a0, accumulator
-    addi s7, s7, 2
-    j    set_nz16
-
-
-ldaidl_8: // LDA [nn] (8-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
-    // Read a 24-bit value from memory as an address
-    jal  memory_read16
-    move s0, v0
-    addi a0, a0, 2
-    jal  memory_read8
-    sll  a0, v0, 16
-    add  a0, a0, s0
-
-    // Load a value to the accumulator and set flags (8-bit)
-    jal  memory_read8
-    move a0, v0
-    sb   a0, accumulator + 1
-    addi s7, s7, 2
-    j    set_nz8
-
-
-ldaidl_16: // LDA [nn] (16-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
-    // Read a 24-bit value from memory as an address
-    jal  memory_read16
-    move s0, v0
-    addi a0, a0, 2
-    jal  memory_read8
-    sll  a0, v0, 16
-    add  a0, a0, s0
-
-    // Load a value to the accumulator and set flags (16-bit)
-    jal  memory_read16
-    move a0, v0
-    sh   a0, accumulator
-    addi s7, s7, 2
-    j    set_nz16
-
-
-ldaily_8: // LDA [nn],y (8-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
-    // Read a 24-bit value from memory plus register Y as an address
-    jal  memory_read16
-    lhu  s0, register_y
-    add  s0, s0, v0
-    addi a0, a0, 2
-    jal  memory_read8
-    sll  a0, v0, 16
-    add  a0, a0, s0
-
-    // Load a value to the accumulator and set flags (8-bit)
-    jal  memory_read8
-    move a0, v0
-    sb   a0, accumulator + 1
-    addi s7, s7, 2
-    j    set_nz8
-
-
-ldaily_16: // LDA [nn],y (16-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
-    // Read a 24-bit value from memory plus register Y as an address
-    jal  memory_read16
-    lhu  s0, register_y
-    add  s0, s0, v0
-    addi a0, a0, 2
-    jal  memory_read8
-    sll  a0, v0, 16
-    add  a0, a0, s0
-
-    // Load a value to the accumulator and set flags (16-bit)
-    jal  memory_read16
-    move a0, v0
-    sh   a0, accumulator
-    addi s7, s7, 2
-    j    set_nz16
-
-
-ldx_8: // LDX #nn (8-bit)
-    // Load an immediate value to register X and set flags (8-bit)
-    addi a0, s7, 1
-    jal  memory_read8
-    move a0, v0
-    sb   a0, register_x + 1
-    addi s7, s7, 2
-    j    set_nz8
-
-
-ldx_16: // LDX #nnnn (16-bit)
-    // Load an immediate value to register X and set flags (16-bit)
-    addi a0, s7, 1
-    jal  memory_read16
-    move a0, v0
-    sh   a0, register_x
-    addi s7, s7, 3
-    j    set_nz16
-
-
-ldxdir_8: // LDX nn (8-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
+.endm
+
+lda_16:    I16; LDA_16 // LDA #nnnn    (16-bit)
+ldadir_16: DIR; LDA_16 // LDA nn       (16-bit)
+ldadrx_16: DRX; LDA_16 // LDA nn,X     (16-bit)
+ldadrs_16: DRS; LDA_16 // LDA nn,S     (16-bit)
+ldaabs_16: ABS; LDA_16 // LDA nnnn     (16-bit)
+ldaabx_16: ABX; LDA_16 // LDA nnnn,X   (16-bit)
+ldaaby_16: ABY; LDA_16 // LDA nnnn,Y   (16-bit)
+ldalng_16: LNG; LDA_16 // LDA nnnnnn   (16-bit)
+ldalnx_16: LNX; LDA_16 // LDA nnnnnn,X (16-bit)
+ldaind_16: IND; LDA_16 // LDA (nn)     (16-bit)
+ldaidx_16: IDX; LDA_16 // LDA (nn,X)   (16-bit)
+ldaidy_16: IDY; LDA_16 // LDA (nn),Y   (16-bit)
+ldaisy_16: ISY; LDA_16 // LDA (nn,S),Y (16-bit)
+ldaidl_16: IDL; LDA_16 // LDA [nn]     (16-bit)
+ldaily_16: ILY; LDA_16 // LDA [nn],Y   (16-bit)
+
+
+.macro LDX_8 // LDX op (8-bit)
     // Load a value to register X and set flags (8-bit)
     jal  memory_read8
     move a0, v0
     sb   a0, register_x + 1
-    addi s7, s7, 2
     j    set_nz8
+.endm
+
+ldx_8:    IM8; LDX_8 // LDX #nn    (8-bit)
+ldxdir_8: DIR; LDX_8 // LDX nn     (8-bit)
+ldxdry_8: DRY; LDX_8 // LDX nn,Y   (8-bit)
+ldxabs_8: ABS; LDX_8 // LDX nnnn   (8-bit)
+ldxaby_8: ABY; LDX_8 // LDX nnnn,Y (8-bit)
 
 
-ldxdir_16: // LDX nn (16-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
+.macro LDX_16 // LDX op (16-bit)
     // Load a value to register X and set flags (16-bit)
     jal  memory_read16
     move a0, v0
     sh   a0, register_x
-    addi s7, s7, 2
     j    set_nz16
+.endm
+
+ldx_16:    I16; LDX_16 // LDX #nnnn  (16-bit)
+ldxdir_16: DIR; LDX_16 // LDX nn     (16-bit)
+ldxdry_16: DRY; LDX_16 // LDX nn,Y   (16-bit)
+ldxabs_16: ABS; LDX_16 // LDX nnnn   (16-bit)
+ldxaby_16: ABY; LDX_16 // LDX nnnn,Y (16-bit)
 
 
-ldxdry_8: // LDX nn,Y (8-bit)
-    // Get the 8-bit immediate value plus register Y added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  t0, register_y
-    add  t0, t0, v0
-    andi t0, t0, 0xFF
-    lhu  a0, direct_ofs
-    add  a0, a0, t0
-
-    // Load a value to register X and set flags (8-bit)
-    jal  memory_read8
-    move a0, v0
-    sb   a0, register_x + 1
-    addi s7, s7, 2
-    j    set_nz8
-
-
-ldxdry_16: // LDX nn,Y (16-bit)
-    // Get the 8-bit immediate value plus register Y added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  t0, register_y
-    add  t0, t0, v0
-    andi t0, t0, 0xFF
-    lhu  a0, direct_ofs
-    add  a0, a0, t0
-
-    // Load a value to register X and set flags (16-bit)
-    jal  memory_read16
-    move a0, v0
-    sh   a0, register_x
-    addi s7, s7, 2
-    j    set_nz16
-
-
-ldxabs_8: // LDX nnnn (8-bit)
-    // Get the 16-bit immediate value added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, v0
-
-    // Load a value to register X and set flags (8-bit)
-    jal  memory_read8
-    move a0, v0
-    sb   a0, register_x + 1
-    addi s7, s7, 3
-    j    set_nz8
-
-
-ldxabs_16: // LDX nnnn (16-bit)
-    // Get the 16-bit immediate value added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, v0
-
-    // Load a value to register X and set flags (16-bit)
-    jal  memory_read16
-    move a0, v0
-    sh   a0, register_x
-    addi s7, s7, 3
-    j    set_nz16
-
-
-ldxaby_8: // LDX nnnn,Y (8-bit)
-    // Get the 16-bit immediate value plus register Y added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lhu  t0, register_y
-    add  t0, t0, v0
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, t0
-
-    // Load a value to register X and set flags (8-bit)
-    jal  memory_read8
-    move a0, v0
-    sb   a0, register_x + 1
-    addi s7, s7, 3
-    j    set_nz8
-
-
-ldxaby_16: // LDX nnnn,Y (16-bit)
-    // Get the 16-bit immediate value plus register Y added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lhu  t0, register_y
-    add  t0, t0, v0
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, t0
-
-    // Load a value to register X and set flags (16-bit)
-    jal  memory_read16
-    move a0, v0
-    sh   a0, register_x
-    addi s7, s7, 3
-    j    set_nz16
-
-
-ldy_8: // LDY #nn (8-bit)
-    // Load an immediate value to register Y and set flags (8-bit)
-    addi a0, s7, 1
-    jal  memory_read8
-    move a0, v0
-    sb   a0, register_y + 1
-    addi s7, s7, 2
-    j    set_nz8
-
-
-ldy_16: // LDY #nnnn (16-bit)
-    // Load an immediate value to register Y and set flags (16-bit)
-    addi a0, s7, 1
-    jal  memory_read16
-    move a0, v0
-    sh   a0, register_y
-    addi s7, s7, 3
-    j    set_nz16
-
-
-ldydir_8: // LDY nn (8-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
+.macro LDY_8 // LDY op (8-bit)
     // Load a value to register Y and set flags (8-bit)
     jal  memory_read8
     move a0, v0
     sb   a0, register_y + 1
-    addi s7, s7, 2
     j    set_nz8
+.endm
+
+ldy_8:    IM8; LDY_8 // LDY #nn    (8-bit)
+ldydir_8: DIR; LDY_8 // LDY nn     (8-bit)
+ldydrx_8: DRX; LDY_8 // LDY nn,X   (8-bit)
+ldyabs_8: ABS; LDY_8 // LDY nnnn   (8-bit)
+ldyabx_8: ABX; LDY_8 // LDY nnnn,X (8-bit)
 
 
-ldydir_16: // LDY nn (16-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
+.macro LDY_16 // LDY op (16-bit)
     // Load a value to register Y and set flags (16-bit)
     jal  memory_read16
     move a0, v0
     sh   a0, register_y
-    addi s7, s7, 2
     j    set_nz16
+.endm
+
+ldy_16:    I16; LDY_16 // LDY #nnnn  (16-bit)
+ldydir_16: DIR; LDY_16 // LDY nn     (16-bit)
+ldydrx_16: DRX; LDY_16 // LDY nn,X   (16-bit)
+ldyabs_16: ABS; LDY_16 // LDY nnnn   (16-bit)
+ldyabx_16: ABX; LDY_16 // LDY nnnn,X (16-bit)
 
 
-ldydrx_8: // LDY nn,X (8-bit)
-    // Get the 8-bit immediate value plus register X added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  t0, register_x
-    add  t0, t0, v0
-    andi t0, t0, 0xFF
-    lhu  a0, direct_ofs
-    add  a0, a0, t0
-
-    // Load a value to register Y and set flags (8-bit)
-    jal  memory_read8
-    move a0, v0
-    sb   a0, register_y + 1
-    addi s7, s7, 2
-    j    set_nz8
-
-
-ldydrx_16: // LDY nn,X (16-bit)
-    // Get the 8-bit immediate value plus register X added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  t0, register_x
-    add  t0, t0, v0
-    andi t0, t0, 0xFF
-    lhu  a0, direct_ofs
-    add  a0, a0, t0
-
-    // Load a value to register Y and set flags (16-bit)
-    jal  memory_read16
-    move a0, v0
-    sh   a0, register_y
-    addi s7, s7, 2
-    j    set_nz16
-
-
-ldyabs_8: // LDY nnnn (8-bit)
-    // Get the 16-bit immediate value added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, v0
-
-    // Load a value to register Y and set flags (8-bit)
-    jal  memory_read8
-    move a0, v0
-    sb   a0, register_y + 1
-    addi s7, s7, 3
-    j    set_nz8
-
-
-ldyabs_16: // LDY nnnn (16-bit)
-    // Get the 16-bit immediate value added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, v0
-
-    // Load a value to register Y and set flags (16-bit)
-    jal  memory_read16
-    move a0, v0
-    sh   a0, register_y
-    addi s7, s7, 3
-    j    set_nz16
-
-
-ldyabx_8: // LDY nnnn,X (8-bit)
-    // Get the 16-bit immediate value plus register X added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lhu  t0, register_x
-    add  t0, t0, v0
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, t0
-
-    // Load a value to register Y and set flags (8-bit)
-    jal  memory_read8
-    move a0, v0
-    sb   a0, register_y + 1
-    addi s7, s7, 3
-    j    set_nz8
-
-
-ldyabx_16: // LDY nnnn,X (16-bit)
-    // Get the 16-bit immediate value plus register X added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lhu  t0, register_x
-    add  t0, t0, v0
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, t0
-
-    // Load a value to register Y and set flags (16-bit)
-    jal  memory_read16
-    move a0, v0
-    sh   a0, register_y
-    addi s7, s7, 3
-    j    set_nz16
-
-
-stzdir_8: // STZ nn (8-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
+.macro STZ_8 // STZ op (8-bit)
     // Store zero to memory (8-bit)
     li   a1, 0
     jal  memory_write8
-    addi s7, s7, 2
     j    cpu_execute
+.endm
+
+stzdir_8: DIR; STZ_8 // STZ nn     (8-bit)
+stzdrx_8: DRX; STZ_8 // STZ nn,X   (8-bit)
+stzabs_8: ABS; STZ_8 // STZ nnnn   (8-bit)
+stzabx_8: ABX; STZ_8 // STZ nnnn,X (8-bit)
 
 
-stzdir_16: // STZ nn (16-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
+.macro STZ_16 // STZ op (16-bit)
     // Store zero to memory (16-bit)
     li   a1, 0
     jal  memory_write16
-    addi s7, s7, 2
     j    cpu_execute
+.endm
+
+stzdir_16: DIR; STZ_16 // STZ nn     (16-bit)
+stzdrx_16: DRX; STZ_16 // STZ nn,X   (16-bit)
+stzabs_16: ABS; STZ_16 // STZ nnnn   (16-bit)
+stzabx_16: ABX; STZ_16 // STZ nnnn,X (16-bit)
 
 
-stzdrx_8: // STZ nn,X (8-bit)
-    // Get the 8-bit immediate value plus register X added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  t0, register_x
-    add  t0, t0, v0
-    andi t0, t0, 0xFF
-    lhu  a0, direct_ofs
-    add  a0, a0, t0
-
-    // Store zero to memory (8-bit)
-    li   a1, 0
-    jal  memory_write8
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-stzdrx_16: // STZ nn,X (16-bit)
-    // Get the 8-bit immediate value plus register X added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  t0, register_x
-    add  t0, t0, v0
-    andi t0, t0, 0xFF
-    lhu  a0, direct_ofs
-    add  a0, a0, t0
-
-    // Store zero to memory (16-bit)
-    li   a1, 0
-    jal  memory_write16
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-stzabs_8: // STZ nnnn (8-bit)
-    // Get the 16-bit immediate value added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, v0
-
-    // Store zero to memory (8-bit)
-    li   a1, 0
-    jal  memory_write8
-    addi s7, s7, 3
-    j    cpu_execute
-
-
-stzabs_16: // STZ nnnn (16-bit)
-    // Get the 16-bit immediate value added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, v0
-
-    // Store zero to memory (16-bit)
-    li   a1, 0
-    jal  memory_write16
-    addi s7, s7, 3
-    j    cpu_execute
-
-
-stzabx_8: // STZ nnnn,X (8-bit)
-    // Get the 16-bit immediate value plus register X added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lhu  t0, register_x
-    add  t0, t0, v0
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, t0
-
-    // Store zero to memory (8-bit)
-    li   a1, 0
-    jal  memory_write8
-    addi s7, s7, 3
-    j    cpu_execute
-
-
-stzabx_16: // STZ nnnn,X (16-bit)
-    // Get the 16-bit immediate value plus register X added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lhu  t0, register_x
-    add  t0, t0, v0
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, t0
-
-    // Store zero to memory (16-bit)
-    li   a1, 0
-    jal  memory_write16
-    addi s7, s7, 3
-    j    cpu_execute
-
-
-stadir_8: // STA nn (8-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
+.macro STA_8 // STA op (8-bit)
     // Store the accumulator to memory (8-bit)
     lbu  a1, accumulator + 1
     jal  memory_write8
-    addi s7, s7, 2
     j    cpu_execute
+.endm
+
+stadir_8: DIR; STA_8 // STA nn       (8-bit)
+stadrx_8: DRX; STA_8 // STA nn,X     (8-bit)
+stadrs_8: DRS; STA_8 // STA nn,S     (8-bit)
+staabs_8: ABS; STA_8 // STA nnnn     (8-bit)
+staabx_8: ABX; STA_8 // STA nnnn,X   (8-bit)
+staaby_8: ABY; STA_8 // STA nnnn,Y   (8-bit)
+stalng_8: LNG; STA_8 // STA nnnnnn   (8-bit)
+stalnx_8: LNX; STA_8 // STA nnnnnn,X (8-bit)
+staind_8: IND; STA_8 // STA (nn)     (8-bit)
+staidx_8: IDX; STA_8 // STA (nn,X)   (8-bit)
+staidy_8: IDY; STA_8 // STA (nn),Y   (8-bit)
+staisy_8: ISY; STA_8 // STA (nn,S),Y (8-bit)
+staidl_8: IDL; STA_8 // STA [nn]     (8-bit)
+staily_8: ILY; STA_8 // STA [nn],Y   (8-bit)
 
 
-stadir_16: // STA nn (16-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
+.macro STA_16 // STA op (16-bit)
     // Store the accumulator to memory (16-bit)
     lhu  a1, accumulator
     jal  memory_write16
-    addi s7, s7, 2
     j    cpu_execute
-
-
-stadrx_8: // STA nn,X (8-bit)
-    // Get the 8-bit immediate value plus register X added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  t0, register_x
-    add  t0, t0, v0
-    andi t0, t0, 0xFF
-    lhu  a0, direct_ofs
-    add  a0, a0, t0
-
-    // Store the accumulator to memory (8-bit)
-    lbu  a1, accumulator + 1
-    jal  memory_write8
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-stadrx_16: // STA nn,X (16-bit)
-    // Get the 8-bit immediate value plus register X added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  t0, register_x
-    add  t0, t0, v0
-    andi t0, t0, 0xFF
-    lhu  a0, direct_ofs
-    add  a0, a0, t0
-
-    // Store the accumulator to memory (16-bit)
-    lhu  a1, accumulator
-    jal  memory_write16
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-stadrs_8: // STA nn,S (8-bit)
-    // Get the 8-bit immediate value added to the stack pointer as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, stack_ptr
-    add  a0, a0, v0
-
-    // Store the accumulator to memory (8-bit)
-    lbu  a1, accumulator + 1
-    jal  memory_write8
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-stadrs_16: // STA nn,S (16-bit)
-    // Get the 8-bit immediate value added to the stack pointer as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, stack_ptr
-    add  a0, a0, v0
-
-    // Store the accumulator to memory (16-bit)
-    lhu  a1, accumulator
-    jal  memory_write16
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-staabs_8: // STA nnnn (8-bit)
-    // Get the 16-bit immediate value added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, v0
-
-    // Store the accumulator to memory (8-bit)
-    lbu  a1, accumulator + 1
-    jal  memory_write8
-    addi s7, s7, 3
-    j    cpu_execute
-
-
-staabs_16: // STA nnnn (16-bit)
-    // Get the 16-bit immediate value added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, v0
-
-    // Store the accumulator to memory (16-bit)
-    lhu  a1, accumulator
-    jal  memory_write16
-    addi s7, s7, 3
-    j    cpu_execute
-
-
-staabx_8: // STA nnnn,X (8-bit)
-    // Get the 16-bit immediate value plus register X added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lhu  t0, register_x
-    add  t0, t0, v0
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, t0
-
-    // Store the accumulator to memory (8-bit)
-    lbu  a1, accumulator + 1
-    jal  memory_write8
-    addi s7, s7, 3
-    j    cpu_execute
-
-
-staabx_16: // STA nnnn,X (16-bit)
-    // Get the 16-bit immediate value plus register X added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lhu  t0, register_x
-    add  t0, t0, v0
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, t0
-
-    // Store the accumulator to memory (16-bit)
-    lhu  a1, accumulator
-    jal  memory_write16
-    addi s7, s7, 3
-    j    cpu_execute
-
-
-staaby_8: // STA nnnn,Y (8-bit)
-    // Get the 16-bit immediate value plus register Y added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lhu  t0, register_y
-    add  t0, t0, v0
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, t0
-
-    // Store the accumulator to memory (8-bit)
-    lbu  a1, accumulator + 1
-    jal  memory_write8
-    addi s7, s7, 3
-    j    cpu_execute
-
-
-staaby_16: // STA nnnn,Y (16-bit)
-    // Get the 16-bit immediate value plus register Y added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lhu  t0, register_y
-    add  t0, t0, v0
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, t0
-
-    // Store the accumulator to memory (16-bit)
-    lhu  a1, accumulator
-    jal  memory_write16
-    addi s7, s7, 3
-    j    cpu_execute
-
-
-stalng_8: // STA nnnnnn (8-bit)
-    // Get the 24-bit immediate value as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    move s0, v0
-    addi a0, s7, 3
-    jal  memory_read8
-    sll  a0, v0, 16
-    add  a0, a0, s0
-
-    // Store the accumulator to memory (8-bit)
-    lbu  a1, accumulator + 1
-    jal  memory_write8
-    addi s7, s7, 4
-    j    cpu_execute
-
-
-stalng_16: // STA nnnnnn (16-bit)
-    // Get the 24-bit immediate value as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    move s0, v0
-    addi a0, s7, 3
-    jal  memory_read8
-    sll  a0, v0, 16
-    add  a0, a0, s0
-
-    // Store the accumulator to memory (16-bit)
-    lhu  a1, accumulator
-    jal  memory_write16
-    addi s7, s7, 4
-    j    cpu_execute
-
-
-stalnx_8: // STA nnnnnn,X (8-bit)
-    // Get the 24-bit immediate value plus register X as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lhu  s0, register_x
-    add  s0, s0, v0
-    addi a0, s7, 3
-    jal  memory_read8
-    sll  a0, v0, 16
-    add  a0, a0, s0
-
-    // Store the accumulator to memory (8-bit)
-    lbu  a1, accumulator + 1
-    jal  memory_write8
-    addi s7, s7, 4
-    j    cpu_execute
-
-
-stalnx_16: // STA nnnnnn,X (16-bit)
-    // Get the 24-bit immediate value plus register X as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lhu  s0, register_x
-    add  s0, s0, v0
-    addi a0, s7, 3
-    jal  memory_read8
-    sll  a0, v0, 16
-    add  a0, a0, s0
-
-    // Store the accumulator to memory (16-bit)
-    lhu  a1, accumulator
-    jal  memory_write16
-    addi s7, s7, 4
-    j    cpu_execute
-
-
-staind_8: // STA (nn) (8-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
-    // Read a 16-bit value from memory as an address
-    jal  memory_read16
-    move a0, v0
-
-    // Store the accumulator to memory (8-bit)
-    lbu  a1, accumulator + 1
-    jal  memory_write8
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-staind_16: // STA (nn) (16-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
-    // Read a 16-bit value from memory as an address
-    jal  memory_read16
-    move a0, v0
-
-    // Store the accumulator to memory (16-bit)
-    lhu  a1, accumulator
-    jal  memory_write16
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-staidx_8: // STA (nn,X) (8-bit)
-    // Get the 8-bit immediate value plus register X added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  t0, register_x
-    add  t0, t0, v0
-    andi t0, t0, 0xFF
-    lhu  a0, direct_ofs
-    add  a0, a0, t0
-
-    // Read a 16-bit value from memory as an address
-    jal  memory_read16
-    move a0, v0
-
-    // Store the accumulator to memory (8-bit)
-    lbu  a1, accumulator + 1
-    jal  memory_write8
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-staidx_16: // STA (nn,X) (16-bit)
-    // Get the 8-bit immediate value plus register X added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  t0, register_x
-    add  t0, t0, v0
-    andi t0, t0, 0xFF
-    lhu  a0, direct_ofs
-    add  a0, a0, t0
-
-    // Read a 16-bit value from memory as an address
-    jal  memory_read16
-    move a0, v0
-
-    // Store the accumulator to memory (16-bit)
-    lhu  a1, accumulator
-    jal  memory_write16
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-staidy_8: // STA (nn),Y (8-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
-    // Read a 16-bit value from memory plus register Y as an address
-    jal  memory_read16
-    lhu  a0, register_y
-    add  a0, a0, v0
-
-    // Store the accumulator to memory (8-bit)
-    lbu  a1, accumulator + 1
-    jal  memory_write8
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-staidy_16: // STA (nn),Y (16-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
-    // Read a 16-bit value from memory plus register Y as an address
-    jal  memory_read16
-    lhu  a0, register_y
-    add  a0, a0, v0
-
-    // Store the accumulator to memory (16-bit)
-    lhu  a1, accumulator
-    jal  memory_write16
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-staisy_8: // STA (nn,S),Y (8-bit)
-    // Get the 8-bit immediate value added to the stack pointer as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, stack_ptr
-    add  a0, a0, v0
-
-    // Read a 16-bit value from memory plus register Y as an address
-    jal  memory_read16
-    lhu  a0, register_y
-    add  a0, a0, v0
-
-    // Store the accumulator to memory (8-bit)
-    lbu  a1, accumulator + 1
-    jal  memory_write8
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-staisy_16: // STA (nn,S),Y (16-bit)
-    // Get the 8-bit immediate value added to the stack pointer as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, stack_ptr
-    add  a0, a0, v0
-
-    // Read a 16-bit value from memory plus register Y as an address
-    jal  memory_read16
-    lhu  a0, register_y
-    add  a0, a0, v0
-
-    // Store the accumulator to memory (16-bit)
-    lhu  a1, accumulator
-    jal  memory_write16
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-staidl_8: // STA [nn] (8-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
-    // Read a 24-bit value from memory as an address
-    jal  memory_read16
-    move s0, v0
-    addi a0, a0, 2
-    jal  memory_read8
-    sll  a0, v0, 16
-    add  a0, a0, s0
-
-    // Store the accumulator to memory (8-bit)
-    lbu  a1, accumulator + 1
-    jal  memory_write8
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-staidl_16: // STA [nn] (16-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
-    // Read a 24-bit value from memory as an address
-    jal  memory_read16
-    move s0, v0
-    addi a0, a0, 2
-    jal  memory_read8
-    sll  a0, v0, 16
-    add  a0, a0, s0
-
-    // Store the accumulator to memory (16-bit)
-    lhu  a1, accumulator
-    jal  memory_write16
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-staily_8: // STA [nn],y (8-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
-    // Read a 24-bit value from memory plus register Y as an address
-    jal  memory_read16
-    lhu  s0, register_y
-    add  s0, s0, v0
-    addi a0, a0, 2
-    jal  memory_read8
-    sll  a0, v0, 16
-    add  a0, a0, s0
-
-    // Store the accumulator to memory (8-bit)
-    lbu  a1, accumulator + 1
-    jal  memory_write8
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-staily_16: // STA [nn],y (16-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
-    // Read a 24-bit value from memory plus register Y as an address
-    jal  memory_read16
-    lhu  s0, register_y
-    add  s0, s0, v0
-    addi a0, a0, 2
-    jal  memory_read8
-    sll  a0, v0, 16
-    add  a0, a0, s0
-
-    // Store the accumulator to memory (16-bit)
-    lhu  a1, accumulator
-    jal  memory_write16
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-stxdir_8: // STX nn (8-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
+.endm
+
+stadir_16: DIR; STA_16 // STA nn       (16-bit)
+stadrx_16: DRX; STA_16 // STA nn,X     (16-bit)
+stadrs_16: DRS; STA_16 // STA nn,S     (16-bit)
+staabs_16: ABS; STA_16 // STA nnnn     (16-bit)
+staabx_16: ABX; STA_16 // STA nnnn,X   (16-bit)
+staaby_16: ABY; STA_16 // STA nnnn,Y   (16-bit)
+stalng_16: LNG; STA_16 // STA nnnnnn   (16-bit)
+stalnx_16: LNX; STA_16 // STA nnnnnn,X (16-bit)
+staind_16: IND; STA_16 // STA (nn)     (16-bit)
+staidx_16: IDX; STA_16 // STA (nn,X)   (16-bit)
+staidy_16: IDY; STA_16 // STA (nn),Y   (16-bit)
+staisy_16: ISY; STA_16 // STA (nn,S),Y (16-bit)
+staidl_16: IDL; STA_16 // STA [nn]     (16-bit)
+staily_16: ILY; STA_16 // STA [nn],Y   (16-bit)
+
+
+.macro STX_8 // STX op (8-bit)
     // Store register X to memory (8-bit)
     lbu  a1, register_x + 1
     jal  memory_write8
-    addi s7, s7, 2
     j    cpu_execute
+.endm
+
+stxdir_8: DIR; STX_8 // STX nn   (8-bit)
+stxdry_8: DRY; STX_8 // STX nn,Y (8-bit)
+stxabs_8: ABS; STX_8 // STX nnnn (8-bit)
 
 
-stxdir_16: // STX nn (16-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
+.macro STX_16 // STX op (16-bit)
     // Store register X to memory (16-bit)
     lhu  a1, register_x
     jal  memory_write16
-    addi s7, s7, 2
     j    cpu_execute
+.endm
+
+stxdir_16: DIR; STX_16 // STX nn   (16-bit)
+stxdry_16: DRY; STX_16 // STX nn,Y (16-bit)
+stxabs_16: ABS; STX_16 // STX nnnn (16-bit)
 
 
-stxdry_8: // STX nn,Y (8-bit)
-    // Get the 8-bit immediate value plus register Y added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  t0, register_y
-    add  t0, t0, v0
-    andi t0, t0, 0xFF
-    lhu  a0, direct_ofs
-    add  a0, a0, t0
-
-    // Store register X to memory (8-bit)
-    lbu  a1, register_x + 1
-    jal  memory_write8
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-stxdry_16: // STX nn,Y (16-bit)
-    // Get the 8-bit immediate value plus register Y added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  t0, register_y
-    add  t0, t0, v0
-    andi t0, t0, 0xFF
-    lhu  a0, direct_ofs
-    add  a0, a0, t0
-
-    // Store register X to memory (16-bit)
-    lhu  a1, register_x
-    jal  memory_write16
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-stxabs_8: // STX nnnn (8-bit)
-    // Get the 16-bit immediate value added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, v0
-
-    // Store register X to memory (8-bit)
-    lbu  a1, register_x + 1
-    jal  memory_write8
-    addi s7, s7, 3
-    j    cpu_execute
-
-
-stxabs_16: // STX nnnn (16-bit)
-    // Get the 16-bit immediate value added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, v0
-
-    // Store register X to memory (16-bit)
-    lhu  a1, register_x
-    jal  memory_write16
-    addi s7, s7, 3
-    j    cpu_execute
-
-
-stydir_8: // STY nn (8-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
+.macro STY_8 // STY op (8-bit)
     // Store register Y to memory (8-bit)
     lbu  a1, register_y + 1
     jal  memory_write8
-    addi s7, s7, 2
     j    cpu_execute
+.endm
+
+stydir_8: DIR; STY_8 // STY nn   (8-bit)
+stydrx_8: DRX; STY_8 // STY nn,X (8-bit)
+styabs_8: ABS; STY_8 // STY nnnn (8-bit)
 
 
-stydir_16: // STY nn (16-bit)
-    // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
-
+.macro STY_16 // STY op (16-bit)
     // Store register Y to memory (16-bit)
     lhu  a1, register_y
     jal  memory_write16
-    addi s7, s7, 2
     j    cpu_execute
+.endm
 
-
-stydrx_8: // STY nn,X (8-bit)
-    // Get the 8-bit immediate value plus register X added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  t0, register_x
-    add  t0, t0, v0
-    andi t0, t0, 0xFF
-    lhu  a0, direct_ofs
-    add  a0, a0, t0
-
-    // Store register Y to memory (8-bit)
-    lbu  a1, register_y + 1
-    jal  memory_write8
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-stydrx_16: // STY nn,X (16-bit)
-    // Get the 8-bit immediate value plus register X added to the direct offset as an address
-    addi a0, s7, 1
-    jal  memory_read8
-    lhu  t0, register_x
-    add  t0, t0, v0
-    andi t0, t0, 0xFF
-    lhu  a0, direct_ofs
-    add  a0, a0, t0
-
-    // Store register Y to memory (16-bit)
-    lhu  a1, register_y
-    jal  memory_write16
-    addi s7, s7, 2
-    j    cpu_execute
-
-
-styabs_8: // STY nnnn (8-bit)
-    // Get the 16-bit immediate value added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, v0
-
-    // Store register Y to memory (8-bit)
-    lbu  a1, register_y + 1
-    jal  memory_write8
-    addi s7, s7, 3
-    j    cpu_execute
-
-
-styabs_16: // STY nnnn (16-bit)
-    // Get the 16-bit immediate value added to the data bank as an address
-    addi a0, s7, 1
-    jal  memory_read16
-    lbu  a0, data_bank
-    sll  a0, a0, 16
-    add  a0, a0, v0
-
-    // Store register Y to memory (16-bit)
-    lhu  a1, register_y
-    jal  memory_write16
-    addi s7, s7, 3
-    j    cpu_execute
+stydir_16: DIR; STY_16 // STY nn   (16-bit)
+stydrx_16: DRX; STY_16 // STY nn,X (16-bit)
+styabs_16: ABS; STY_16 // STY nnnn (16-bit)
 
 
 pha_8: // PHA (8-bit)
