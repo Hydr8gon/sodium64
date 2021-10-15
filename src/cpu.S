@@ -11,6 +11,7 @@
 .globl set_nz8
 .globl set_nz16
 .globl cpu_execute
+.globl trigger_nmi
 .globl update_mode
 
 .data
@@ -123,7 +124,7 @@ cpu_init:
 
     // Set the initial lookup table (s6), cycle count (s5), and status flags (s4)
     la   s6, opcodes_emu
-    li   s5, 0
+    li   s5, 341 * 225 * 4
     li   s4, 0x100
     jr   s0
 
@@ -144,6 +145,9 @@ set_nz16: // a0: value
 
 
 cpu_execute:
+    // Run a PPU event once enough cycles have passed
+    ble  s5, zero, ppu_event
+
     // Fetch the current opcode
     move a0, s7
     jal  memory_read8
@@ -153,6 +157,52 @@ cpu_execute:
     add  t0, t0, s6
     lw   t0, (t0)
     jr   t0
+
+
+trigger_nmi:
+    // Check if currently in emulation mode
+    lhu  a0, stack_ptr
+    andi s0, s4, 0x100
+    beq  s0, zero, nmi_notemu
+
+    // Set the NMI vector for emulation mode
+    li   s0, 0xFFFA // NMI vector (emulation mode)
+    b    nmi_cont
+
+nmi_notemu:
+    // Push the PC bank to the stack and set the NMI vector
+    srl  a1, s7, 16
+    jal  memory_write8
+    addi a0, a0, -1
+    li   s0, 0xFFEA // NMI vector
+
+nmi_cont:
+    // Push the PC-1 to the stack
+    addi a0, a0, -1
+    addi a1, s7, -1
+    jal  memory_write16
+
+    // Push the flags to the stack
+    addi a0, a0, -1
+    move a1, s4
+    jal  memory_write8
+
+    // Update the stack pointer
+    addi a0, a0, -1
+    sh   a0, stack_ptr
+
+    // Change some flags
+    ori  s4, s4, 0x04           // I
+    andi s4, s4, ~0x08 & 0xFFFF // D
+
+    // Jump to the NMI vector
+    move a0, s0
+    jal  memory_read16
+    move s7, v0
+
+    // Unhalt the CPU
+    andi s4, s4, ~0x200 & 0xFFFF
+    j    cpu_execute
 
 
 update_mode:
@@ -171,8 +221,8 @@ update_mode:
     sb   zero, data_bank
     j    cpu_execute
 
-    // Check if both 8-bit flags are set
 not_emu:
+    // Check if both 8-bit flags are set
     li   t1, 0x30
     and  t0, s4, t1
     bne  t0, t1, not_8
@@ -183,8 +233,8 @@ not_emu:
     sb   zero, register_y // Clear high byte
     j    cpu_execute
 
-    // Check if the 8-bit register flag is set
 not_8:
+    // Check if the 8-bit register flag is set
     andi t0, s4, 0x10
     beq  t0, zero, not_r8
 
@@ -194,8 +244,8 @@ not_8:
     sb   zero, register_y // Clear high byte
     j    cpu_execute
 
-    // Check if the 8-bit accumulator flag is set
 not_r8:
+    // Check if the 8-bit accumulator flag is set
     andi t0, s4, 0x20
     beq  t0, zero, not_a8
 
@@ -203,7 +253,7 @@ not_r8:
     la   s6, opcodes_a8
     j    cpu_execute
 
-    // Switch to 16-bit mode
 not_a8:
+    // Switch to 16-bit mode
     la   s6, opcodes_16
     j    cpu_execute

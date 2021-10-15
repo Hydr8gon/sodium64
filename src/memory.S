@@ -9,8 +9,8 @@
 .data
 
 rom: .incbin "rom.sfc"
-wram: .space 0x20000
-memory_map: .space 0x800 * 4
+wram: .byte 0:0x20000
+memory_map: .word 0:0x800
 
 .text
 
@@ -98,9 +98,9 @@ memory_read8: // a0: address - v0: value
     andi t1, a0, 0x1FFF
     add  t0, t0, t1
 
-    // Read a byte from memory and increase the cycle count
+    // Read a byte from memory and decrease the cycle count
     lbu  v0, 0(t0)
-    add  s5, s5, 8
+    addi s5, s5, -8
     jr   ra
 
 
@@ -121,12 +121,12 @@ memory_read16: // a0: address - v0: value
     andi t1, a0, 0x1FFF
     add  t0, t0, t1
 
-    // Read two bytes from memory and increase the cycle count
+    // Read two bytes from memory and decrease the cycle count
     lbu  v0, 0(t0)
     lbu  t0, 1(t0)
     sll  t0, t0, 8
     or   v0, v0, t0
-    add  s5, s5, 8 * 2
+    addi s5, s5, -8 * 2
     jr   ra
 
     // Read from I/O registers twice
@@ -154,7 +154,7 @@ memory_write8: // a0: address, a1: value
     // Ensure the block is writable
     andi t1, t0, 1
     bne  t1, zero, can_write8
-    add  s5, s5, 6
+    addi s5, s5, -6
     jr   ra
 
     // Clear the write bit before using the pointer
@@ -166,9 +166,9 @@ can_write8:
     andi t1, a0, 0x1FFF
     add  t0, t0, t1
 
-    // Write a byte to memory and increase the cycle count
+    // Write a byte to memory and decrease the cycle count
     sb   a1, 0(t0)
-    add  s5, s5, 8
+    addi s5, s5, -8
     jr   ra
 
 
@@ -184,7 +184,7 @@ memory_write16: // a0: address, a1: value
     // Ensure the block is writable
     andi t1, t0, 1
     bne  t1, zero, can_write16
-    add  s5, s5, 6 * 2
+    addi s5, s5, -6 * 2
     jr   ra
 
     // Clear the write bit before using the pointer
@@ -196,11 +196,11 @@ can_write16:
     andi t1, a0, 0x1FFF
     add  t0, t0, t1
 
-    // Write two bytes to memory and increase the cycle count
+    // Write two bytes to memory and decrease the cycle count
     sb   a1, 0(t0)
     srl  a1, a1, 8
     sb   a1, 1(t0)
-    add  s5, s5, 8 * 2
+    addi s5, s5, -8 * 2
     jr   ra
 
     // Write to I/O registers twice
@@ -214,12 +214,24 @@ io_write16:
     jr   s0
 
 
-io_read: // TODO
+io_read: // a0: address - v0: value
+    // Read from an I/O register if it exists and decrease the cycle count
+    // TODO: convert to lookup table
+    addi s5, s5, -6
+    beq  a0, 0x4212, read_hvbjoy
     li   v0, 0
-    add  s5, s5, 6
     jr   ra
 
 
-io_write: // TODO
-    add  s5, s5, 6
+io_write: // a0: address, a1: value
+    // Write to an I/O register if it exists and decrease the cycle count
+    // TODO: convert to lookup table
+    addi s5, s5, -6
+    beq  a0, 0x2116, write_vmaddl
+    beq  a0, 0x2117, write_vmaddh
+    beq  a0, 0x2118, write_vmdatal
+    beq  a0, 0x2119, write_vmdatah
+    beq  a0, 0x2121, write_cgadd
+    beq  a0, 0x2122, write_cgdata
+    beq  a0, 0x4200, write_nmitimen
     jr   ra

@@ -4,8 +4,9 @@
 
 .data
 
-scanline: .space 256 * 2
-framebuffer: .word 0xA0120000
+palette:     .hword 0:256
+scanline:    .hword 0:256
+framebuffer: .word  0xA0120000
 
 .text
 
@@ -17,33 +18,14 @@ draw_frame:
     li   t3, 224 // Maximum Y coordinate
 
 draw_line:
-    // Calculate the blue component
-    add  t4, t0, t7
-    andi t4, t4, 0x1F
-
-    // Calculate the red component
-    add  t5, t1, t7
-    andi t5, t5, 0x1F
-
-    // Form a 16-bit color with the values
-    sll  t4, t4, 10
-    or   t4, t4, t5
-    sll  t4, t4, 1
-
-    // Draw the current pixel
-    la   t5, scanline
-    sll  t6, t0, 1
-    add  t5, t5, t6
-    sh   t4, (t5)
+    // Draw the current pixel using the X coordinate as a palette index
+    sll  t4, t0, 1
+    lhu  t5, palette(t4)
+    sh   t5, scanline(t4)
 
     // Move to the next pixel until the scanline is complete
     addi t0, t0, 1
     bne  t0, t2, draw_line
-
-    // Wait for the DMA to be ready
-dma_wait:
-    mfc0 t4, COP0_DMA_BUSY
-    bne t4, zero, dma_wait
 
     // DMA the scanline to the framebuffer
     la   t4, scanline
@@ -54,6 +36,11 @@ dma_wait:
     mtc0 t4, COP0_DMA_RAMADDR
     li   t4, 0x01FF
     mtc0 t4, COP0_DMA_WRITE
+
+    // Wait for the DMA to complete
+dma_wait:
+    mfc0 t4, COP0_DMA_BUSY
+    bne t4, zero, dma_wait
 
     // Move to the next line until the frame is complete
     li   t0, 0
@@ -71,7 +58,4 @@ dma_wait:
     li   t5, 0xA0120000
 set_buffer:
     sw   t5, framebuffer
-
-    // Update the offset and draw a new frame
-    addi t7, t7, 1
     j    draw_frame

@@ -437,7 +437,7 @@ eoridl_16: IDL; EOR_16 // EOR [nn]     (16-bit)
 eorily_16: ILY; EOR_16 // EOR [nn],Y   (16-bit)
 
 
-.macro ADC_8 // ADC op (8-bit)
+.macro ADC_8 // ADC op (8-bit) TODO: decimal mode
     // Add a value with carry to the accumulator (8-bit)
     jal  memory_read8
     lbu  t0, accumulator + 1
@@ -477,7 +477,7 @@ adcidl_8: IDL; ADC_8 // ADC [nn]     (8-bit)
 adcily_8: ILY; ADC_8 // ADC [nn],Y   (8-bit)
 
 
-.macro ADC_16 // ADC op (16-bit)
+.macro ADC_16 // ADC op (16-bit) TODO: decimal mode
     // Add a value with carry to the accumulator (16-bit)
     jal  memory_read16
     lhu  t0, accumulator
@@ -517,7 +517,7 @@ adcidl_16: IDL; ADC_16 // ADC [nn]     (16-bit)
 adcily_16: ILY; ADC_16 // ADC [nn],Y   (16-bit)
 
 
-.macro SBC_8 // SBC op (8-bit)
+.macro SBC_8 // SBC op (8-bit) TODO: decimal mode
     // Subtract a value with carry from the accumulator (8-bit)
     jal  memory_read8
     lbu  t0, accumulator + 1
@@ -557,7 +557,7 @@ sbcidl_8: IDL; SBC_8 // SBC [nn]     (8-bit)
 sbcily_8: ILY; SBC_8 // SBC [nn],Y   (8-bit)
 
 
-.macro SBC_16 // SBC op (16-bit)
+.macro SBC_16 // SBC op (16-bit) TODO: decimal mode
     // Subtract a value with carry from the accumulator (16-bit)
     jal  memory_read16
     lhu  t0, accumulator

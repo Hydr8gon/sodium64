@@ -48,11 +48,7 @@ main:
     la   a1, rsp_main_data_start
     jal  rsp_upload
 
-    // Start the RSP
-    li   t1, 0x0001     // Clear halt
-    sw   t1, 0x0010(t0) // SP_STATUS_REG
-
-    // Setup a VI interrupt handler using libdragon
+    // Setup the VI interrupt handler using libdragon
     jal  init_interrupts
     la   a0, vi_interrupt
     jal  register_VI_handler
@@ -84,11 +80,9 @@ dma_wait:
 
 
 vi_interrupt:
-    // Only continue if the RSP is finished rendering
-    lw   t0, 0xA4040010 // SP_STATUS_REG
-    li   t1, 0x0001     // Halt
-    and  t0, t0, t1
-    beq  t0, t1, swap_buffers
+    // Only continue if a new frame is ready
+    lbu  t0, frame_ready
+    bne  t0, zero, swap_buffers
     jr   ra
 
     // Swap the framebuffer with the newly-rendered one
@@ -101,7 +95,7 @@ set_buffer:
     sw   t1, 0xA4400004 // VI_ORIGIN_REG
     sw   t1, framebuffer
 
-    // Unhalt the RSP so it can render the next frame
-    li   t0, 0x0001     // Clear halt
-    sw   t0, 0xA4040010 // SP_STATUS_REG
+    // Indicate the frame is not ready so a new one will be drawn
+    li   t0, 0x00
+    sb   t0, frame_ready
     jr   ra

@@ -101,7 +101,7 @@ jml: // JML nnnnnn
     // Set the PC bank to the next 8-bit immediate value
     addi a0, a0, 2
     jal  memory_read8
-    sll  v0, t0, 16
+    sll  t0, v0, 16
     or   s7, s7, t0
     j    cpu_execute
 
@@ -229,7 +229,7 @@ jsl: // JSL nnnnnn
     // Set the PC bank to the next 8-bit immediate value
     addi a0, a0, 2
     jal  memory_read8
-    sll  v0, t0, 16
+    sll  t0, v0, 16
     or   s7, s7, t0
     j    cpu_execute
 
@@ -509,8 +509,11 @@ brk_e: // BRK (emulation mode)
     ori  a1, s4, 0x10 // B
     jal  memory_write8
 
-    // Update the stack pointer and flags
+    // Update the stack pointer
+    addi a0, a0, -1
     sh   a0, stack_ptr
+
+    // Change some flags
     ori  s4, s4, 0x04           // I
     andi s4, s4, ~0x08 & 0xFFFF // D
 
@@ -537,8 +540,11 @@ brk: // BRK
     move a1, s4
     jal  memory_write8
 
-    // Update the stack pointer and flags
+    // Update the stack pointer
+    addi a0, a0, -1
     sh   a0, stack_ptr
+
+    // Change some flags
     ori  s4, s4, 0x04           // I
     andi s4, s4, ~0x08 & 0xFFFF // D
 
@@ -561,8 +567,11 @@ cop_e: // COP (emulation mode)
     ori  a1, s4, 0x10 // B
     jal  memory_write8
 
-    // Update the stack pointer and flags
+    // Update the stack pointer
+    addi a0, a0, -1
     sh   a0, stack_ptr
+
+    // Change some flags
     ori  s4, s4, 0x04           // I
     andi s4, s4, ~0x08 & 0xFFFF // D
 
@@ -589,8 +598,11 @@ cop: // COP
     move a1, s4
     jal  memory_write8
 
-    // Update the stack pointer and flags
+    // Update the stack pointer
+    addi a0, a0, -1
     sh   a0, stack_ptr
+
+    // Change some flags
     ori  s4, s4, 0x04           // I
     andi s4, s4, ~0x08 & 0xFFFF // D
 
@@ -698,11 +710,12 @@ xba: // XBA
     j    set_nz8
 
 
-wai: // WAI - wait for interrupt
-    // TODO: jump to PPU?
-    ori  s4, s4, 0x200
+wai: // WAI
+    // Halt the CPU and skip to the next PPU event
+    ori  s4, s4, 0x200 // Halted
+    li   s5, 0
     addi s7, s7, 1
-    j    stp
+    j    ppu_event
 
 
 wdm: // WDM #nn
