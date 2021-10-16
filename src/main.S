@@ -40,6 +40,14 @@ main:
     li   t1, 0x03BC     // Vertical scale (10-bit fraction, 224/240)
     sw   t1, 0x0034(t0) // VI_Y_SCALE_REG
 
+    // Clear VRAM on boot (hardcoded for easy RSP access)
+    li t0, 0xA0140000
+    li t1, 0xA0150000
+clear_vram:
+    sw   zero, (t0)
+    addi t0, t0, 4
+    bne  t0, t1, clear_vram
+
     // Upload the RSP code and data
     li   a0, 0x1000 // IMEM address
     la   a1, rsp_main_text_start
@@ -47,6 +55,10 @@ main:
     li   a0, 0x0000 // DMEM address
     la   a1, rsp_main_data_start
     jal  rsp_upload
+
+    // Start the RSP
+    li   t0, 0x0001     // Clear halt
+    sw   t0, 0xA4040010 // SP_STATUS_REG
 
     // Setup the VI interrupt handler using libdragon
     jal  init_interrupts

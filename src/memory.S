@@ -227,6 +227,10 @@ io_write: // a0: address, a1: value
     // Write to an I/O register if it exists and decrease the cycle count
     // TODO: convert to lookup table
     addi s5, s5, -6
+    beq  a0, 0x2105, write_bgmode
+    beq  a0, 0x2107, write_bg1sc
+    beq  a0, 0x210B, write_bg12nba
+    beq  a0, 0x210E, write_bg1vofs
     beq  a0, 0x2116, write_vmaddl
     beq  a0, 0x2117, write_vmaddh
     beq  a0, 0x2118, write_vmdatal

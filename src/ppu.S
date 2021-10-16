@@ -4,6 +4,10 @@
 
 .globl ppu_event
 .globl read_hvbjoy
+.globl write_bgmode
+.globl write_bg1sc
+.globl write_bg12nba
+.globl write_bg1vofs
 .globl write_vmaddl
 .globl write_vmaddh
 .globl write_vmdatal
@@ -16,13 +20,19 @@
 
 frame_ready: .byte 0x00
 
-cgram:  .hword 0:0x100
-cgbyte: .byte  0x00
+cgram: .hword 0:0x100
+
+bg_old: .byte 0x00
+cg_lsb: .byte 0x00
 
 vmadd:    .hword 0x0000
 cgadd:    .hword 0x0000
 nmitimen: .byte  0x00
 hvbjoy:   .byte  0x00
+
+// 2 bits per BG: 0 = none, 1 = 4-color, 2 = 16-color, 3 = 256-color
+// TODO: offset-per-tile, hi-res, rotscale
+bg_types: .byte 0x55, 0x1A, 0x0A, 0x0B, 0x07, 0x00, 0x00, 0x00
 
 .text
 
@@ -79,6 +89,82 @@ read_hvbjoy: // v0: value
     jr   ra
 
 
+write_bgmode: // a1: value
+    // Read the DMEM word containing the BG types and clear the old value
+    li   t0, 0xA4000FF4
+    lw   t1, (t0)
+    li   t2, ~0x00FF0000
+    and  t1, t1, t2
+
+    // Get the appropriate value for the new BG mode
+    // TODO: tile size, BG3 priority
+    andi t2, a1, 0x07
+    lbu  t2, bg_types(t2)
+
+    // Update the value and write it back
+    sll  t2, t2, 16
+    or   t1, t1, t2
+    sw   t1, (t0)
+    jr   ra
+
+
+write_bg1sc: // a1: value
+    // Read the DMEM word containing BG1's screen base and clear the old value
+    li   t0, 0xA4000FF4
+    lw   t1, (t0)
+    li   t2, ~0x0000FFFF
+    and  t1, t1, t2
+
+    // Calculate the screen base address for BG1
+    // TODO: screen size
+    andi t2, a1, 0xFC
+    sll  t2, t2, 9
+
+    // Update the value and write it back
+    or   t1, t1, t2
+    sw   t1, (t0)
+    jr   ra
+
+
+write_bg12nba: // a1: value
+    // Read the DMEM word containing BG1's character base and clear the old value
+    li   t0, 0xA4000FF8
+    lw   t1, (t0)
+    li   t2, ~0xFFFF0000
+    and  t1, t1, t2
+
+    // Calculate the character base address for BG1
+    // TODO: BG2
+    andi t2, a1, 0x0F
+    sll  t2, t2, 13
+
+    // Update the value and write it back
+    sll  t2, t2, 16
+    or   t1, t1, t2
+    sw   t1, (t0)
+    jr   ra
+
+
+write_bg1vofs: // a1: value
+    // Read the DMEM word containing BG1VOFS and clear the old value
+    li   t0, 0xA4000FF8
+    lw   t1, (t0)
+    li   t2, ~0x0000FFFF
+    and  t1, t1, t2
+
+    // Form a 10-bit value with the old and new bytes
+    lbu  t2, bg_old
+    or   t1, t1, t2
+    andi t2, a1, 0x3
+    sll  t2, t2, 8
+    or   t1, t1, t2
+
+    // Update the register and the old byte
+    sw   t1, (t0)
+    sb   a1, bg_old
+    jr   ra
+
+
 write_vmaddl: // a1: value
     // Set the low byte of the VRAM address
     sb   a1, vmadd + 1
@@ -129,13 +215,13 @@ write_cgdata: // a1: value
     bne  t1, zero, cg_high
 
     // Save the low byte on first access
-    sb   a1, cgbyte
+    sb   a1, cg_lsb
     jr   ra
 
 cg_high:
     // Form a 16-bit value with the low byte and write it to CGRAM
     andi t0, t0, 0xFF << 1
-    lbu  t1, cgbyte
+    lbu  t1, cg_lsb
     sll  t2, a1, 8
     or   t1, t1, t2
     sh   t1, cgram(t0)
