@@ -450,13 +450,13 @@ eorily_16: ILY; EOR_16 // EOR [nn],Y   (16-bit)
     andi s4, s4, ~0x41 & 0xFFFF
     sgt  t1, a0, 0xFF // C
     or   s4, s4, t1
-    xor  t1, t0, v0   // Bit 15 = 0 for same sign
-    not  t1, t1
-    xor  t2, t0, a0   // Bit 15 = 1 for diff sign
+    xor  t1, a0, t0
+    xor  t2, a0, v0
     and  t1, t1, t2
     srl  t1, t1, 1
     andi t1, t1, 0x40 // V
     or   s4, s4, t1
+    andi a0, a0, 0xFF
     j    set_nz8
 .endm
 
@@ -490,13 +490,13 @@ adcily_8: ILY; ADC_8 // ADC [nn],Y   (8-bit)
     andi s4, s4, ~0x41 & 0xFFFF
     sgt  t1, a0, 0xFFFF // C
     or   s4, s4, t1
-    xor  t1, t0, v0     // Bit 15 = 0 for same sign
-    not  t1, t1
-    xor  t2, t0, a0     // Bit 15 = 1 for diff sign
+    xor  t1, a0, t0
+    xor  t2, a0, v0
     and  t1, t1, t2
     srl  t1, t1, 9
     andi t1, t1, 0x40   // V
     or   s4, s4, t1
+    andi a0, a0, 0xFFFF
     j    set_nz16
 .endm
 
@@ -522,21 +522,22 @@ adcily_16: ILY; ADC_16 // ADC [nn],Y   (16-bit)
     jal  memory_read8
     lbu  t0, accumulator + 1
     sub  a0, t0, v0
+    addi a0, a0, -1
     and  t1, s4, 0x01 // C
-    sub  a0, a0, t1
+    add  a0, a0, t1
     sb   a0, accumulator + 1
 
     // Set flags for subtraction (8-bit)
     andi s4, s4, ~0x41 & 0xFFFF
-    slt  t1, a0, 0    // C
+    sleu t1, a0, t0   // C
     or   s4, s4, t1
-    xor  t1, t0, v0   // Bit 15 = 1 for diff sign
-    xor  t2, t0, a0   // Bit 15 = 0 for same sign
-    not  t2, t2
+    xor  t1, t0, v0
+    xor  t2, t0, a0
     and  t1, t1, t2
     srl  t1, t1, 1
     andi t1, t1, 0x40 // V
     or   s4, s4, t1
+    andi a0, a0, 0xFF
     j    set_nz8
 .endm
 
@@ -562,21 +563,22 @@ sbcily_8: ILY; SBC_8 // SBC [nn],Y   (8-bit)
     jal  memory_read16
     lhu  t0, accumulator
     sub  a0, t0, v0
+    addi a0, a0, -1
     and  t1, s4, 0x01 // C
-    sub  a0, a0, t1
+    add  a0, a0, t1
     sh   a0, accumulator
 
     // Set flags for subtraction (16-bit)
     andi s4, s4, ~0x41 & 0xFFFF
-    slt  t1, a0, 0    // C
+    sleu t1, a0, t0   // C
     or   s4, s4, t1
-    xor  t1, t0, v0   // Bit 15 = 1 for diff sign
-    xor  t2, t0, a0   // Bit 15 = 0 for same sign
-    not  t2, t2
+    xor  t1, t0, v0
+    xor  t2, t0, a0
     and  t1, t1, t2
     srl  t1, t1, 9
     andi t1, t1, 0x40 // V
     or   s4, s4, t1
+    andi a0, a0, 0xFFFF
     j    set_nz16
 .endm
 
@@ -600,11 +602,12 @@ sbcily_16: ILY; SBC_16 // SBC [nn],Y   (16-bit)
 .macro CMP_8 // CMP op (8-bit)
     // Compare a value with the accumulator and set flags (8-bit)
     jal  memory_read8
-    lbu  a0, accumulator + 1
-    sub  a0, a0, v0
+    lbu  t0, accumulator + 1
+    sub  a0, t0, v0
     andi s4, s4, ~0x01 & 0xFFFF
-    slt  t0, a0, 0 // C
+    sleu t0, a0, t0 // C
     or   s4, s4, t0
+    andi a0, a0, 0xFF
     j    set_nz8
 .endm
 
@@ -628,11 +631,12 @@ cmpily_8: ILY; CMP_8 // CMP [nn],Y   (8-bit)
 .macro CMP_16 // CMP op (16-bit)
     // Compare a value with the accumulator and set flags (16-bit)
     jal  memory_read16
-    lhu  a0, accumulator
-    sub  a0, a0, v0
+    lhu  t0, accumulator
+    sub  a0, t0, v0
     andi s4, s4, ~0x01 & 0xFFFF
-    slt  t0, a0, 0 // C
+    sleu t0, a0, t0 // C
     or   s4, s4, t0
+    andi a0, a0, 0xFFFF
     j    set_nz16
 .endm
 
@@ -656,11 +660,12 @@ cmpily_16: ILY; CMP_16 // CMP [nn],Y   (16-bit)
 .macro CPX_8 // CPX op (8-bit)
     // Compare a value with register X and set flags (8-bit)
     jal  memory_read8
-    lbu  a0, register_x + 1
-    sub  a0, a0, v0
+    lbu  t0, register_x + 1
+    sub  a0, t0, v0
     andi s4, s4, ~0x01 & 0xFFFF
-    slt  t0, a0, 0 // C
+    sleu t0, a0, t0 // C
     or   s4, s4, t0
+    andi a0, a0, 0xFF
     j    set_nz8
 .endm
 
@@ -672,11 +677,12 @@ cpxabs_8: ABS; CPX_8 // CPX nnnn (8-bit)
 .macro CPX_16 // CPX op (16-bit)
     // Compare a value with register X and set flags (16-bit)
     jal  memory_read16
-    lhu  a0, register_x
-    sub  a0, a0, v0
+    lhu  t0, register_x
+    sub  a0, t0, v0
     andi s4, s4, ~0x01 & 0xFFFF
-    slt  t0, a0, 0 // C
+    sleu t0, a0, t0 // C
     or   s4, s4, t0
+    andi a0, a0, 0xFFFF
     j    set_nz16
 .endm
 
@@ -688,11 +694,12 @@ cpxabs_16: ABS; CPX_16 // CPX nnnn  (16-bit)
 .macro CPY_8 // CPY op (8-bit)
     // Compare a value with register Y and set flags (8-bit)
     jal  memory_read8
-    lbu  a0, register_y + 1
-    sub  a0, a0, v0
+    lbu  t0, register_y + 1
+    sub  a0, t0, v0
     andi s4, s4, ~0x01 & 0xFFFF
-    slt  t0, a0, 0 // C
+    sleu t0, a0, t0 // C
     or   s4, s4, t0
+    andi a0, a0, 0xFF
     j    set_nz8
 .endm
 
@@ -704,17 +711,50 @@ cpyabs_8: ABS; CPY_8 // CPY nnnn (8-bit)
 .macro CPY_16 // CPY op (16-bit)
     // Compare a value with register Y and set flags (16-bit)
     jal  memory_read16
-    lhu  a0, register_y
-    sub  a0, a0, v0
+    lhu  t0, register_y
+    sub  a0, t0, v0
     andi s4, s4, ~0x01 & 0xFFFF
-    slt  t0, a0, 0 // C
+    sleu t0, a0, t0 // C
     or   s4, s4, t0
+    andi a0, a0, 0xFFFF
     j    set_nz16
 .endm
 
 cpy_16:    I16; CPY_16 // CPY #nnnn (16-bit)
 cpydir_16: DIR; CPY_16 // CPY nn    (16-bit)
 cpyabs_16: ABS; CPY_16 // CPY nnnn  (16-bit)
+
+
+bit_8: // BIT #nn (8-bit)
+    // Test the accumulator bits against an immediate value (8-bit)
+    add  a0, s7, 1
+    jal  memory_read8
+    lbu  t0, accumulator + 1
+    and  t0, t0, v0
+
+    // Set the Z flag for bit test
+    andi s4, s4, ~0x02 & 0xFFFF
+    seq  t0, t0, 0
+    sll  t0, t0, 1 // Z
+    or   s4, s4, t0
+    addi s7, s7, 2
+    j    cpu_execute
+
+
+bit_16: // BIT #nnnn (16-bit)
+    // Test the accumulator bits against an immediate value (16-bit)
+    add  a0, s7, 1
+    jal  memory_read16
+    lhu  t0, accumulator
+    and  t0, t0, v0
+
+    // Set the Z flag for bit test
+    andi s4, s4, ~0x02 & 0xFFFF
+    seq  t0, t0, 0
+    sll  t0, t0, 1 // Z
+    or   s4, s4, t0
+    addi s7, s7, 3
+    j    cpu_execute
 
 
 .macro BIT_8 // BIT op (8-bit)
@@ -733,7 +773,6 @@ cpyabs_16: ABS; CPY_16 // CPY nnnn  (16-bit)
     j    cpu_execute
 .endm
 
-bit_8:    IM8; BIT_8 // BIT #nn    (8-bit)
 bitdir_8: DIR; BIT_8 // BIT nn     (8-bit)
 bitdrx_8: DRX; BIT_8 // BIT nn,X   (8-bit)
 bitabs_8: ABS; BIT_8 // BIT nnnn   (8-bit)
@@ -757,7 +796,6 @@ bitabx_8: ABX; BIT_8 // BIT nnnn,X (8-bit)
     j    cpu_execute
 .endm
 
-bit_16:    I16; BIT_16 // BIT #nnnn  (16-bit)
 bitdir_16: DIR; BIT_16 // BIT nn     (16-bit)
 bitdrx_16: DRX; BIT_16 // BIT nn,X   (16-bit)
 bitabs_16: ABS; BIT_16 // BIT nnnn   (16-bit)
@@ -769,7 +807,7 @@ bitabx_16: ABX; BIT_16 // BIT nnnn,X (16-bit)
     jal  memory_read8
     addi a1, v0, 1
     jal  memory_write8
-    move a0, a1
+    andi a0, a1, 0xFF
     j    set_nz8
 .endm
 
@@ -784,7 +822,7 @@ incabx_8: ABX; INC_8 // INC nnnn,X (8-bit)
     jal  memory_read16
     addi a1, v0, 1
     jal  memory_write16
-    move a0, a1
+    andi a0, a1, 0xFFFF
     j    set_nz16
 .endm
 
@@ -799,6 +837,7 @@ inx_8: // INX (8-bit)
     lbu  a0, register_x + 1
     addi a0, a0, 1
     sb   a0, register_x + 1
+    andi a0, a0, 0xFF
     addi s7, s7, 1
     j    set_nz8
 
@@ -808,6 +847,7 @@ inx_16: // INX (16-bit)
     lhu  a0, register_x
     addi a0, a0, 1
     sh   a0, register_x
+    andi a0, a0, 0xFFFF
     addi s7, s7, 1
     j    set_nz16
 
@@ -817,6 +857,7 @@ iny_8: // INY (8-bit)
     lbu  a0, register_y + 1
     addi a0, a0, 1
     sb   a0, register_y + 1
+    andi a0, a0, 0xFF
     addi s7, s7, 1
     j    set_nz8
 
@@ -826,6 +867,7 @@ iny_16: // INY (16-bit)
     lhu  a0, register_y
     addi a0, a0, 1
     sh   a0, register_y
+    andi a0, a0, 0xFFFF
     addi s7, s7, 1
     j    set_nz16
 
@@ -835,6 +877,7 @@ ina_8: // INA (8-bit)
     lbu  a0, accumulator + 1
     addi a0, a0, 1
     sb   a0, accumulator + 1
+    andi a0, a0, 0xFF
     addi s7, s7, 1
     j    set_nz8
 
@@ -844,6 +887,7 @@ ina_16: // INA (16-bit)
     lhu  a0, accumulator
     addi a0, a0, 1
     sh   a0, accumulator
+    andi a0, a0, 0xFFFF
     addi s7, s7, 1
     j    set_nz16
 
@@ -853,7 +897,7 @@ ina_16: // INA (16-bit)
     jal  memory_read8
     addi a1, v0, -1
     jal  memory_write8
-    move a0, a1
+    andi a0, a1, 0xFF
     j    set_nz8
 .endm
 
@@ -868,7 +912,7 @@ decabx_8: ABX; DEC_8 // DEC nnnn,X (8-bit)
     jal  memory_read16
     addi a1, v0, -1
     jal  memory_write16
-    move a0, a1
+    andi a0, a1, 0xFFFF
     j    set_nz16
 .endm
 
@@ -883,6 +927,7 @@ dex_8: // DEX (8-bit)
     lbu  a0, register_x + 1
     addi a0, a0, -1
     sb   a0, register_x + 1
+    andi a0, a0, 0xFF
     addi s7, s7, 1
     j    set_nz8
 
@@ -892,6 +937,7 @@ dex_16: // DEX (16-bit)
     lhu  a0, register_x
     addi a0, a0, -1
     sh   a0, register_x
+    andi a0, a0, 0xFFFF
     addi s7, s7, 1
     j    set_nz16
 
@@ -901,6 +947,7 @@ dey_8: // DEY (8-bit)
     lbu  a0, register_y + 1
     addi a0, a0, -1
     sb   a0, register_y + 1
+    andi a0, a0, 0xFF
     addi s7, s7, 1
     j    set_nz8
 
@@ -910,6 +957,7 @@ dey_16: // DEY (16-bit)
     lhu  a0, register_y
     addi a0, a0, -1
     sh   a0, register_y
+    andi a0, a0, 0xFFFF
     addi s7, s7, 1
     j    set_nz16
 
@@ -919,6 +967,7 @@ dea_8: // DEA (8-bit)
     lbu  a0, accumulator + 1
     addi a0, a0, -1
     sb   a0, accumulator + 1
+    andi a0, a0, 0xFF
     addi s7, s7, 1
     j    set_nz8
 
@@ -928,23 +977,26 @@ dea_16: // DEA (16-bit)
     lhu  a0, accumulator
     addi a0, a0, -1
     sh   a0, accumulator
+    andi a0, a0, 0xFFFF
     addi s7, s7, 1
     j    set_nz16
 
 
 .macro TSB_8 // TSB op (8-bit)
-    // Test and set bits of a value with the accumulator (8-bit)
+    // Test the accumulator bits against a value (8-bit)
     jal  memory_read8
-    lbu  s0, accumulator + 1
-    or   a1, s0, v0
-    and  s0, s0, v0
-    jal  memory_write8
+    lbu  t0, accumulator + 1
+    and  t1, t0, v0
 
     // Set the Z flag for bit test
     andi s4, s4, ~0x02 & 0xFFFF
     seq  t1, t1, 0
     sll  t1, t1, 1 // Z
     or   s4, s4, t1
+
+    // Set bits of the value in memory
+    or   a1, t0, v0
+    jal  memory_write8
     j    cpu_execute
 .endm
 
@@ -953,18 +1005,20 @@ tsbabs_8: ABS; TSB_8 // TSB nnnn (8-bit)
 
 
 .macro TSB_16 // TSB op (16-bit)
-    // Test and set bits of a value with the accumulator (16-bit)
+    // Test the accumulator bits against a value (16-bit)
     jal  memory_read16
     lhu  t0, accumulator
     and  t1, t0, v0
-    or   a1, t0, v0
-    jal  memory_write16
 
     // Set the Z flag for bit test
     andi s4, s4, ~0x02 & 0xFFFF
     seq  t1, t1, 0
     sll  t1, t1, 1 // Z
     or   s4, s4, t1
+
+    // Set bits of the value in memory
+    or   a1, t0, v0
+    jal  memory_write16
     j    cpu_execute
 .endm
 
@@ -973,19 +1027,21 @@ tsbabs_16: ABS; TSB_16 // TSB nnnn (16-bit)
 
 
 .macro TRB_8 // TRB op (8-bit)
-    // Test and reset bits of a value with the accumulator (8-bit)
+    // Test the accumulator bits against a value (8-bit)
     jal  memory_read8
     lbu  t0, accumulator + 1
     and  t1, t0, v0
-    not  a1, t0
-    and  a1, a1, v0
-    jal  memory_write8
 
     // Set the Z flag for bit test
     andi s4, s4, ~0x02 & 0xFFFF
     seq  t1, t1, 0
     sll  t1, t1, 1 // Z
     or   s4, s4, t1
+
+    // Clear bits of the value in memory
+    not  a1, t0
+    and  a1, a1, v0
+    jal  memory_write8
     j    cpu_execute
 .endm
 
@@ -994,19 +1050,21 @@ trbabs_8: ABS; TRB_8 // TRB nnnn (8-bit)
 
 
 .macro TRB_16 // TRB op (16-bit)
-    // Test and reset bits of a value with the accumulator (16-bit)
+    // Test the accumulator bits against a value (16-bit)
     jal  memory_read16
     lhu  t0, accumulator
     and  t1, t0, v0
-    not  a1, t0
-    and  a1, a1, v0
-    jal  memory_write16
 
     // Set the Z flag for bit test
     andi s4, s4, ~0x02 & 0xFFFF
     seq  t1, t1, 0
     sll  t1, t1, 1 // Z
     or   s4, s4, t1
+
+    // Clear bits of the value in memory
+    not  a1, t0
+    and  a1, a1, v0
+    jal  memory_write16
     j    cpu_execute
 .endm
 
@@ -1022,6 +1080,7 @@ asl_8: // ASL A (8-bit)
     andi s4, s4, ~0x01 & 0xFFFF
     srl  t0, t0, 7 // C
     or   s4, s4, t0
+    andi a0, a0, 0xFF
     addi s7, s7, 1
     j    set_nz8
 
@@ -1034,6 +1093,7 @@ asl_16: // ASL A (16-bit)
     andi s4, s4, ~0x01 & 0xFFFF
     srl  t0, t0, 15 // C
     or   s4, s4, t0
+    andi a0, a0, 0xFFFF
     addi s7, s7, 1
     j    set_nz16
 
@@ -1046,7 +1106,7 @@ asl_16: // ASL A (16-bit)
     srl  t0, v0, 7 // C
     or   s4, s4, t0
     jal  memory_write8
-    move a0, a1
+    andi a0, a1, 0xFF
     j    set_nz8
 .endm
 
@@ -1064,7 +1124,7 @@ aslabx_8: ABX; ASL_8 // ASL nnnn,X (8-bit)
     srl  t0, v0, 15 // C
     or   s4, s4, t0
     jal  memory_write16
-    move a0, a1
+    andi a0, a1, 0xFFFF
     j    set_nz16
 .endm
 
@@ -1144,6 +1204,7 @@ rol_8: // ROL A (8-bit)
     andi s4, s4, ~0x01 & 0xFFFF
     srl  t0, t0, 7 // C
     or   s4, s4, t0
+    andi a0, a0, 0xFF
     addi s7, s7, 1
     j    set_nz8
 
@@ -1158,6 +1219,7 @@ rol_16: // ROL A (16-bit)
     andi s4, s4, ~0x01 & 0xFFFF
     srl  t0, t0, 15 // C
     or   s4, s4, t0
+    andi a0, a0, 0xFFFF
     addi s7, s7, 1
     j    set_nz16
 
@@ -1172,7 +1234,7 @@ rol_16: // ROL A (16-bit)
     srl  t0, v0, 7 // C
     or   s4, s4, t0
     jal  memory_write8
-    move a0, a1
+    andi a0, a1, 0xFF
     j    set_nz8
 .endm
 
@@ -1192,7 +1254,7 @@ rolabx_8: ABX; ROL_8 // ROL nnnn,X (8-bit)
     srl  t0, v0, 15 // C
     or   s4, s4, t0
     jal  memory_write16
-    move a0, a1
+    andi a0, a1, 0xFFFF
     j    set_nz16
 .endm
 
@@ -1212,6 +1274,7 @@ ror_8: // ROR A (8-bit)
     andi s4, s4, ~0x01 & 0xFFFF
     andi t0, t0, 0x01 // C
     or   s4, s4, t0
+    andi a0, a0, 0xFF
     addi s7, s7, 1
     j    set_nz8
 
@@ -1226,6 +1289,7 @@ ror_16: // ROR A (16-bit)
     andi s4, s4, ~0x01 & 0xFFFF
     andi t0, t0, 0x0001 // C
     or   s4, s4, t0
+    andi a0, a0, 0xFFFF
     addi s7, s7, 1
     j    set_nz16
 
@@ -1240,7 +1304,7 @@ ror_16: // ROR A (16-bit)
     andi t0, v0, 0x01 // C
     or   s4, s4, t0
     jal  memory_write8
-    move a0, a1
+    andi a0, a1, 0xFF
     j    set_nz8
 .endm
 
@@ -1260,7 +1324,7 @@ rorabx_8: ABX; ROR_8 // ROR nnnn,X (8-bit)
     andi t0, v0, 0x0001 // C
     or   s4, s4, t0
     jal  memory_write16
-    move a0, a1
+    andi a0, a1, 0xFFFF
     j    set_nz16
 .endm
 

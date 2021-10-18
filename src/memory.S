@@ -207,15 +207,16 @@ can_write16:
 
     // Write two bytes to memory and decrease the cycle count
     sb   a1, 0(t0)
-    srl  a1, a1, 8
-    sb   a1, 1(t0)
+    srl  t1, a1, 8
+    sb   t1, 1(t0)
     addi s5, s5, -8 * 2
     jr   ra
 
 io_write16:
-    // Backup the return address
-    addi sp, sp, -4
-    sw   ra, (sp)
+    // Backup the return address and value
+    addi sp, sp, -8
+    sw   ra, 4(sp)
+    sw   a1, 0(sp)
 
     // Write two 8-bit values to the I/O registers
     jal  io_write8
@@ -224,9 +225,10 @@ io_write16:
     jal  io_write8
     addi a0, a0, -1
 
-    // Restore the return address
-    lw   ra, (sp)
-    addi sp, sp, 4
+    // Restore the return address and value
+    lw   a1, 0(sp)
+    lw   ra, 4(sp)
+    addi sp, sp, 8
     jr   ra
 
 

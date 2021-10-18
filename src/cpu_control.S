@@ -107,12 +107,12 @@ jml: // JML nnnnnn
 
 
 jmpind: // JMP (nnnn)
-    // Fetch the 16-bit immediate value
+    // Get the 16-bit immediate value as an address
     addi a0, s7, 1
     jal  memory_read16
+    move a0, v0
 
     // Set the PC to the memory value at the address
-    move a0, v0
     jal  memory_read16
     li   t0, ~0xFFFF
     and  s7, s7, t0
@@ -121,20 +121,20 @@ jmpind: // JMP (nnnn)
 
 
 jmpidx: // JMP (nnnn,X)
-    // Fetch the 16-bit immediate value
+    // Get the 16-bit immediate value plus register X added to the program bank as an address
     addi a0, s7, 1
     jal  memory_read16
-
-    // Get the program bank and register X
-    li   s0, ~0xFFFF
-    and  s7, s7, s0
     lhu  t0, register_x
+    add  t0, t0, v0
+    li   t1, ~0xFFFF
+    and  t1, t1, s7
+    add  a0, t0, t1
 
-    // Set the PC to the memory value at the bank plus register plus offset
-    add  a0, s0, t0
-    add  a0, a0, v0
+    // Set the PC to the memory value at the address
     jal  memory_read16
-    add  s7, s0, v0
+    li   t0, ~0xFFFF
+    and  s7, s7, t0
+    add  s7, s7, v0
     j    cpu_execute
 
 
@@ -146,7 +146,7 @@ jmlind_e: // JML [nnnn] (emulation mode)
     // Set the PC to the memory value at the address
     move a0, v0
     jal  memory_read16
-    move v0, s7
+    move s7, v0
     j    cpu_execute
 
 
@@ -158,7 +158,7 @@ jmlind: // JML [nnnn]
     // Set the PC to the memory value at the address
     move a0, v0
     jal  memory_read16
-    move v0, s7
+    move s7, v0
 
     // Set the PC bank to the memory value at the offset+2
     addi a0, a0, 2
@@ -245,20 +245,20 @@ jsridx: // JSR (nnnn,X)
     addi t0, a0, -1
     sh   t0, stack_ptr
 
-    // Fetch the 16-bit immediate value
+    // Get the 16-bit immediate value plus register X added to the program bank as an address
     addi a0, s7, 1
     jal  memory_read16
-
-    // Get the program bank and register X
-    li   s0, ~0xFFFF
-    and  s7, s7, s0
     lhu  t0, register_x
+    add  t0, t0, v0
+    li   t1, ~0xFFFF
+    and  t1, t1, s7
+    add  a0, t0, t1
 
-    // Set the PC to the memory value at the bank plus register plus offset
-    add  a0, s0, t0
-    add  a0, a0, v0
+    // Set the PC to the memory value at the address
     jal  memory_read16
-    add  s7, s0, v0
+    li   t0, ~0xFFFF
+    and  s7, s7, t0
+    add  s7, s7, v0
     j    cpu_execute
 
 
@@ -498,10 +498,10 @@ beq_end:
 
 
 brk_e: // BRK (emulation mode)
-    // Push the PC+2 to the stack
+    // Push the PC+1 to the stack
     lhu  a0, stack_ptr
     addi a0, a0, -1
-    addi a1, s7, 2
+    addi a1, s7, 1
     jal  memory_write16
 
     // Push the flags to the stack
@@ -530,9 +530,9 @@ brk: // BRK
     srl  a1, s7, 16
     jal  memory_write8
 
-    // Push the PC+2 to the stack
+    // Push the PC+1 to the stack
     addi a0, a0, -2
-    addi a1, s7, 2
+    addi a1, s7, 1
     jal  memory_write16
 
     // Push the flags to the stack
@@ -556,10 +556,10 @@ brk: // BRK
 
 
 cop_e: // COP (emulation mode)
-    // Push the PC+2 to the stack
+    // Push the PC+1 to the stack
     lhu  a0, stack_ptr
     addi a0, a0, -1
-    addi a1, s7, 2
+    addi a1, s7, 1
     jal  memory_write16
 
     // Push the flags to the stack
@@ -588,9 +588,9 @@ cop: // COP
     srl  a1, s7, 16
     jal  memory_write8
 
-    // Push the PC+2 to the stack
+    // Push the PC+1 to the stack
     addi a0, a0, -2
-    addi a1, s7, 2
+    addi a1, s7, 1
     jal  memory_write16
 
     // Push the flags to the stack
