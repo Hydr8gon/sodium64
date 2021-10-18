@@ -721,14 +721,14 @@ cpyabs_16: ABS; CPY_16 // CPY nnnn  (16-bit)
     // Test the accumulator bits against a value (8-bit)
     jal  memory_read8
     lbu  t0, accumulator + 1
-    and  t1, t0, v0
+    and  t0, t0, v0
 
     // Set flags for bit test (8-bit)
     andi s4, s4, ~0xC2 & 0xFFFF
-    seq  t1, t1, 0
-    sll  t1, t1, 1    // Z
-    or   s4, s4, t1
-    andi t0, t0, 0xC0 // NV
+    seq  t0, t0, 0
+    sll  t0, t0, 1    // Z
+    or   s4, s4, t0
+    andi t0, v0, 0xC0 // NV
     or   s4, s4, t0
     j    cpu_execute
 .endm
@@ -744,14 +744,14 @@ bitabx_8: ABX; BIT_8 // BIT nnnn,X (8-bit)
     // Test the accumulator bits against a value (16-bit)
     jal  memory_read16
     lhu  t0, accumulator
-    and  t1, t0, v0
+    and  t0, t0, v0
 
     // Set flags for bit test (16-bit)
     andi s4, s4, ~0xC2 & 0xFFFF
-    seq  t1, t1, 0
-    sll  t1, t1, 1    // Z
-    or   s4, s4, t1
-    srl  t0, t0, 8
+    seq  t0, t0, 0
+    sll  t0, t0, 1    // Z
+    or   s4, s4, t0
+    srl  t0, v0, 8
     andi t0, t0, 0xC0 // NV
     or   s4, s4, t0
     j    cpu_execute

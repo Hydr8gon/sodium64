@@ -3,11 +3,13 @@
 .globl frame_ready
 
 .globl ppu_event
+.globl read_rdnmi
 .globl read_hvbjoy
 .globl write_bgmode
 .globl write_bg1sc
 .globl write_bg12nba
 .globl write_bg1vofs
+.globl write_vmain
 .globl write_vmaddl
 .globl write_vmaddh
 .globl write_vmdatal
@@ -22,17 +24,23 @@ frame_ready: .byte 0x00
 
 cgram: .hword 0:0x100
 
-bg_old: .byte 0x00
-cg_lsb: .byte 0x00
+bg_old:    .byte 0x00
+cg_lsb:    .byte 0x00
+vram_incl: .byte 0x00
+vram_inch: .byte 0x00
 
 vmadd:    .hword 0x0000
 cgadd:    .hword 0x0000
 nmitimen: .byte  0x00
+rdnmi:    .byte  0x00
 hvbjoy:   .byte  0x00
 
 // 2 bits per BG: 0 = none, 1 = 4-color, 2 = 16-color, 3 = 256-color
 // TODO: offset-per-tile, hi-res, rotscale
 bg_types: .byte 0x55, 0x1A, 0x0A, 0x0B, 0x07, 0x00, 0x00, 0x00
+
+// Possible address increments for VRAM access
+vram_incrs: .byte 1, 32, 128, 128
 
 .text
 
@@ -42,9 +50,11 @@ ppu_event:
     bge  t0, 0x80, vblank_end
 
 vblank_start:
-    // Set the V-blank flag
+    // Set the V-blank and NMI flags
     or   t0, t0, 0x80
     sb   t0, hvbjoy
+    li   t0, 0x80
+    sb   t0, rdnmi
 
     // Wait until the RSP is finished rendering
 rsp_wait:
@@ -63,9 +73,10 @@ rsp_wait:
     j    trigger_nmi
 
 vblank_end:
-    // Clear the V-blank flag
+    // Clear the V-blank and NMI flags
     andi t0, t0, ~0x80 & 0xFF
     sb   t0, hvbjoy
+    sb   zero, rdnmi
 
     // Wait for the last frame to be displayed
 frame_wait:
@@ -81,6 +92,13 @@ frame_wait:
     add  s5, 341 * 225 * 4
 no_nmi:
     j    cpu_execute
+
+
+read_rdnmi: // v0: value
+    // Read from the RDNMI register, resetting its flag
+    lbu  v0, rdnmi
+    sb   zero, rdnmi
+    jr   ra
 
 
 read_hvbjoy: // v0: value
@@ -165,6 +183,26 @@ write_bg1vofs: // a1: value
     jr   ra
 
 
+write_vmain: // a1: value
+    // Get the VRAM increment and check if it applies to high or low access
+    // TODO: address translation
+    andi t0, a1, 0x03
+    lbu  t0, vram_incrs(t0)
+    andi t1, a1, 0x80
+    bne  t1, zero, vmain_high
+
+    // Set the VRAM increment for low access
+    sb   t0, vram_incl
+    sb   zero, vram_inch
+    jr   ra
+
+vmain_high:
+    // Set the VRAM increment for high access
+    sb   zero, vram_incl
+    sb   t0, vram_inch
+    jr   ra
+
+
 write_vmaddl: // a1: value
     // Set the low byte of the VRAM address
     sb   a1, vmadd + 1
@@ -183,6 +221,12 @@ write_vmdatal: // a1: value
     lhu  t0, vmadd
     sll  t1, t0, 1
     sb   a1, 0xA0140001(t1)
+
+    // Increment the VRAM address
+    lbu  t1, vram_incl
+    add  t0, t0, t1
+    andi t0, t0, 0x7FFF
+    sh   t0, vmadd
     jr   ra
 
 
@@ -193,7 +237,8 @@ write_vmdatah: // a1: value
     sb   a1, 0xA0140000(t1)
 
     // Increment the VRAM address
-    addi t0, t0, 1
+    lbu  t1, vram_inch
+    add  t0, t0, t1
     andi t0, t0, 0x7FFF
     sh   t0, vmadd
     jr   ra

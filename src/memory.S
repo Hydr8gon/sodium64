@@ -5,6 +5,8 @@
 .globl memory_read16
 .globl memory_write8
 .globl memory_write16
+.globl io_read8
+.globl io_write8
 
 .data
 
@@ -88,7 +90,7 @@ memory_read8: // a0: address - v0: value
     la   t1, memory_map
     add  t0, t0, t1
     lw   t0, (t0)
-    beq  t0, zero, io_read // I/O register fallback
+    beq  t0, zero, io_read8 // I/O register fallback
 
     // Clear the write bit before using the pointer
     li   t1, ~1
@@ -129,17 +131,24 @@ memory_read16: // a0: address - v0: value
     addi s5, s5, -8 * 2
     jr   ra
 
-    // Read from I/O registers twice
 io_read16:
-    move s0, ra
-    jal  io_read
+    // Backup the return address
+    addi sp, sp, -4
+    sw   ra, (sp)
+
+    // Read two 8-bit values from the I/O registers
+    jal  io_read8
     move s1, v0
     addi a0, a0, 1
-    jal  io_read
+    jal  io_read8
     addi a0, a0, -1
     sll  v0, v0, 8
     or   v0, v0, s1
-    jr   s0
+
+    // Restore the return address
+    lw   ra, (sp)
+    addi sp, sp, 4
+    jr   ra
 
 
 memory_write8: // a0: address, a1: value
@@ -149,7 +158,7 @@ memory_write8: // a0: address, a1: value
     la   t1, memory_map
     add  t0, t0, t1
     lw   t0, (t0)
-    beq  t0, zero, io_write // I/O register fallback
+    beq  t0, zero, io_write8 // I/O register fallback
 
     // Ensure the block is writable
     andi t1, t0, 1
@@ -203,34 +212,45 @@ can_write16:
     addi s5, s5, -8 * 2
     jr   ra
 
-    // Write to I/O registers twice
 io_write16:
-    move s0, ra
-    jal  io_write
+    // Backup the return address
+    addi sp, sp, -4
+    sw   ra, (sp)
+
+    // Write two 8-bit values to the I/O registers
+    jal  io_write8
     addi a0, a0, 1
     srl  a1, a1, 8
-    jal  io_write
+    jal  io_write8
     addi a0, a0, -1
-    jr   s0
+
+    // Restore the return address
+    lw   ra, (sp)
+    addi sp, sp, 4
+    jr   ra
 
 
-io_read: // a0: address - v0: value
+io_read8: // a0: address - v0: value
     // Read from an I/O register if it exists and decrease the cycle count
     // TODO: convert to lookup table
     addi s5, s5, -6
+    andi a0, a0, 0xFFFF
+    beq  a0, 0x4210, read_rdnmi
     beq  a0, 0x4212, read_hvbjoy
     li   v0, 0
     jr   ra
 
 
-io_write: // a0: address, a1: value
+io_write8: // a0: address, a1: value
     // Write to an I/O register if it exists and decrease the cycle count
     // TODO: convert to lookup table
     addi s5, s5, -6
+    andi a0, a0, 0xFFFF
     beq  a0, 0x2105, write_bgmode
     beq  a0, 0x2107, write_bg1sc
     beq  a0, 0x210B, write_bg12nba
     beq  a0, 0x210E, write_bg1vofs
+    beq  a0, 0x2115, write_vmain
     beq  a0, 0x2116, write_vmaddl
     beq  a0, 0x2117, write_vmaddh
     beq  a0, 0x2118, write_vmdatal
@@ -238,4 +258,13 @@ io_write: // a0: address, a1: value
     beq  a0, 0x2121, write_cgadd
     beq  a0, 0x2122, write_cgdata
     beq  a0, 0x4200, write_nmitimen
+    beq  a0, 0x420B, write_mdmaen
+    andi t0, a0, 0xFF8F
+    beq  t0, 0x4300, write_dmapx
+    beq  t0, 0x4301, write_bbadx
+    beq  t0, 0x4302, write_a1txl
+    beq  t0, 0x4303, write_a1txh
+    beq  t0, 0x4304, write_a1bx
+    beq  t0, 0x4305, write_dasxl
+    beq  t0, 0x4306, write_dasxh
     jr   ra
