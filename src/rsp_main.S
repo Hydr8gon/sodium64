@@ -34,7 +34,7 @@ bg_types:    .byte  0x55       // 0xFF5
 bg1scrnbase: .hword 0x0000     // 0xFF6-0xFF7
 bg1charbase: .hword 0x0000     // 0xFF8-0xFF9
 bg1vofs:     .hword 0x0000     // 0xFFA-0xFFB
-framebuffer: .word  0xA0120000 // 0xFFC-0xFFF
+framebuffer: .word  0xA0320000 // 0xFFC-0xFFF
 
 .text
 
@@ -58,7 +58,7 @@ draw_line:
 
     // Load the BG entries for the current line
     la   a0, scrn_data
-    la   a1, 0xA0140000 // VRAM
+    la   a1, 0xA0340000 // VRAM
     lhu  t0, bg1scrnbase
     add  a1, a1, t0
     andi t0, s5, 0xFF & ~7
@@ -71,20 +71,20 @@ draw_line:
     la   a0, char_data
     andi s5, s5, 7
     sll  s5, s5, 1
-    la   t0, 0xA0140000 // VRAM
+    la   t0, 0xA0340000 // VRAM
     add  s5, s5, t0
     lhu  t0, bg1charbase
     add  s5, s5, t0
 
 draw_tile:
     // Get the BG entry for the current tile
-    // TODO: palette, priority, mirroring
-    srl  t0, s0, 3
-    sll  t0, t0, 1
-    lhu  t0, scrn_data(t0)
+    // TODO: priority, mirroring
+    srl  t5, s0, 3
+    sll  t5, t5, 1
+    lhu  t5, scrn_data(t5)
 
     // Load the tile's character data
-    andi t0, t0, 0x03FF
+    andi t0, t5, 0x03FF
     sll  t0, t0, s4
     add  a1, s5, t0
     jal  dma_read
@@ -95,6 +95,8 @@ draw_tile:
     // Prepare data for 4-color tiles
     lhu  t0, char_data + 0x00(t4)
     bne  s4, 4, prepare_data16
+    srl  t6, t5, 7
+    andi t6, t6, 0x7 << 3 // Palette offset
     la   t7, draw_pixel4
     jr   t7
 
@@ -103,6 +105,8 @@ prepare_data16:
     lhu  t1, char_data + 0x10(t4)
     sll  t1, t1, 2
     bne  s4, 5, prepare_data256
+    srl  t6, t5, 5
+    andi t6, t6, 0x7 << 5 // Palette offset
     la   t7, draw_pixel16
     jr   t7
 
@@ -112,6 +116,7 @@ prepare_data256:
     sll  t2, t3, 4
     lhu  t3, char_data + 0x30(t4)
     sll  t3, t3, 6
+    li   t6, 0
     la   t7, draw_pixel256
 
 draw_pixel256:
@@ -151,6 +156,9 @@ draw_pixel4:
 
     // Draw a pixel with the palette color
     srl  t4, t4, 7
+    beq  t4, zero, transparent
+    add  t4, t4, t6
+transparent:
     lhu  t4, palette(t4)
     sll  t5, s0, 1
     sh   t4, scanline(t5)
@@ -183,9 +191,9 @@ end_line:
 
     // Swap the framebuffer with the previously-rendered one
     lw   t0, framebuffer
-    li   t1, 0xA0100000
+    li   t1, 0xA0300000
     bne  t0, t1, set_buffer
-    li   t1, 0xA0120000
+    li   t1, 0xA0320000
 set_buffer:
     sw   t1, framebuffer
     j    draw_frame

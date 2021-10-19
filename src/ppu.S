@@ -239,7 +239,7 @@ write_vmdatal: // a1: value
     // Write to the low VRAM byte at the current address
     lhu  t0, vmadd
     sll  t1, t0, 1
-    sb   a1, 0xA0140001(t1)
+    sb   a1, 0xA0340001(t1)
 
     // Increment the VRAM address
     lbu  t1, vram_incl
@@ -253,7 +253,7 @@ write_vmdatah: // a1: value
     // Write to the high VRAM byte at the current address
     lhu  t0, vmadd
     sll  t1, t0, 1
-    sb   a1, 0xA0140000(t1)
+    sb   a1, 0xA0340000(t1)
 
     // Increment the VRAM address
     lbu  t1, vram_inch
@@ -266,7 +266,7 @@ write_vmdatah: // a1: value
 write_cgadd: // a1: value
     // Set the palette address, resetting to first access
     sll  t0, a1, 1
-    sb   t0, cgadd
+    sh   t0, cgadd
     jr   ra
 
 

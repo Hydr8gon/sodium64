@@ -23,7 +23,7 @@
 
 .data
 
-framebuffer: .word 0xA0100000
+framebuffer: .word 0xA0300000
 
 .text
 
@@ -32,7 +32,7 @@ main:
     lui  t0, 0xA440     // VI register upper address
     li   t1, 0x0002     // 16-bit pixel format
     sw   t1, 0x0000(t0) // VI_STATUS_REG
-    li   t1, 0xA0100000 // Framebuffer address
+    li   t1, 0xA0300000 // Framebuffer address
     sw   t1, 0x0004(t0) // VI_ORIGIN_REG
     li   t1, 0x0100     // Framebuffer width
     sw   t1, 0x0008(t0) // VI_WIDTH_REG
@@ -60,8 +60,8 @@ main:
     sw   t1, 0x0034(t0) // VI_Y_SCALE_REG
 
     // Clear VRAM on boot (hardcoded for easy RSP access)
-    li t0, 0xA0140000
-    li t1, 0xA0150000
+    li t0, 0xA0340000
+    li t1, 0xA0350000
 clear_vram:
     sw   zero, (t0)
     addi t0, t0, 4
@@ -119,9 +119,9 @@ vi_interrupt:
     // Swap the framebuffer with the newly-rendered one
 swap_buffers:
     lw   t0, framebuffer
-    li   t1, 0xA0100000
+    li   t1, 0xA0300000
     bne  t0, t1, set_buffer
-    li   t1, 0xA0120000
+    li   t1, 0xA0320000
 set_buffer:
     sw   t1, 0xA4400004 // VI_ORIGIN_REG
     sw   t1, framebuffer

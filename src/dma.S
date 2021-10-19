@@ -167,8 +167,8 @@ write_dmapx: // a0: address, a1: value
 
 write_bbadx: // a0: address, a1: value
     // Set the low byte of one of the I/O addresses
-    srl  t0, a0, 4
-    andi t0, t0, 0x7
+    srl  t0, a0, 3
+    andi t0, t0, 0x7 << 1
     sb   a1, bbadx + 1(t0)
     jr   ra
 
