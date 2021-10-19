@@ -92,10 +92,10 @@ dma_wait:
 
 
 vi_interrupt:
-    // Only continue if a new frame is ready
+    // Continue if a new frame is ready, otherwise just update input
     lbu  t0, frame_ready
     bne  t0, zero, swap_buffers
-    jr   ra
+    j    update_input
 
     // Swap the framebuffer with the newly-rendered one
 swap_buffers:
@@ -107,7 +107,7 @@ set_buffer:
     sw   t1, 0xA4400004 // VI_ORIGIN_REG
     sw   t1, framebuffer
 
-    // Indicate the frame is not ready so a new one will be drawn
+    // Indicate the frame isn't ready so a new one will be drawn, and update input
     li   t0, 0x00
     sb   t0, frame_ready
-    jr   ra
+    j    update_input

@@ -237,8 +237,14 @@ io_read8: // a0: address - v0: value
     // TODO: convert to lookup table
     addi s5, s5, -6
     andi a0, a0, 0xFFFF
+    beq  a0, 0x2140, rand // APUI00 "stub"
+    beq  a0, 0x2141, rand // APUI01 "stub"
+    beq  a0, 0x2142, rand // APUI02 "stub"
+    beq  a0, 0x2143, rand // APUI03 "stub"
     beq  a0, 0x4210, read_rdnmi
     beq  a0, 0x4212, read_hvbjoy
+    beq  a0, 0x4218, read_joy1l
+    beq  a0, 0x4219, read_joy1h
     li   v0, 0
     jr   ra
 
