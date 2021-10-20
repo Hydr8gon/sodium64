@@ -97,25 +97,34 @@ load_screen:
 
 draw_tile:
     // Get the BG entry for the current tile
-    // TODO: priority, mirroring
+    // TODO: priority
     add  t0, s6, s0
-    andi t5, t0, 7 // Fine X offset
     andi t6, t0, 0x1FF & ~7
     srl  t6, t6, 2
     lhu  t6, scrn_data(t6)
 
-    // Load the tile's character data
+    // Set the initial tile shift based on fine X offset and horizontal mirroring
+    andi s7, t6, 0x4000
+    bne  s7, zero, mirror_x
+    not  t0, t0
+mirror_x:
+    andi t9, t0, 7
+
+    // Load the tile's character data based on fine Y offset and vertical mirroring
     andi t0, t6, 0x03FF
     sll  t0, t0, s4
     add  a1, s5, t0
+    andi t0, t6, 0x8000
+    beq  t0, zero, mirror_noty
+    xori a1, a1, 7 << 1
+mirror_noty:
     jal  dma_read
 
     // DMA aligns to 64-bit words, so adjust the data offset accordingly
-    andi t4, s5, 7
+    andi t5, a1, 7
 
     // Prepare data for 4-color tiles
-    lhu  t0, char_data + 0x00(t4)
-    sll  t0, t0, t5
+    lhu  t0, char_data + 0x00(t5)
     bne  s4, 4, prepare_data16
     srl  t6, t6, 7
     andi t6, t6, 0x7 << 3 // Palette offset
@@ -124,9 +133,8 @@ draw_tile:
 
 prepare_data16:
     // Prepare data for 16-color tiles
-    lhu  t1, char_data + 0x10(t4)
+    lhu  t1, char_data + 0x10(t5)
     sll  t1, t1, 2
-    sll  t1, t1, t5
     bne  s4, 5, prepare_data256
     srl  t6, t6, 5
     andi t6, t6, 0x7 << 5 // Palette offset
@@ -135,65 +143,73 @@ prepare_data16:
 
 prepare_data256:
     // Prepare data for 256-color tiles
-    lhu  t2, char_data + 0x20(t4)
+    lhu  t2, char_data + 0x20(t5)
     sll  t2, t3, 4
-    sll  t2, t2, t5
-    lhu  t3, char_data + 0x30(t4)
+    lhu  t3, char_data + 0x30(t5)
     sll  t3, t3, 6
-    sll  t3, t3, t5
     li   t6, 0
     la   t7, draw_pixel256
 
 draw_pixel256:
     // Decode bits 6-7 of the palette index
-    sll  t3, t3, 1
-    andi t5, t3, 0x4000
+    srl  t8, t3, t9
+    andi t5, t8, 0x40
     or   t4, t4, t5
-    srl  t5, t3, 7
-    andi t5, t5, 0x8000
+    srl  t5, t8, 7
+    andi t5, t5, 0x80
     or   t4, t4, t5
 
     // Decode bits 4-5 of the palette index
-    sll  t2, t2, 1
-    andi t5, t2, 0x1000
+    srl  t8, t2, t9
+    andi t5, t8, 0x10
     or   t4, t4, t5
-    srl  t5, t2, 7
-    andi t5, t5, 0x2000
+    srl  t5, t8, 7
+    andi t5, t5, 0x20
     or   t4, t4, t5
 
 draw_pixel16:
     // Decode bits 2-3 of the palette index
-    sll  t1, t1, 1
-    andi t5, t1, 0x400
+    srl  t8, t1, t9
+    andi t5, t8, 0x04
     or   t4, t4, t5
-    srl  t5, t1, 7
-    andi t5, t5, 0x800
+    srl  t5, t8, 7
+    andi t5, t5, 0x08
     or   t4, t4, t5
 
 draw_pixel4:
     // Decode bits 0-1 of the palette index
-    sll  t0, t0, 1
-    andi t5, t0, 0x100
+    srl  t8, t0, t9
+    andi t5, t8, 0x01
     or   t4, t4, t5
-    srl  t5, t0, 7
-    andi t5, t5, 0x200
+    srl  t5, t8, 7
+    andi t5, t5, 0x02
     or   t4, t4, t5
 
     // Draw a pixel with the palette color
-    srl  t4, t4, 7
+    sll  t4, t4, 1
     beq  t4, zero, transparent
     add  t4, t4, t6
 transparent:
     lhu  t4, palette(t4)
     sll  t5, s0, 1
     sh   t4, scanline(t5)
+    li   t4, 0
 
     // Move to the next pixel until the scanline is complete
     addi s0, s0, 1
     beq  s0, s2, end_line
-    add  t4, s6, s0
-    andi t4, t4, 7
-    beq  t4, zero, draw_tile
+
+    // Adjust the shift for horizontally non-mirrored tiles
+    bne  s7, zero, mirror_shift
+    beq  t9, zero, draw_tile
+    addi t9, t9, -1
+    jr   t7
+
+mirror_shift:
+    // Adjust the shift for horizontally mirrored tiles
+    addi t9, t9, 1
+    andi t9, t9, 7
+    beq  t9, zero, draw_tile
     jr   t7
 
 end_line:
