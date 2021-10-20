@@ -25,15 +25,18 @@
 
 palette:   .hword 0:0x100
 scanline:  .hword 0:0x100
-scrn_data: .hword 0:0x20
+scrn_data: .hword 0:0x40
 char_data: .hword 0:0x20
 
-.space 0xB75
+.space 0xB2F
 
-bg_types:    .byte  0x55       // 0xFF5
-bg1scrnbase: .hword 0x0000     // 0xFF6-0xFF7
-bg1charbase: .hword 0x0000     // 0xFF8-0xFF9
-bg1vofs:     .hword 0x0000     // 0xFFA-0xFFB
+bg_types:    .byte  0x55       // 0xFEF
+bg1scrnbase: .hword 0x0000     // 0xFF0-0xFF1
+bg1baseofsv: .hword 0x0000     // 0xFF2-0xFF3
+bg1baseofsh: .hword 0x0000     // 0xFF4-0xFF5
+bg1charbase: .hword 0x0000     // 0xFF6-0xFF7
+bg1vofs:     .hword 0x0000     // 0xFF8-0xFF9
+bg1hofs:     .hword 0x0000     // 0xFFA-0xFFB
 framebuffer: .word  0xA0320000 // 0xFFC-0xFFF
 
 .text
@@ -52,19 +55,35 @@ draw_line:
     beq  s4, zero, end_line
     addi s4, s4, 3
 
-    // Get the vertical offset within the BG
+    // Get the vertical and horizontal offsets within the BG
     lhu  s5, bg1vofs
     add  s5, s5, s1
+    lhu  s6, bg1hofs
 
-    // Load the BG entries for the current line
+    // Get the base screen address for the BG
     la   a0, scrn_data
     la   a1, 0xA0340000 // VRAM
     lhu  t0, bg1scrnbase
     add  a1, a1, t0
+
+    // Apply the vertical base offset if past the bounds of the first screen
+    andi t0, s5, 0x100
+    beq  t0, zero, load_screen
+    lhu  t0, bg1baseofsv
+    add  a1, a1, t0
+
+load_screen:
+    // Load the BG entries for the first horizontal screen
     andi t0, s5, 0xFF & ~7
     sll  t0, t0, 3
     add  a1, a1, t0
     li   a2, 0x003F
+    jal  dma_read
+
+    // Load the BG entries for the second horizontal screen
+    addi a0, a0, 0x40
+    lhu  t0, bg1baseofsh
+    add  a1, a1, t0
     jal  dma_read
 
     // Calculate the character offset for the current line
@@ -79,12 +98,14 @@ draw_line:
 draw_tile:
     // Get the BG entry for the current tile
     // TODO: priority, mirroring
-    srl  t5, s0, 3
-    sll  t5, t5, 1
-    lhu  t5, scrn_data(t5)
+    add  t0, s6, s0
+    andi t5, t0, 7 // Fine X offset
+    andi t6, t0, 0x1FF & ~7
+    srl  t6, t6, 2
+    lhu  t6, scrn_data(t6)
 
     // Load the tile's character data
-    andi t0, t5, 0x03FF
+    andi t0, t6, 0x03FF
     sll  t0, t0, s4
     add  a1, s5, t0
     jal  dma_read
@@ -94,8 +115,9 @@ draw_tile:
 
     // Prepare data for 4-color tiles
     lhu  t0, char_data + 0x00(t4)
+    sll  t0, t0, t5
     bne  s4, 4, prepare_data16
-    srl  t6, t5, 7
+    srl  t6, t6, 7
     andi t6, t6, 0x7 << 3 // Palette offset
     la   t7, draw_pixel4
     jr   t7
@@ -104,8 +126,9 @@ prepare_data16:
     // Prepare data for 16-color tiles
     lhu  t1, char_data + 0x10(t4)
     sll  t1, t1, 2
+    sll  t1, t1, t5
     bne  s4, 5, prepare_data256
-    srl  t6, t5, 5
+    srl  t6, t6, 5
     andi t6, t6, 0x7 << 5 // Palette offset
     la   t7, draw_pixel16
     jr   t7
@@ -114,8 +137,10 @@ prepare_data256:
     // Prepare data for 256-color tiles
     lhu  t2, char_data + 0x20(t4)
     sll  t2, t3, 4
+    sll  t2, t2, t5
     lhu  t3, char_data + 0x30(t4)
     sll  t3, t3, 6
+    sll  t3, t3, t5
     li   t6, 0
     la   t7, draw_pixel256
 
@@ -165,11 +190,11 @@ transparent:
 
     // Move to the next pixel until the scanline is complete
     addi s0, s0, 1
-    andi t4, s0, 7
-    beq  t4, zero, end_tile
+    beq  s0, s2, end_line
+    add  t4, s6, s0
+    andi t4, t4, 7
+    beq  t4, zero, draw_tile
     jr   t7
-end_tile:
-    bne  s0, s2, draw_tile
 
 end_line:
     // DMA the scanline to the framebuffer

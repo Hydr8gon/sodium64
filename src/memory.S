@@ -276,6 +276,7 @@ io_write8: // a0: address, a1: value
     beq  a0, 0x2105, write_bgmode
     beq  a0, 0x2107, write_bg1sc
     beq  a0, 0x210B, write_bg12nba
+    beq  a0, 0x210D, write_bg1hofs
     beq  a0, 0x210E, write_bg1vofs
     beq  a0, 0x2115, write_vmain
     beq  a0, 0x2116, write_vmaddl
