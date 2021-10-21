@@ -28,15 +28,16 @@ scanline:  .hword 0:0x100
 scrn_data: .hword 0:0x40
 char_data: .hword 0:0x20
 
-.space 0xB2F
+.space 0xB0A
 
-bg_types:    .byte  0x55       // 0xFEF
-bg1scrnbase: .hword 0x0000     // 0xFF0-0xFF1
-bg1baseofsv: .hword 0x0000     // 0xFF2-0xFF3
-bg1baseofsh: .hword 0x0000     // 0xFF4-0xFF5
-bg1charbase: .hword 0x0000     // 0xFF6-0xFF7
-bg1vofs:     .hword 0x0000     // 0xFF8-0xFF9
-bg1hofs:     .hword 0x0000     // 0xFFA-0xFFB
+bg_order:    .byte  0xE4       // 0xFCA
+bg_type:     .byte  0x00       // 0xFCB
+bgscrnbase:  .hword 0x0000:4   // 0xFCC-0xFD3
+bgbaseofsh:  .hword 0x0000:4   // 0xFD4-0xFDB
+bgbaseofsv:  .hword 0x0000:4   // 0xFDC-0xFE3
+bgcharbase:  .hword 0x0000:4   // 0xFE4-0xFEB
+bghofs:      .hword 0x0000:4   // 0xFEC-0xFF3
+bgvofs:      .hword 0x0000:4   // 0xFF4-0xFFB
 framebuffer: .word  0xA0320000 // 0xFFC-0xFFF
 
 .text
@@ -47,29 +48,50 @@ draw_frame:
     li   s1, 0   // Current Y coordinate
     li   s2, 256 // Maximum X coordinate
     li   s3, 224 // Maximum Y coordinate
+    li   a3, 0   // Current BG shift
 
 draw_line:
+    // Clear the scanline with the backdrop color
+    lhu  t0, palette
+    andi t0, t0, 0xFFFE
+    sll  t1, t0, 16
+    or   t0, t0, t1
+    li   t1, 0
+    li   t2, 0x200
+clear_line:
+    sw   t0, scanline(t1)
+    addi t1, t1, 4
+    bne  t1, t2, clear_line
+
+draw_bg:
+    // Get the index for the current BG
+    lbu  t1, bg_order
+    srl  t1, t1, a3
+    andi t1, t1, 0x3
+    sll  t1, t1, 1
+
     // Get the character data shift from the BG type
-    lbu  s4, bg_types
+    lbu  s4, bg_type
+    srl  s4, s4, t1
     andi s4, s4, 0x3
-    beq  s4, zero, end_line
+    beq  s4, zero, next_bg
     addi s4, s4, 3
 
     // Get the vertical and horizontal offsets within the BG
-    lhu  s5, bg1vofs
+    lhu  s5, bgvofs(t1)
     add  s5, s5, s1
-    lhu  s6, bg1hofs
+    lhu  s6, bghofs(t1)
 
     // Get the base screen address for the BG
     la   a0, scrn_data
     la   a1, 0xA0340000 // VRAM
-    lhu  t0, bg1scrnbase
+    lhu  t0, bgscrnbase(t1)
     add  a1, a1, t0
 
     // Apply the vertical base offset if past the bounds of the first screen
     andi t0, s5, 0x100
     beq  t0, zero, load_screen
-    lhu  t0, bg1baseofsv
+    lhu  t0, bgbaseofsv(t1)
     add  a1, a1, t0
 
 load_screen:
@@ -82,7 +104,7 @@ load_screen:
 
     // Load the BG entries for the second horizontal screen
     addi a0, a0, 0x40
-    lhu  t0, bg1baseofsh
+    lhu  t0, bgbaseofsh(t1)
     add  a1, a1, t0
     jal  dma_read
 
@@ -92,7 +114,7 @@ load_screen:
     sll  s5, s5, 1
     la   t0, 0xA0340000 // VRAM
     add  s5, s5, t0
-    lhu  t0, bg1charbase
+    lhu  t0, bgcharbase(t1)
     add  s5, s5, t0
 
 draw_tile:
@@ -129,7 +151,7 @@ mirror_noty:
     srl  t6, t6, 7
     andi t6, t6, 0x7 << 3 // Palette offset
     la   t7, draw_pixel4
-    jr   t7
+    b    check_pixel
 
 prepare_data16:
     // Prepare data for 16-color tiles
@@ -139,7 +161,7 @@ prepare_data16:
     srl  t6, t6, 5
     andi t6, t6, 0x7 << 5 // Palette offset
     la   t7, draw_pixel16
-    jr   t7
+    b    check_pixel
 
 prepare_data256:
     // Prepare data for 256-color tiles
@@ -149,6 +171,7 @@ prepare_data256:
     sll  t3, t3, 6
     li   t6, 0
     la   t7, draw_pixel256
+    b    check_pixel
 
 draw_pixel256:
     // Decode bits 6-7 of the palette index
@@ -186,23 +209,30 @@ draw_pixel4:
     or   t4, t4, t5
 
     // Draw a pixel with the palette color
+    beq  t4, zero, skip_pixel
     sll  t4, t4, 1
-    beq  t4, zero, transparent
     add  t4, t4, t6
-transparent:
     lhu  t4, palette(t4)
     sll  t5, s0, 1
     sh   t4, scanline(t5)
     li   t4, 0
 
+skip_pixel:
     // Move to the next pixel until the scanline is complete
     addi s0, s0, 1
-    beq  s0, s2, end_line
+    beq  s0, s2, next_bg
 
     // Adjust the shift for horizontally non-mirrored tiles
     bne  s7, zero, mirror_shift
     beq  t9, zero, draw_tile
     addi t9, t9, -1
+
+check_pixel:
+    // Check if a pixel has already been drawn, and skip it if so
+    sll  t5, s0, 1
+    lhu  t8, scanline(t5)
+    andi t8, t8, 0x0001
+    bne  t8, zero, skip_pixel
     jr   t7
 
 mirror_shift:
@@ -210,9 +240,15 @@ mirror_shift:
     addi t9, t9, 1
     andi t9, t9, 7
     beq  t9, zero, draw_tile
-    jr   t7
+    b    check_pixel
 
-end_line:
+next_bg:
+    // Move to the next BG until all have been drawn
+    li   s0, 0
+    addi a3, a3, 2
+    andi a3, a3, 7
+    bne  a3, zero, draw_bg
+
     // DMA the scanline to the framebuffer
     la   a0, scanline
     lw   a1, framebuffer
@@ -222,7 +258,6 @@ end_line:
     jal  dma_write
 
     // Move to the next line until the frame is complete
-    li   s0, 0
     addi s1, s1, 1
     bne  s1, s3, draw_line
 

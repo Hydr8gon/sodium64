@@ -30,7 +30,7 @@ framebuffer: .word 0xA0300000
 main:
     // Initialize the VI to display a 16-bit 256x224 framebuffer
     lui  t0, 0xA440     // VI register upper address
-    li   t1, 0x0002     // 16-bit pixel format
+    li   t1, 0x0202     // 16-bit pixel format, no anti-aliasing
     sw   t1, 0x0000(t0) // VI_STATUS_REG
     li   t1, 0xA0300000 // Framebuffer address
     sw   t1, 0x0004(t0) // VI_ORIGIN_REG

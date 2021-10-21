@@ -275,9 +275,19 @@ io_write8: // a0: address, a1: value
     andi a0, a0, 0xFFFF
     beq  a0, 0x2105, write_bgmode
     beq  a0, 0x2107, write_bg1sc
+    beq  a0, 0x2108, write_bg2sc
+    beq  a0, 0x2109, write_bg3sc
+    beq  a0, 0x210A, write_bg4sc
     beq  a0, 0x210B, write_bg12nba
+    beq  a0, 0x210C, write_bg34nba
     beq  a0, 0x210D, write_bg1hofs
     beq  a0, 0x210E, write_bg1vofs
+    beq  a0, 0x210F, write_bg2hofs
+    beq  a0, 0x2110, write_bg2vofs
+    beq  a0, 0x2111, write_bg3hofs
+    beq  a0, 0x2112, write_bg3vofs
+    beq  a0, 0x2113, write_bg4hofs
+    beq  a0, 0x2114, write_bg4vofs
     beq  a0, 0x2115, write_vmain
     beq  a0, 0x2116, write_vmaddl
     beq  a0, 0x2117, write_vmaddh
@@ -285,6 +295,8 @@ io_write8: // a0: address, a1: value
     beq  a0, 0x2119, write_vmdatah
     beq  a0, 0x2121, write_cgadd
     beq  a0, 0x2122, write_cgdata
+    beq  a0, 0x212C, write_tm
+    beq  a0, 0x212D, write_ts
     beq  a0, 0x4200, write_nmitimen
     beq  a0, 0x420B, write_mdmaen
     andi t0, a0, 0xFF8F

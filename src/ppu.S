@@ -26,9 +26,19 @@
 .globl read_hvbjoy
 .globl write_bgmode
 .globl write_bg1sc
+.globl write_bg2sc
+.globl write_bg3sc
+.globl write_bg4sc
 .globl write_bg12nba
+.globl write_bg34nba
 .globl write_bg1hofs
 .globl write_bg1vofs
+.globl write_bg2hofs
+.globl write_bg2vofs
+.globl write_bg3hofs
+.globl write_bg3vofs
+.globl write_bg4hofs
+.globl write_bg4vofs
 .globl write_vmain
 .globl write_vmaddl
 .globl write_vmaddh
@@ -36,6 +46,8 @@
 .globl write_vmdatah
 .globl write_cgadd
 .globl write_cgdata
+.globl write_tm
+.globl write_ts
 .globl write_nmitimen
 
 .data
@@ -43,6 +55,10 @@
 frame_ready: .byte 0x00
 
 cgram: .hword 0:0x100
+
+bg_type:  .byte 0x55
+bg_mmask: .byte 0x00
+bg_smask: .byte 0x00
 
 bg_old:    .byte 0x00
 cg_lsb:    .byte 0x00
@@ -55,9 +71,18 @@ nmitimen: .byte  0x00
 rdnmi:    .byte  0x00
 hvbjoy:   .byte  0x00
 
+// 2 bits per BG; the order they should be drawn in
+bg_orders: .byte 0xE4, 0xD2
+
 // 2 bits per BG: 0 = none, 1 = 4-color, 2 = 16-color, 3 = 256-color
 // TODO: offset-per-tile, hi-res, rotscale
-bg_types: .byte 0x55, 0x1A, 0x0A, 0x0B, 0x07, 0x00, 0x00, 0x00
+bg_types:
+    .byte 0x55, 0x1A, 0x0A, 0x0B, 0x07, 0x00, 0x00, 0x00
+
+// Masks for the BG type to disable certain layers
+bg_masks:
+    .byte 0x00, 0x03, 0x0C, 0x0F, 0x30, 0x33, 0x3C, 0x3F
+    .byte 0xC0, 0xC3, 0xCC, 0xCF, 0xF0, 0xF3, 0xFC, 0xFF
 
 // Possible offsets for additional screens past the base
 scrn_ofsh: .hword 0x0000, 0x0800, 0x0000, 0x0800
@@ -132,109 +157,374 @@ read_hvbjoy: // v0: value
 
 
 write_bgmode: // a1: value
-    // Read the DMEM word containing the BG types and clear the old value
-    li   t0, 0xA4000FEC
-    lw   t1, (t0)
-    li   t2, ~0x000000FF
-    and  t1, t1, t2
+    // Set the appropriate BG type from the mode bits
+    // TODO: tile size
+    andi t0, a1, 0x07
+    lbu  t0, bg_types(t0)
+    sb   t0, bg_type
 
-    // Get the appropriate value for the new BG mode
-    // TODO: tile size, BG3 priority
-    andi t2, a1, 0x07
-    lbu  t2, bg_types(t2)
-
-    // Update the value and write it back
+    // Apply the mask to the BG type to disable layers
+    lbu  t1, bg_mmask
+    lbu  t2, bg_smask
     or   t1, t1, t2
-    sw   t1, (t0)
+    and  t0, t0, t1
+
+    // Give BG3 top priority if bit 3 is set in mode 1
+    andi t1, a1, 0x0F
+    seq  t1, t1, 0x09
+    lbu  t1, bg_orders(t1)
+    sll  t1, t1, 8
+    or   t0, t0, t1
+
+    // Update the DMEM word containing the BG order and type
+    li   t1, 0xA4000FC8
+    lw   t2, (t1)
+    li   t3, ~0x0000FFFF
+    and  t2, t2, t3
+    or   t0, t0, t2
+    sw   t0, (t1)
     jr   ra
 
 
 write_bg1sc: // a1: value
     // Calculate the screen base address for BG1
     andi t0, a1, 0xFC
-    sll  t0, t0, 9 + 16
+    sll  t0, t0, 9
 
-    // Get the vertical base offset for BG1
-    andi t1, a1, 0x03
-    sll  t1, t1, 1
-    lhu  t2, scrn_ofsv(t1)
-
-    // Update the DMEM word containing BG1's screen base and vertical base offset
-    or   t0, t0, t2
-    sw   t0, 0xA4000FF0
-
-    // Read the DMEM word containing BG1's horizontal base offset and clear the old value
-    li   t0, 0xA4000FF4
-    lw   t2, (t0)
+    // Update the DMEM word containing BG1's screen base address
+    li   t1, 0xA4000FCC
+    lw   t2, (t1)
     li   t3, ~0xFFFF0000
     and  t2, t2, t3
+    sll  t0, t0, 16
+    or   t0, t0, t2
+    sw   t0, (t1)
 
     // Get the horizontal base offset for BG1
-    lhu  t3, scrn_ofsh(t1)
-    sll  t3, t3, 16
+    andi t4, a1, 0x03
+    sll  t4, t4, 1
+    lhu  t0, scrn_ofsh(t4)
 
-    // Update the value and write it back
-    or   t2, t2, t3
-    sw   t2, (t0)
+    // Update the DMEM word containing BG1's horizontal base offset
+    li   t1, 0xA4000FD4
+    lw   t2, (t1)
+    li   t3, ~0xFFFF0000
+    and  t2, t2, t3
+    sll  t0, t0, 16
+    or   t0, t0, t2
+    sw   t0, (t1)
+
+    // Get the vertical base offset for BG1
+    lhu  t0, scrn_ofsv(t4)
+
+    // Update the DMEM word containing BG1's vertical base offset
+    li   t1, 0xA4000FDC
+    lw   t2, (t1)
+    li   t3, ~0xFFFF0000
+    and  t2, t2, t3
+    sll  t0, t0, 16
+    or   t0, t0, t2
+    sw   t0, (t1)
+    jr   ra
+
+
+write_bg2sc: // a1: value
+    // Calculate the screen base address for BG2
+    andi t0, a1, 0xFC
+    sll  t0, t0, 9
+
+    // Update the DMEM word containing BG2's screen base address
+    li   t1, 0xA4000FCC
+    lw   t2, (t1)
+    li   t3, ~0x0000FFFF
+    and  t2, t2, t3
+    or   t0, t0, t2
+    sw   t0, (t1)
+
+    // Get the horizontal base offset for BG2
+    andi t4, a1, 0x03
+    sll  t4, t4, 1
+    lhu  t0, scrn_ofsh(t4)
+
+    // Update the DMEM word containing BG2's horizontal base offset
+    li   t1, 0xA4000FD4
+    lw   t2, (t1)
+    li   t3, ~0x0000FFFF
+    and  t2, t2, t3
+    or   t0, t0, t2
+    sw   t0, (t1)
+
+    // Get the vertical base offset for BG2
+    lhu  t0, scrn_ofsv(t4)
+
+    // Update the DMEM word containing BG2's vertical base offset
+    li   t1, 0xA4000FDC
+    lw   t2, (t1)
+    li   t3, ~0x0000FFFF
+    and  t2, t2, t3
+    or   t0, t0, t2
+    sw   t0, (t1)
+    jr   ra
+
+
+write_bg3sc: // a1: value
+    // Calculate the screen base address for BG3
+    andi t0, a1, 0xFC
+    sll  t0, t0, 9
+
+    // Update the DMEM word containing BG3's screen base address
+    li   t1, 0xA4000FD0
+    lw   t2, (t1)
+    li   t3, ~0xFFFF0000
+    and  t2, t2, t3
+    sll  t0, t0, 16
+    or   t0, t0, t2
+    sw   t0, (t1)
+
+    // Get the horizontal base offset for BG3
+    andi t4, a1, 0x03
+    sll  t4, t4, 1
+    lhu  t0, scrn_ofsh(t4)
+
+    // Update the DMEM word containing BG3's horizontal base offset
+    li   t1, 0xA4000FD8
+    lw   t2, (t1)
+    li   t3, ~0xFFFF0000
+    and  t2, t2, t3
+    sll  t0, t0, 16
+    or   t0, t0, t2
+    sw   t0, (t1)
+
+    // Get the vertical base offset for BG3
+    lhu  t0, scrn_ofsv(t4)
+
+    // Update the DMEM word containing BG3's vertical base offset
+    li   t1, 0xA4000FE0
+    lw   t2, (t1)
+    li   t3, ~0xFFFF0000
+    and  t2, t2, t3
+    sll  t0, t0, 16
+    or   t0, t0, t2
+    sw   t0, (t1)
+    jr   ra
+
+
+write_bg4sc: // a1: value
+    // Calculate the screen base address for BG4
+    andi t0, a1, 0xFC
+    sll  t0, t0, 9
+
+    // Update the DMEM word containing BG4's screen base address
+    li   t1, 0xA4000FD0
+    lw   t2, (t1)
+    li   t3, ~0x0000FFFF
+    and  t2, t2, t3
+    or   t0, t0, t2
+    sw   t0, (t1)
+
+    // Get the horizontal base offset for BG4
+    andi t4, a1, 0x03
+    sll  t4, t4, 1
+    lhu  t0, scrn_ofsh(t4)
+
+    // Update the DMEM word containing BG4's horizontal base offset
+    li   t1, 0xA4000FD8
+    lw   t2, (t1)
+    li   t3, ~0x0000FFFF
+    and  t2, t2, t3
+    or   t0, t0, t2
+    sw   t0, (t1)
+
+    // Get the vertical base offset for BG4
+    lhu  t0, scrn_ofsv(t4)
+
+    // Update the DMEM word containing BG4's vertical base offset
+    li   t1, 0xA4000FE0
+    lw   t2, (t1)
+    li   t3, ~0x0000FFFF
+    and  t2, t2, t3
+    or   t0, t0, t2
+    sw   t0, (t1)
     jr   ra
 
 
 write_bg12nba: // a1: value
-    // Read the DMEM word containing BG1's character base and clear the old value
-    li   t0, 0xA4000FF4
-    lw   t1, (t0)
-    li   t2, ~0x0000FFFF
-    and  t1, t1, t2
-
     // Calculate the character base address for BG1
-    // TODO: BG2
-    andi t2, a1, 0x0F
-    sll  t2, t2, 13
+    andi t0, a1, 0x0F
+    sll  t0, t0, 13
 
-    // Update the value and write it back
-    or   t1, t1, t2
-    sw   t1, (t0)
+    // Calculate the character base address for BG2
+    andi t1, a1, 0xF0
+    sll  t1, t1, 9
+
+    // Update the DMEM word containing the values
+    sll  t0, t0, 16
+    or   t0, t0, t1
+    sw   t0, 0xA4000FE4
+    jr   ra
+
+
+write_bg34nba: // a1: value
+    // Calculate the character base address for BG3
+    andi t0, a1, 0x0F
+    sll  t0, t0, 13
+
+    // Calculate the character base address for BG4
+    andi t1, a1, 0xF0
+    sll  t1, t1, 9
+
+    // Update the DMEM word containing the values
+    sll  t0, t0, 16
+    or   t0, t0, t1
+    sw   t0, 0xA4000FE8
     jr   ra
 
 
 write_bg1hofs: // a1: value
-    // Read the DMEM word containing BG1HOFS and clear the old value
-    li   t0, 0xA4000FF8
-    lw   t1, (t0)
-    li   t2, ~0x0000FFFF
-    and  t1, t1, t2
-
     // Form a 10-bit value with the old and new bytes
-    lbu  t2, bg_old
-    or   t1, t1, t2
-    andi t2, a1, 0x3
-    sll  t2, t2, 8
-    or   t1, t1, t2
-
-    // Update the register and the old byte
-    sw   t1, (t0)
+    lbu  t0, bg_old
+    andi t1, a1, 0x3
+    sll  t1, t1, 8
+    or   t0, t0, t1
     sb   a1, bg_old
+
+    // Update the DMEM word containing BG1HOFS
+    li   t1, 0xA4000FEC
+    lw   t2, (t1)
+    li   t3, ~0xFFFF0000
+    and  t2, t2, t3
+    sll  t0, t0, 16
+    or   t0, t0, t2
+    sw   t0, (t1)
     jr   ra
 
 
 write_bg1vofs: // a1: value
-    // Read the DMEM word containing BG1VOFS and clear the old value
-    li   t0, 0xA4000FF8
-    lw   t1, (t0)
-    li   t2, ~0xFFFF0000
-    and  t1, t1, t2
-
     // Form a 10-bit value with the old and new bytes
-    lbu  t2, bg_old
-    sll  t2, t2, 16
-    or   t1, t1, t2
-    andi t2, a1, 0x3
-    sll  t2, t2, 24
-    or   t1, t1, t2
-
-    // Update the register and the old byte
-    sw   t1, (t0)
+    lbu  t0, bg_old
+    andi t1, a1, 0x3
+    sll  t1, t1, 8
+    or   t0, t0, t1
     sb   a1, bg_old
+
+    // Update the DMEM word containing BG1VOFS
+    li   t1, 0xA4000FF4
+    lw   t2, (t1)
+    li   t3, ~0xFFFF0000
+    and  t2, t2, t3
+    sll  t0, t0, 16
+    or   t0, t0, t2
+    sw   t0, (t1)
+    jr   ra
+
+
+write_bg2hofs: // a1: value
+    // Form a 10-bit value with the old and new bytes
+    lbu  t0, bg_old
+    andi t1, a1, 0x3
+    sll  t1, t1, 8
+    or   t0, t0, t1
+    sb   a1, bg_old
+
+    // Update the DMEM word containing BG2HOFS
+    li   t1, 0xA4000FEC
+    lw   t2, (t1)
+    li   t3, ~0x0000FFFF
+    and  t2, t2, t3
+    or   t0, t0, t2
+    sw   t0, (t1)
+    jr   ra
+
+
+write_bg2vofs: // a1: value
+    // Form a 10-bit value with the old and new bytes
+    lbu  t0, bg_old
+    andi t1, a1, 0x3
+    sll  t1, t1, 8
+    or   t0, t0, t1
+    sb   a1, bg_old
+
+    // Update the DMEM word containing BG2VOFS
+    li   t1, 0xA4000FF4
+    lw   t2, (t1)
+    li   t3, ~0x0000FFFF
+    and  t2, t2, t3
+    or   t0, t0, t2
+    sw   t0, (t1)
+    jr   ra
+
+
+write_bg3hofs: // a1: value
+    // Form a 10-bit value with the old and new bytes
+    lbu  t0, bg_old
+    andi t1, a1, 0x3
+    sll  t1, t1, 8
+    or   t0, t0, t1
+    sb   a1, bg_old
+
+    // Update the DMEM word containing BG3HOFS
+    li   t1, 0xA4000FF0
+    lw   t2, (t1)
+    li   t3, ~0xFFFF0000
+    and  t2, t2, t3
+    sll  t0, t0, 16
+    or   t0, t0, t2
+    sw   t0, (t1)
+    jr   ra
+
+
+write_bg3vofs: // a1: value
+    // Form a 10-bit value with the old and new bytes
+    lbu  t0, bg_old
+    andi t1, a1, 0x3
+    sll  t1, t1, 8
+    or   t0, t0, t1
+    sb   a1, bg_old
+
+    // Update the DMEM word containing BG3VOFS
+    li   t1, 0xA4000FF8
+    lw   t2, (t1)
+    li   t3, ~0xFFFF0000
+    and  t2, t2, t3
+    sll  t0, t0, 16
+    or   t0, t0, t2
+    sw   t0, (t1)
+    jr   ra
+
+
+write_bg4hofs: // a1: value
+    // Form a 10-bit value with the old and new bytes
+    lbu  t0, bg_old
+    andi t1, a1, 0x3
+    sll  t1, t1, 8
+    or   t0, t0, t1
+    sb   a1, bg_old
+
+    // Update the DMEM word containing BG4HOFS
+    li   t1, 0xA4000FF0
+    lw   t2, (t1)
+    li   t3, ~0x0000FFFF
+    and  t2, t2, t3
+    or   t0, t0, t2
+    sw   t0, (t1)
+    jr   ra
+
+
+write_bg4vofs: // a1: value
+    // Form a 10-bit value with the old and new bytes
+    lbu  t0, bg_old
+    andi t1, a1, 0x3
+    sll  t1, t1, 8
+    or   t0, t0, t1
+    sb   a1, bg_old
+
+    // Update the DMEM word containing BG4VOFS
+    li   t1, 0xA4000FF8
+    lw   t2, (t1)
+    li   t3, ~0x0000FFFF
+    and  t2, t2, t3
+    or   t0, t0, t2
+    sw   t0, (t1)
     jr   ra
 
 
@@ -335,6 +625,7 @@ cg_high:
     andi t2, t1, 0x1F << 10 // B
     srl  t2, t2, 9
     or   t3, t3, t2
+    ori  t3, t3, 0x0001 // A
 
     // Update the RSP's converted palette in DMEM
     // DMEM access from the main CPU is 32-bit, so check if this is a low or high half-word
@@ -358,6 +649,53 @@ dmem_high:
     and  t0, t0, t1
     or   t3, t3, t0
     sw   t3, (t2)
+    jr   ra
+
+
+write_tm: // a1: value
+    // Set the appropriate BG mask for the main screen
+    // TODO: OBJ enable
+    andi t0, a1, 0x0F
+    lbu  t0, bg_masks(t0)
+    sb   t0, bg_mmask
+
+    // Apply the mask to the BG type to disable layers
+    lbu  t1, bg_smask
+    or   t0, t0, t1
+    lbu  t1, bg_type
+    and  t0, t0, t1
+
+    // Update the DMEM word containing the BG type
+    li   t1, 0xA4000FC8
+    lw   t2, (t1)
+    li   t3, ~0x000000FF
+    and  t2, t2, t3
+    or   t0, t0, t2
+    sw   t0, (t1)
+    jr   ra
+
+
+write_ts: // a1: value
+    // Set the appropriate BG mask for the sub screen
+    // The sub screen isn't implemented yet, so this is combined with the main mask
+    // TODO: OBJ enable
+    andi t0, a1, 0x0F
+    lbu  t0, bg_masks(t0)
+    sb   t0, bg_smask
+
+    // Apply the mask to the BG type to disable layers
+    lbu  t1, bg_mmask
+    or   t0, t0, t1
+    lbu  t1, bg_type
+    and  t0, t0, t1
+
+    // Update the DMEM word containing the BG type
+    li   t1, 0xA4000FC8
+    lw   t2, (t1)
+    li   t3, ~0x000000FF
+    and  t2, t2, t3
+    or   t0, t0, t2
+    sw   t0, (t1)
     jr   ra
 
 
