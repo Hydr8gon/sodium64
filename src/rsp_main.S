@@ -23,22 +23,25 @@
 
 .data
 
-palette:   .hword 0:0x100
-scanline:  .hword 0:0x100
-scrn_data: .hword 0:0x40
-char_data: .hword 0:0x20
+scanline:  .byte 0:0x200
+palette:   .byte 0:0x200
+oam:       .byte 0:0x220
+scrn_data: .byte 0:0x80
+char_data: .byte 0:0x40
 
-.space 0xB0A
+.space 0x8AC
 
-bg_order:    .byte  0xE4       // 0xFCA
-bg_type:     .byte  0x00       // 0xFCB
-bgscrnbase:  .hword 0x0000:4   // 0xFCC-0xFD3
-bgbaseofsh:  .hword 0x0000:4   // 0xFD4-0xFDB
-bgbaseofsv:  .hword 0x0000:4   // 0xFDC-0xFE3
-bgcharbase:  .hword 0x0000:4   // 0xFE4-0xFEB
-bghofs:      .hword 0x0000:4   // 0xFEC-0xFF3
-bgvofs:      .hword 0x0000:4   // 0xFF4-0xFFB
-framebuffer: .word  0xA0320000 // 0xFFC-0xFFF
+obj_enable:  .word 0x00       // 0xF8C-0xF8F
+bg_order:    .word 0xE4       // 0xF90-0xF93
+bg_type:     .word 0x00       // 0xF94-0xF97
+objcharbase: .word 0x0000     // 0xF98-0xF9B
+bgscrnbase:  .word 0x0000:4   // 0xF9C-0xFAB
+bgbaseofsh:  .word 0x0000:4   // 0xFAC-0xFBB
+bgbaseofsv:  .word 0x0000:4   // 0xFBC-0xFCB
+bgcharbase:  .word 0x0000:4   // 0xFCC-0xFDB
+bghofs:      .word 0x0000:4   // 0xFDC-0xFEB
+bgvofs:      .word 0x0000:4   // 0xFEC-0xFFB
+framebuffer: .word 0xA0320000 // 0xFFC-0xFFF
 
 .text
 
@@ -63,35 +66,144 @@ clear_line:
     addi t1, t1, 4
     bne  t1, t2, clear_line
 
+    // Check if objects are enabled
+    lw   t0, obj_enable
+    beq  t0, zero, draw_bg
+    li   t3, 0
+
+    // Set the character offset for objects
+    la   a0, char_data
+    la   s5, 0xA0340000
+    lw   t1, objcharbase
+    add  s5, s5, t1
+    li   a2, 0x001F
+
+draw_object:
+    // Get the object's Y coordinate and test bounds
+    lhu  t1, oam(t3)
+    srl  t2, t1, 8
+    blt  s1, t2, next_object
+    addi t2, t2, 8
+    bge  s1, t2, next_object
+
+    // Get the object's X coordinate, including the high bit
+    andi t1, t1, 0xFF
+    srl  t4, t3, 4
+    lbu  t4, oam + 0x200(t4)
+    srl  t5, t3, 1
+    andi t5, t5, 0x3 << 1
+    srl  t4, t4, t5
+    andi t4, t4, 0x1
+    sll  t4, t4, 8
+    or   t1, t1, t4
+
+    // Set the initial tile shift and step based on horizontal mirroring
+    li   s6, 7
+    li   s7, -1
+    lhu  t9, oam + 2(t3)
+    andi t8, t9, 0x4000
+    beq  t8, zero, objmir_notx
+    li   s6, 0
+    li   s7, 1
+
+objmir_notx:
+    // Load the tile's character data based on fine Y offset and vertical mirroring
+    // TODO: priority, size
+    andi t8, t9, 0x01FF
+    sll  t8, t8, 5
+    add  a1, s5, t8
+    sub  t2, s1, t2
+    andi t2, t2, 0x7
+    sll  t2, t2, 1
+    add  a1, a1, t2
+    andi t8, t9, 0x8000
+    beq  t8, zero, objmir_noty
+    xori a1, a1, 7 << 1
+objmir_noty:
+    jal  dma_read
+
+    // DMA aligns to 64-bit words, so adjust the data offset accordingly
+    andi t5, a1, 7
+
+    // Prepare data for 16-color tiles
+    lhu  t6, char_data + 0x00(t5)
+    lhu  t7, char_data + 0x10(t5)
+    sll  t7, t7, 2
+    srl  t8, t9, 4
+    andi t8, t8, 0x7 << 5 // Palette offset
+    sll  t1, t1, 1
+    addi t2, t1, 8 << 1
+
+draw_objpix:
+    // Don't draw outside of scanline bounds
+    bge  t1, 0x200, next_object
+    li   t4, 0
+
+    // Decode bits 2-3 of the palette index
+    srl  s4, t7, s6
+    andi t5, s4, 0x04
+    or   t4, t4, t5
+    srl  t5, s4, 7
+    andi t5, t5, 0x08
+    or   t4, t4, t5
+
+    // Decode bits 0-1 of the palette index
+    srl  s4, t6, s6
+    andi t5, s4, 0x01
+    or   t4, t4, t5
+    srl  t5, s4, 7
+    andi t5, t5, 0x02
+    or   t4, t4, t5
+
+    // Draw a pixel with the palette color
+    beq  t4, zero, skip_objpix
+    sll  t4, t4, 1
+    add  t4, t4, t8
+    lhu  t4, palette + 0x100(t4)
+    sh   t4, scanline(t1)
+
+skip_objpix:
+    // Move to the next pixel until the object bounds
+    addi t1, t1, 2
+    add  s6, s6, s7
+    bne  t1, t2, draw_objpix
+
+next_object:
+    // Move to the next object until all are drawn
+    addi t3, t3, 4
+    andi t3, t3, 0x1FF
+    bne  t3, zero, draw_object
+
 draw_bg:
     // Get the index for the current BG
-    lbu  t1, bg_order
+    lw   t1, bg_order
     srl  t1, t1, a3
     andi t1, t1, 0x3
     sll  t1, t1, 1
 
     // Get the character data shift from the BG type
-    lbu  s4, bg_type
+    lw   s4, bg_type
     srl  s4, s4, t1
     andi s4, s4, 0x3
     beq  s4, zero, next_bg
     addi s4, s4, 3
 
     // Get the vertical and horizontal offsets within the BG
-    lhu  s5, bgvofs(t1)
+    sll  t1, t1, 1
+    lw   s5, bgvofs(t1)
     add  s5, s5, s1
-    lhu  s6, bghofs(t1)
+    lw   s6, bghofs(t1)
 
     // Get the base screen address for the BG
     la   a0, scrn_data
     la   a1, 0xA0340000 // VRAM
-    lhu  t0, bgscrnbase(t1)
+    lw   t0, bgscrnbase(t1)
     add  a1, a1, t0
 
     // Apply the vertical base offset if past the bounds of the first screen
     andi t0, s5, 0x100
     beq  t0, zero, load_screen
-    lhu  t0, bgbaseofsv(t1)
+    lw   t0, bgbaseofsv(t1)
     add  a1, a1, t0
 
 load_screen:
@@ -104,7 +216,7 @@ load_screen:
 
     // Load the BG entries for the second horizontal screen
     addi a0, a0, 0x40
-    lhu  t0, bgbaseofsh(t1)
+    lw   t0, bgbaseofsh(t1)
     add  a1, a1, t0
     jal  dma_read
 
@@ -114,7 +226,7 @@ load_screen:
     sll  s5, s5, 1
     la   t0, 0xA0340000 // VRAM
     add  s5, s5, t0
-    lhu  t0, bgcharbase(t1)
+    lw   t0, bgcharbase(t1)
     add  s5, s5, t0
 
 draw_tile:
@@ -166,7 +278,7 @@ prepare_data16:
 prepare_data256:
     // Prepare data for 256-color tiles
     lhu  t2, char_data + 0x20(t5)
-    sll  t2, t3, 4
+    sll  t2, t2, 4
     lhu  t3, char_data + 0x30(t5)
     sll  t3, t3, 6
     li   t6, 0

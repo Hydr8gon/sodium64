@@ -273,6 +273,10 @@ io_write8: // a0: address, a1: value
     // TODO: convert to lookup table
     addi s5, s5, -6
     andi a0, a0, 0xFFFF
+    beq  a0, 0x2101, write_obsel
+    beq  a0, 0x2102, write_oamaddl
+    beq  a0, 0x2103, write_oamaddh
+    beq  a0, 0x2104, write_oamdata
     beq  a0, 0x2105, write_bgmode
     beq  a0, 0x2107, write_bg1sc
     beq  a0, 0x2108, write_bg2sc
