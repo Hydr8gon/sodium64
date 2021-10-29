@@ -262,6 +262,10 @@ io_read8: // a0: address - v0: value
     beq  a0, 0x2143, rand // APUI03 "stub"
     beq  a0, 0x4210, read_rdnmi
     beq  a0, 0x4212, read_hvbjoy
+    beq  a0, 0x4214, read_rddivl
+    beq  a0, 0x4215, read_rddivh
+    beq  a0, 0x4216, read_rdmpyl
+    beq  a0, 0x4217, read_rdmpyh
     beq  a0, 0x4218, read_joy1l
     beq  a0, 0x4219, read_joy1h
     li   v0, 0
@@ -302,6 +306,11 @@ io_write8: // a0: address, a1: value
     beq  a0, 0x212C, write_tm
     beq  a0, 0x212D, write_ts
     beq  a0, 0x4200, write_nmitimen
+    beq  a0, 0x4202, write_wrmpya
+    beq  a0, 0x4203, write_wrmpyb
+    beq  a0, 0x4204, write_wrdivl
+    beq  a0, 0x4205, write_wrdivh
+    beq  a0, 0x4206, write_wrdivb
     beq  a0, 0x420B, write_mdmaen
     andi t0, a0, 0xFF8F
     beq  t0, 0x4300, write_dmapx
