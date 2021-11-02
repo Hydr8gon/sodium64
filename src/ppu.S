@@ -508,7 +508,7 @@ write_vmdatal: // a1: value
     // Write to the low VRAM byte at the current address
     lhu  t0, vmadd
     sll  t1, t0, 1
-    sb   a1, 0xA0340001(t1)
+    sb   a1, 0xA03F0001(t1)
 
     // Increment the VRAM address
     lbu  t1, vram_incl
@@ -522,7 +522,7 @@ write_vmdatah: // a1: value
     // Write to the high VRAM byte at the current address
     lhu  t0, vmadd
     sll  t1, t0, 1
-    sb   a1, 0xA0340000(t1)
+    sb   a1, 0xA03F0000(t1)
 
     // Increment the VRAM address
     lbu  t1, vram_inch

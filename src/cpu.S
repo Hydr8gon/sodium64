@@ -196,9 +196,9 @@ nmi_notemu:
     li   s0, 0xFFEA // NMI vector
 
 nmi_cont:
-    // Push the PC-1 to the stack
+    // Push the PC to the stack
     addi a0, a0, -1
-    addi a1, s7, -1
+    move a1, s7
     jal  memory_write16
 
     // Push the flags to the stack

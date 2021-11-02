@@ -290,10 +290,10 @@ rti_e: // RTI (emulation mode)
     andi s4, s4, 0xFF00
     or   s4, s4, t0
 
-    // Pop the PC+1 from the stack
+    // Pop the PC from the stack
     addi a0, a0, 1
     jal  memory_read16
-    addi s7, v0, 1
+    move s7, v0
 
     // Update the stack pointer
     addi t0, a0, 1
@@ -309,10 +309,10 @@ rti: // RTI
     andi s4, s4, 0xFF00
     or   s4, s4, v0
 
-    // Pop the PC+1 from the stack
+    // Pop the PC from the stack
     addi a0, a0, 1
     jal  memory_read16
-    addi s7, v0, 1
+    move s7, v0
 
     // Pop the PC bank from the stack
     addi a0, a0, 2
@@ -517,10 +517,10 @@ beq_end:
 
 
 brk_e: // BRK (emulation mode)
-    // Push the PC+1 to the stack
+    // Push the PC+2 to the stack
     lhu  a0, stack_ptr
     addi a0, a0, -1
-    addi a1, s7, 1
+    addi a1, s7, 2
     jal  memory_write16
 
     // Push the flags to the stack
@@ -549,9 +549,9 @@ brk: // BRK
     srl  a1, s7, 16
     jal  memory_write8
 
-    // Push the PC+1 to the stack
+    // Push the PC+2 to the stack
     addi a0, a0, -2
-    addi a1, s7, 1
+    addi a1, s7, 2
     jal  memory_write16
 
     // Push the flags to the stack
@@ -575,10 +575,10 @@ brk: // BRK
 
 
 cop_e: // COP (emulation mode)
-    // Push the PC+1 to the stack
+    // Push the PC+2 to the stack
     lhu  a0, stack_ptr
     addi a0, a0, -1
-    addi a1, s7, 1
+    addi a1, s7, 2
     jal  memory_write16
 
     // Push the flags to the stack
@@ -607,9 +607,9 @@ cop: // COP
     srl  a1, s7, 16
     jal  memory_write8
 
-    // Push the PC+1 to the stack
+    // Push the PC+2 to the stack
     addi a0, a0, -2
-    addi a1, s7, 1
+    addi a1, s7, 2
     jal  memory_write16
 
     // Push the flags to the stack

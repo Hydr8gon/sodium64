@@ -41,7 +41,7 @@ bgbaseofsv:  .word 0x0000:4   // 0xFBC-0xFCB
 bgcharbase:  .word 0x0000:4   // 0xFCC-0xFDB
 bghofs:      .word 0x0000:4   // 0xFDC-0xFEB
 bgvofs:      .word 0x0000:4   // 0xFEC-0xFFB
-framebuffer: .word 0xA0320000 // 0xFFC-0xFFF
+framebuffer: .word 0xA03D0000 // 0xFFC-0xFFF
 
 .text
 
@@ -73,26 +73,33 @@ clear_line:
 
     // Set the character offset for objects
     la   a0, char_data
-    la   s5, 0xA0340000
+    la   s5, 0xA03F0000
     lw   t1, objcharbase
     add  s5, s5, t1
-    li   a2, 0x001F
+    li   a2, 0x003F
 
 draw_object:
-    // Get the object's Y coordinate and test bounds
+    // Get the object's Y coordinate and test upper bounds
     lhu  t1, oam(t3)
     srl  t2, t1, 8
-    blt  s1, t2, next_object
-    addi t2, t2, 8
-    bge  s1, t2, next_object
+    ble  s1, t2, next_object
 
-    // Get the object's X coordinate, including the high bit
-    andi t1, t1, 0xFF
+    // Get the 2 additional object bits
     srl  t4, t3, 4
     lbu  t4, oam + 0x200(t4)
     srl  t5, t3, 1
     andi t5, t5, 0x3 << 1
     srl  t4, t4, t5
+
+    // Test lower bounds, based on object size
+    addi t2, t2, 9
+    andi v1, t4, 0x2
+    sll  v1, v1, 2
+    add  t2, t2, v1
+    bge  s1, t2, next_object
+
+    // Get the object's X coordinate, including the high bit
+    andi t1, t1, 0xFF
     andi t4, t4, 0x1
     sll  t4, t4, 8
     or   t1, t1, t4
@@ -107,42 +114,49 @@ draw_object:
     li   s7, 1
 
 objmir_notx:
-    // Load the tile's character data based on fine Y offset and vertical mirroring
-    // TODO: priority, size
+    // Load the tile's character data based on Y offset and vertical mirroring
+    // TODO: priority
     andi t8, t9, 0x01FF
     sll  t8, t8, 5
     add  a1, s5, t8
     sub  t2, s1, t2
+    andi t8, t9, 0x8000
+    beq  t8, zero, objmir_noty
+    not  t2, t2
+objmir_noty:
+    and  t8, t2, v1
+    sll  t8, t8, 6
+    add  a1, a1, t8
     andi t2, t2, 0x7
     sll  t2, t2, 1
     add  a1, a1, t2
-    andi t8, t9, 0x8000
-    beq  t8, zero, objmir_noty
-    xori a1, a1, 7 << 1
-objmir_noty:
     jal  dma_read
 
-    // DMA aligns to 64-bit words, so adjust the data offset accordingly
-    andi t5, a1, 7
-
-    // Prepare data for 16-color tiles
-    lhu  t6, char_data + 0x00(t5)
-    lhu  t7, char_data + 0x10(t5)
-    sll  t7, t7, 2
+    // Get the object's palette offset and scanline bounds
     srl  t8, t9, 4
-    andi t8, t8, 0x7 << 5 // Palette offset
+    andi t8, t8, 0x7 << 5
     sll  t1, t1, 1
     addi t2, t1, 8 << 1
+
+    // Get the DMA offset, adjusted for the current tile
+    andi a1, a1, 7
+    beq  v1, zero, draw_objtile
+    bne  s6, zero, draw_objtile
+    addi a1, a1, 0x20
+
+draw_objtile:
+    // Prepare data for 16-color tiles
+    lhu  t6, char_data + 0x00(a1)
+    lhu  t7, char_data + 0x10(a1)
+    sll  t7, t7, 2
 
 draw_objpix:
     // Don't draw outside of scanline bounds
     bge  t1, 0x200, next_object
-    li   t4, 0
 
     // Decode bits 2-3 of the palette index
     srl  s4, t7, s6
-    andi t5, s4, 0x04
-    or   t4, t4, t5
+    andi t4, s4, 0x04
     srl  t5, s4, 7
     andi t5, t5, 0x08
     or   t4, t4, t5
@@ -167,6 +181,15 @@ skip_objpix:
     addi t1, t1, 2
     add  s6, s6, s7
     bne  t1, t2, draw_objpix
+
+    // Move to the next tile in the object if there is one
+    beq  v1, zero, next_object
+    li   v1, 0
+    sll  t4, s7, 5
+    sub  a1, a1, t4
+    addi t2, t2, 8 << 1
+    andi s6, s6, 0x7
+    b    draw_objtile
 
 next_object:
     // Move to the next object until all are drawn
@@ -196,7 +219,7 @@ draw_bg:
 
     // Get the base screen address for the BG
     la   a0, scrn_data
-    la   a1, 0xA0340000 // VRAM
+    la   a1, 0xA03F0000 // VRAM
     lw   t0, bgscrnbase(t1)
     add  a1, a1, t0
 
@@ -224,7 +247,7 @@ load_screen:
     la   a0, char_data
     andi s5, s5, 7
     sll  s5, s5, 1
-    la   t0, 0xA0340000 // VRAM
+    la   t0, 0xA03F0000 // VRAM
     add  s5, s5, t0
     lw   t0, bgcharbase(t1)
     add  s5, s5, t0
@@ -379,9 +402,9 @@ next_bg:
 
     // Swap the framebuffer with the previously-rendered one
     lw   t0, framebuffer
-    li   t1, 0xA0300000
+    li   t1, 0xA03B0000
     bne  t0, t1, set_buffer
-    li   t1, 0xA0320000
+    li   t1, 0xA03D0000
 set_buffer:
     sw   t1, framebuffer
     j    draw_frame

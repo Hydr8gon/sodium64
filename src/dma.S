@@ -53,7 +53,7 @@ transfer_modes:
 
 write_mdmaen: // a1: value
     // Backup the return address
-    addi sp, sp, -4
+    addi sp, sp, -8
     sw   ra, (sp)
 
     // Set the initial enabled channels (s0) and current channel (s1)
@@ -153,7 +153,7 @@ dma_end:
 
     // Restore the return address
     lw   ra, (sp)
-    addi sp, sp, 4
+    addi sp, sp, 8
     jr   ra
 
 

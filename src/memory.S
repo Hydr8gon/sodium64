@@ -29,9 +29,10 @@
 
 .data
 
-rom: .incbin "rom.sfc"
-wram: .byte 0:0x20000
-memory_map: .word 0:0x800
+rom:        .incbin "rom.sfc"
+wram:       .byte   0:0x20000
+empty:      .byte   0:0x2000
+memory_map: .word   0:0x800
 
 .text
 
@@ -41,8 +42,8 @@ memory_init:
     li   t1, 0xFFFFFF // Maximum address
     li   t2, 0x002000 // Block size (8KB)
 
-    // Determine the memory area from the address bank
 build_map:
+    // Determine the memory area from the address bank
     li   t3, 0x400000
     blt  t0, t3, system_area // 0x00-0x3F: System, WS1 LoROM
     li   t3, 0x7E0000
@@ -54,25 +55,25 @@ build_map:
     blt  t0, t3, system_area // 0x80-0xBF: System, WS2 LoROM
     b    hirom_area          // 0xC0-0xFF: WS2 HiROM
 
-    // Further break down the 16-bit system area address
 system_area:
+    // Further break down the 16-bit system area address
     andi t3, t0, 0xFFFF
     li   t4, 0x1FFF         // WRAM mask
     blt  t3, t2, wram_area  // 0x0000-0x1FFF: 8KB WRAM mirror
     li   t4, 0x8000
     bge  t3, t4, lorom_area // 0x8000-0xFFFF: WS1/WS2 LoROM
-    b    empty_area         // Fallback for I/O registers
+    b    io_area            // 0x2000-0x7FFF: I/O registers
 
-    // Get a pointer to a WRAM block, with bit 0 set to indicate writability
 wram_area:
+    // Get a pointer to a WRAM block, with bit 0 set to indicate writability
     la   t3, wram
     and  t4, t4, t0 // Apply mask
     add  t3, t3, t4 
     ori  t3, t3, 1  // Write bit
     b    map_block
 
-    // Get a pointer to a ROM block mapped as LoROM
 lorom_area:
+    // Get a pointer to a ROM block mapped as LoROM
     la   t3, rom
     li   t4, 0x3F0000
     and  t4, t4, t0 // Mirrored bank
@@ -85,9 +86,15 @@ lorom_area:
     bge  t3, t4, empty_area
     b    map_block
 
+io_area:
+    // Set no pointer; this will fall back to I/O registers
+    li   t3, 0
+    b    map_block
+
 hirom_area: // TODO
 empty_area:
-    li   t3, 0
+    // Get a pointer to the empty placeholder block
+    la   t3, empty
 
 map_block:
     // Store the pointer to the block in the memory map
@@ -152,7 +159,7 @@ memory_read16: // a0: address - v0: value
 
 io_read16:
     // Backup the return address
-    addi sp, sp, -4
+    addi sp, sp, -8
     sw   ra, (sp)
 
     // Read two 8-bit values from the I/O registers
@@ -166,7 +173,7 @@ io_read16:
 
     // Restore the return address
     lw   ra, (sp)
-    addi sp, sp, 4
+    addi sp, sp, 8
     jr   ra
 
 
@@ -233,8 +240,8 @@ can_write16:
 
 io_write16:
     // Backup the return address and value
-    addi sp, sp, -8
-    sw   ra, 4(sp)
+    addi sp, sp, -16
+    sw   ra, 8(sp)
     sw   a1, 0(sp)
 
     // Write two 8-bit values to the I/O registers
@@ -246,8 +253,8 @@ io_write16:
 
     // Restore the return address and value
     lw   a1, 0(sp)
-    lw   ra, 4(sp)
-    addi sp, sp, 8
+    lw   ra, 8(sp)
+    addi sp, sp, 16
     jr   ra
 
 
