@@ -19,7 +19,7 @@
 
 #include <regdef.h>
 
-.globl frame_ready
+.globl frame_count
 
 .globl ppu_event
 .globl read_rdnmi
@@ -58,7 +58,7 @@
 
 cgram: .hword 0:0x100
 
-frame_ready: .byte 0x00
+frame_count: .byte 0x00
 bg_type:     .byte 0x55
 vram_incl:   .byte 0x00
 vram_inch:   .byte 0x00
@@ -111,15 +111,20 @@ vblank_start:
     li   t0, 0x80
     sb   t0, rdnmi
 
-    // Wait until the RSP is finished rendering
 rsp_wait:
+    // Wait until the RSP is finished rendering
     lw   t0, 0xA4040010 // SP_STATUS_REG
     andi t0, t0, 0x0001 // Halt
     beq  t0, zero, rsp_wait
 
-    // Indicate a new frame is ready
-    li   t0, 0x01
-    sb   t0, frame_ready
+    // Increment the frame counter with VI interrupts disabled
+    li   t0, 1 << 6     // Clear VI mask
+    sw   t0, 0xA430000C // MI_INTR_MASK_REG
+    lbu  t0, frame_count
+    addi t0, t0, 1
+    sb   t0, frame_count
+    li   t0, 1 << 7     // Set VI mask
+    sw   t0, 0xA430000C // MI_INTR_MASK_REG
 
     // Schedule the V-blank end and trigger an NMI if enabled
     add  s5, 341 * 36 * 4 // V-blank period
@@ -133,10 +138,10 @@ vblank_end:
     sb   t0, hvbjoy
     sb   zero, rdnmi
 
-    // Wait for the last frame to be displayed
 frame_wait:
-    lbu  t0, frame_ready
-    bne  t0, zero, frame_wait
+    // Wait for a framebuffer to be available
+    lbu  t0, frame_count
+    beq  t0, 2, frame_wait
 
     // Unhalt the RSP so it can render the next frame
     li   t0, 0x0001     // Clear halt

@@ -41,7 +41,7 @@ bgbaseofsv:  .word 0x0000:4   // 0xFBC-0xFCB
 bgcharbase:  .word 0x0000:4   // 0xFCC-0xFDB
 bghofs:      .word 0x0000:4   // 0xFDC-0xFEB
 bgvofs:      .word 0x0000:4   // 0xFEC-0xFFB
-framebuffer: .word 0xA03D0000 // 0xFFC-0xFFF
+framebuffer: .word 0xA03B0000 // 0xFFC-0xFFF
 
 .text
 
@@ -73,7 +73,7 @@ clear_line:
 
     // Set the character offset for objects
     la   a0, char_data
-    la   s5, 0xA03F0000
+    la   s5, 0xA03F0000 // VRAM
     lw   t1, objcharbase
     add  s5, s5, t1
     li   a2, 0x003F
@@ -260,12 +260,21 @@ draw_tile:
     srl  t6, t6, 2
     lhu  t6, scrn_data(t6)
 
-    // Set the initial tile shift based on fine X offset and horizontal mirroring
-    andi s7, t6, 0x4000
-    bne  s7, zero, mirror_x
+    // Set the tile shift, step, and bounds based on fine X offset and horizontal mirroring
+    andi t1, t6, 0x4000
+    beq  t1, zero, mirror_notx
+    li   s7, 1
+    andi t9, t0, 0x7
+    li   v1, 8
+    sub  v1, v1, t9
+    b    mirror_x
+mirror_notx:
+    li   s7, -1
     not  t0, t0
+    andi t9, t0, 0x7
+    addi v1, t9, 1
 mirror_x:
-    andi t9, t0, 7
+    add  v1, v1, s0
 
     // Load the tile's character data based on fine Y offset and vertical mirroring
     andi t0, t6, 0x03FF
@@ -282,31 +291,35 @@ mirror_noty:
 
     // Prepare data for 4-color tiles
     lhu  t0, char_data + 0x00(t5)
+    move t8, t0
     bne  s4, 4, prepare_data16
     srl  t6, t6, 7
     andi t6, t6, 0x7 << 3 // Palette offset
     la   t7, draw_pixel4
-    b    check_pixel
+    b    check_tile
 
 prepare_data16:
     // Prepare data for 16-color tiles
     lhu  t1, char_data + 0x10(t5)
+    or   t8, t8, t1
     sll  t1, t1, 2
     bne  s4, 5, prepare_data256
     srl  t6, t6, 5
     andi t6, t6, 0x7 << 5 // Palette offset
     la   t7, draw_pixel16
-    b    check_pixel
+    b    check_tile
 
 prepare_data256:
     // Prepare data for 256-color tiles
     lhu  t2, char_data + 0x20(t5)
+    or   t8, t8, t2
     sll  t2, t2, 4
     lhu  t3, char_data + 0x30(t5)
+    or   t8, t8, t3
     sll  t3, t3, 6
     li   t6, 0
     la   t7, draw_pixel256
-    b    check_pixel
+    b    check_tile
 
 draw_pixel256:
     // Decode bits 6-7 of the palette index
@@ -350,17 +363,13 @@ draw_pixel4:
     lhu  t4, palette(t4)
     sll  t5, s0, 1
     sh   t4, scanline(t5)
-    li   t4, 0
 
 skip_pixel:
     // Move to the next pixel until the scanline is complete
     addi s0, s0, 1
     beq  s0, s2, next_bg
-
-    // Adjust the shift for horizontally non-mirrored tiles
-    bne  s7, zero, mirror_shift
-    beq  t9, zero, draw_tile
-    addi t9, t9, -1
+    beq  s0, v1, draw_tile
+    add  t9, t9, s7
 
 check_pixel:
     // Check if a pixel has already been drawn, and skip it if so
@@ -368,14 +377,14 @@ check_pixel:
     lhu  t8, scanline(t5)
     andi t8, t8, 0x0001
     bne  t8, zero, skip_pixel
+    li   t4, 0
     jr   t7
 
-mirror_shift:
-    // Adjust the shift for horizontally mirrored tiles
-    addi t9, t9, 1
-    andi t9, t9, 7
-    beq  t9, zero, draw_tile
-    b    check_pixel
+check_tile:
+    // Skip the tile if all of its indices are empty
+    bne  t8, zero, check_pixel
+    move s0, v1
+    blt  s0, s2, draw_tile
 
 next_bg:
     // Move to the next BG until all have been drawn
@@ -396,35 +405,37 @@ next_bg:
     addi s1, s1, 1
     bne  s1, s3, draw_line
 
-    // Halt until the next frame needs to be drawn
+    // Halt until the next frame can be drawn
     li   t0, 0x0002 // Set halt
     mtc0 t0, COP0_SP_STATUS
 
-    // Swap the framebuffer with the previously-rendered one
+    // Move to the next of three framebuffers
     lw   t0, framebuffer
-    li   t1, 0xA03B0000
+    li   t1, 0x20000
+    add  t0, t0, t1
+    li   t1, 0xA03F0000
     bne  t0, t1, set_buffer
-    li   t1, 0xA03D0000
+    li   t0, 0xA0390000
 set_buffer:
-    sw   t1, framebuffer
+    sw   t0, framebuffer
     j    draw_frame
 
-
-dma_read: // a0: RSP address, a1: DRAM address, a2: size
-    // Transfer data to the RSP via DMA
-    mtc0 a0, COP0_DMA_SPADDR
-    mtc0 a1, COP0_DMA_RAMADDR
-    mtc0 a2, COP0_DMA_READ
-    b    dma_wait
 
 dma_write: // a0: RSP address, a1: DRAM address, a2: size
     // Transfer data from the RSP via DMA
     mtc0 a0, COP0_DMA_SPADDR
     mtc0 a1, COP0_DMA_RAMADDR
     mtc0 a2, COP0_DMA_WRITE
+    b    dma_wait
 
-    // Wait for the DMA to complete
+dma_read: // a0: RSP address, a1: DRAM address, a2: size
+    // Transfer data to the RSP via DMA
+    mtc0 a0, COP0_DMA_SPADDR
+    mtc0 a1, COP0_DMA_RAMADDR
+    mtc0 a2, COP0_DMA_READ
+
 dma_wait:
+    // Wait for the DMA to complete
     mfc0 t0, COP0_DMA_BUSY
     bne  t0, zero, dma_wait
     jr   ra

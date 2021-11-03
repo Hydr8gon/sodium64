@@ -23,7 +23,7 @@
 
 .data
 
-framebuffer: .word 0xA03B0000
+framebuffer: .word 0xA0390000
 
 .text
 
@@ -32,7 +32,7 @@ main:
     lui  t0, 0xA440     // VI register upper address
     li   t1, 0x0202     // 16-bit pixel format, no anti-aliasing
     sw   t1, 0x0000(t0) // VI_STATUS_REG
-    li   t1, 0xA03B0000 // Framebuffer address
+    li   t1, 0xA0390000 // Framebuffer address
     sw   t1, 0x0004(t0) // VI_ORIGIN_REG
     li   t1, 0x0100     // Framebuffer width
     sw   t1, 0x0008(t0) // VI_WIDTH_REG
@@ -83,9 +83,8 @@ clear_vram:
     jal  init_interrupts
     la   a0, vi_interrupt
     jal  register_VI_handler
-    li   a0, 1
-    li   a1, 512
-    jal  set_VI_interrupt
+    li   t0, 1 << 7     // Set VI mask
+    sw   t0, 0xA430000C // MI_INTR_MASK_REG
 
     // Initialize the emulator
     jal  memory_init
@@ -111,22 +110,24 @@ dma_wait:
 
 
 vi_interrupt:
-    // Continue if a new frame is ready, otherwise just update input
-    lbu  t0, frame_ready
-    bne  t0, zero, swap_buffers
+    // Continue if the next frame is ready, otherwise just update input
+    lbu  t2, frame_count
+    bne  t2, zero, swap_buffers
     j    update_input
 
-    // Swap the framebuffer with the newly-rendered one
 swap_buffers:
+    // Move to the next of three framebuffers
     lw   t0, framebuffer
-    li   t1, 0xA03B0000
+    li   t1, 0x20000
+    add  t0, t0, t1
+    li   t1, 0xA03F0000
     bne  t0, t1, set_buffer
-    li   t1, 0xA03D0000
+    li   t0, 0xA0390000
 set_buffer:
-    sw   t1, 0xA4400004 // VI_ORIGIN_REG
-    sw   t1, framebuffer
+    sw   t0, 0xA4400004 // VI_ORIGIN_REG
+    sw   t0, framebuffer
 
-    // Indicate the frame isn't ready so a new one will be drawn, and update input
-    li   t0, 0x00
-    sb   t0, frame_ready
+    // Decrement the frame counter and update input
+    addi t2, t2, -1
+    sb   t2, frame_count
     j    update_input
