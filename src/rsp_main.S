@@ -252,6 +252,11 @@ load_screen:
     lw   t0, bgcharbase(t1)
     add  s5, s5, t0
 
+    // Calculate the amount of character data to load per tile
+    li   a2, 1
+    sll  a2, a2, s4
+    addi a2, a2, -9
+
 draw_tile:
     // Get the BG entry for the current tile
     // TODO: priority

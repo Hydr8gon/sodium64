@@ -24,6 +24,7 @@
 .globl ppu_event
 .globl read_rdnmi
 .globl read_hvbjoy
+.globl write_inidisp
 .globl write_obsel
 .globl write_oamaddl
 .globl write_oamaddh
@@ -59,6 +60,7 @@
 cgram: .hword 0:0x100
 
 frame_count: .byte 0x00
+brightness:  .byte 0x00
 bg_type:     .byte 0x55
 vram_incl:   .byte 0x00
 vram_inch:   .byte 0x00
@@ -138,6 +140,66 @@ vblank_end:
     sb   t0, hvbjoy
     sb   zero, rdnmi
 
+    // Prepare to update the RSP's palette in DMEM
+    lbu  t0, brightness
+    li   t9, 0x200
+
+update_dpal:
+    // Move to the next palette color
+    addi t9, t9, -2
+    lhu  t1, cgram(t9)
+    li   t3, 0x0001
+
+    // Apply brightness to the red component and shift for N64 format
+    andi t2, t1, 0x1F
+    mult t2, t0
+    mflo t2
+    srl  t2, t2, 4
+    sll  t2, t2, 11
+    or   t3, t3, t2
+
+    // Apply brightness to the green component and shift for N64 format
+    srl  t2, t1, 5
+    andi t2, t2, 0x1F
+    mult t2, t0
+    mflo t2
+    srl  t2, t2, 4
+    sll  t2, t2, 6
+    or   t3, t3, t2
+
+    // Apply brightness to the blue component and shift for N64 format
+    srl  t2, t1, 10
+    andi t2, t2, 0x1F
+    mult t2, t0
+    mflo t2
+    srl  t2, t2, 4
+    sll  t2, t2, 1
+    or   t3, t3, t2
+
+    // DMEM access from the main CPU is 32-bit, so check if this is a low or high half-word
+    andi t7, t9, 0x1FF & ~3
+    la   t8, 0xA4000200 // Palette in DMEM
+    add  t8, t8, t7
+    bne  t7, t9, dpal_high
+
+    // Change the low half-word and loop until the palette is finished
+    lw   t7, (t8)
+    andi t7, t7, 0xFFFF
+    sll  t3, t3, 16
+    or   t3, t3, t7
+    sw   t3, (t8)
+    bne  t9, zero, update_dpal
+    b    frame_wait
+
+dpal_high:
+    // Change the high half-word and loop until the palette is finished
+    lw   t7, (t8)
+    lui  t6, 0xFFFF
+    and  t7, t7, t6
+    or   t3, t3, t7
+    sw   t3, (t8)
+    bne  t9, zero, update_dpal
+
 frame_wait:
     // Wait for a framebuffer to be available
     lbu  t0, frame_count
@@ -164,6 +226,24 @@ read_rdnmi: // v0: value
 read_hvbjoy: // v0: value
     // Read from the HVBJOY register
     lbu  v0, hvbjoy
+    jr   ra
+
+
+write_inidisp: // a1: value
+    // Check for zero values and the force blank bit
+    beq  a1, zero, blank
+    andi t0, a1, 0x80
+    beq  t0, zero, no_blank
+
+blank:
+    // Force the screen blank
+    sb   zero, brightness
+    jr   ra
+
+no_blank:
+    // Set the master brightness
+    addi t0, a1, 1
+    sb   t0, brightness
     jr   ra
 
 
@@ -563,40 +643,6 @@ cg_high:
     sll  t2, a1, 8
     or   t1, t1, t2
     sh   t1, cgram(t0)
-
-    // Rearrange the RGB components to be N64 format
-    andi t2, t1, 0x1F << 0  // R
-    sll  t3, t2, 11
-    andi t2, t1, 0x1F << 5  // G
-    sll  t2, t2, 1
-    or   t3, t3, t2
-    andi t2, t1, 0x1F << 10 // B
-    srl  t2, t2, 9
-    or   t3, t3, t2
-    ori  t3, t3, 0x0001 // A
-
-    // Update the RSP's converted palette in DMEM
-    // DMEM access from the main CPU is 32-bit, so check if this is a low or high half-word
-    andi t1, t0, 0x1FF & ~3
-    la   t2, 0xA4000200 // Palette in DMEM
-    add  t2, t2, t1
-    bne  t1, t0, dpal_high
-
-    // Change the low half-word and write the value back
-    lw   t0, (t2)
-    andi t0, t0, 0xFFFF
-    sll  t3, t3, 16
-    or   t3, t3, t0
-    sw   t3, (t2)
-    jr   ra
-
-dpal_high:
-    // Change the high half-word and write the value back
-    lw   t0, (t2)
-    lui  t1, 0xFFFF
-    and  t0, t0, t1
-    or   t3, t3, t0
-    sw   t3, (t2)
     jr   ra
 
 
