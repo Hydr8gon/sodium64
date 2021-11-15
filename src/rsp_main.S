@@ -47,9 +47,9 @@ framebuffer: .word 0xA03B0000 // 0xFFC-0xFFF
 
 draw_frame:
     // Set initial values for the frame
-    li   s0, 0   // Current X coordinate
+    li   s0, 0   // Current X coordinate (x2)
     li   s1, 0   // Current Y coordinate
-    li   s2, 256 // Maximum X coordinate
+    li   s2, 512 // Maximum X coordinate (x2)
     li   s3, 224 // Maximum Y coordinate
     li   a3, 0   // Current BG shift
 
@@ -256,30 +256,38 @@ load_screen:
     li   a2, 1
     sll  a2, a2, s4
     addi a2, a2, -9
+    lui  v0, 0xFFFF
+    move v1, s0
+
+skip_tile:
+    // Skip the tile if all of its indices are empty
+    move s0, v1
 
 draw_tile:
+    // Move to the next BG once the scanline is complete
+    beq  s0, s2, next_bg
+
     // Get the BG entry for the current tile
     // TODO: priority
-    add  t0, s6, s0
-    andi t6, t0, 0x1FF & ~7
+    srl  t4, s0, 1
+    add  t4, t4, s6
+    andi t6, t4, 0x1FF & ~7
     srl  t6, t6, 2
     lhu  t6, scrn_data(t6)
+    andi t9, t4, 0x7
 
-    // Set the tile shift, step, and bounds based on fine X offset and horizontal mirroring
-    andi t1, t6, 0x4000
-    beq  t1, zero, mirror_notx
-    li   s7, 1
-    andi t9, t0, 0x7
+    // Set the tile bounds based on fine X offset
     li   v1, 8
     sub  v1, v1, t9
-    b    mirror_x
-mirror_notx:
-    li   s7, -1
-    not  t0, t0
-    andi t9, t0, 0x7
-    addi v1, t9, 1
-mirror_x:
+    sll  v1, v1, 1
     add  v1, v1, s0
+    blt  v1, s2, check_tile
+    move v1, s2
+
+check_tile:
+    // Skip loading if the tile is the same as the previous one
+    beq  v0, t6, same_tile
+    move v0, t6
 
     // Load the tile's character data based on fine Y offset and vertical mirroring
     andi t0, t6, 0x03FF
@@ -294,102 +302,180 @@ mirror_noty:
     // DMA aligns to 64-bit words, so adjust the data offset accordingly
     andi t5, a1, 7
 
+    // Set the initial tile shift and step based on horizontal mirroring
+    li   s7, 1
+    andi t0, t6, 0x4000
+    bne  t0, zero, prepare_data
+    addi s7, s7, -2
+    xori t9, t9, 0x7
+
+prepare_data:
+    // Branch based on the tile type
+    beq  s4, 5, prepare_data16
+    beq  s4, 4, prepare_data4
+    b    prepare_data256
+
+same_tile:
+    // Take the fast path for equal tiles
+    beq  k0, zero, skip_tile
+    andi t4, t6, 0x4000
+    bne  t4, zero, check_pixel
+    xori t9, t9, 0x7
+
+check_pixel:
+    // Branch based on the tile type
+    beq  s4, 5, check_pixel16
+    beq  s4, 4, check_pixel4
+    b    check_pixel256
+
+prepare_data4:
     // Prepare data for 4-color tiles
-    lhu  t0, char_data + 0x00(t5)
-    move t8, t0
-    bne  s4, 4, prepare_data16
-    srl  t6, t6, 7
-    andi t6, t6, 0x7 << 3 // Palette offset
-    la   t7, draw_pixel4
-    b    check_tile
-
-prepare_data16:
-    // Prepare data for 16-color tiles
-    lhu  t1, char_data + 0x10(t5)
-    or   t8, t8, t1
-    sll  t1, t1, 2
-    bne  s4, 5, prepare_data256
-    srl  t6, t6, 5
-    andi t6, t6, 0x7 << 5 // Palette offset
-    la   t7, draw_pixel16
-    b    check_tile
-
-prepare_data256:
-    // Prepare data for 256-color tiles
-    lhu  t2, char_data + 0x20(t5)
-    or   t8, t8, t2
-    sll  t2, t2, 4
-    lhu  t3, char_data + 0x30(t5)
-    or   t8, t8, t3
-    sll  t3, t3, 6
-    li   t6, 0
-    la   t7, draw_pixel256
-    b    check_tile
-
-draw_pixel256:
-    // Decode bits 6-7 of the palette index
-    srl  t8, t3, t9
-    andi t5, t8, 0x40
-    or   t4, t4, t5
-    srl  t5, t8, 7
-    andi t5, t5, 0x80
-    or   t4, t4, t5
-
-    // Decode bits 4-5 of the palette index
-    srl  t8, t2, t9
-    andi t5, t8, 0x10
-    or   t4, t4, t5
-    srl  t5, t8, 7
-    andi t5, t5, 0x20
-    or   t4, t4, t5
-
-draw_pixel16:
-    // Decode bits 2-3 of the palette index
-    srl  t8, t1, t9
-    andi t5, t8, 0x04
-    or   t4, t4, t5
-    srl  t5, t8, 7
-    andi t5, t5, 0x08
-    or   t4, t4, t5
+    lhu  k0, char_data + 0x00(t5)
+    srl  t7, t6, 7
+    beq  k0, zero, skip_tile
+    sll  t0, k0, 1
+    andi t7, t7, 0x7 << 3 // Palette offset
+    b    check_pixel4
 
 draw_pixel4:
     // Decode bits 0-1 of the palette index
     srl  t8, t0, t9
-    andi t5, t8, 0x01
-    or   t4, t4, t5
+    andi t4, t8, 0x01 << 1
     srl  t5, t8, 7
-    andi t5, t5, 0x02
+    andi t5, t5, 0x02 << 1
     or   t4, t4, t5
 
     // Draw a pixel with the palette color
-    beq  t4, zero, skip_pixel
-    sll  t4, t4, 1
-    add  t4, t4, t6
+    beq  t4, zero, skip_pixel4
+    add  t4, t4, t7
     lhu  t4, palette(t4)
-    sll  t5, s0, 1
-    sh   t4, scanline(t5)
+    sh   t4, scanline(s0)
 
-skip_pixel:
+skip_pixel4:
     // Move to the next pixel until the scanline is complete
-    addi s0, s0, 1
-    beq  s0, s2, next_bg
+    addi s0, s0, 2
     beq  s0, v1, draw_tile
     add  t9, t9, s7
 
-check_pixel:
+check_pixel4:
     // Check if a pixel has already been drawn, and skip it if so
-    sll  t5, s0, 1
-    lhu  t8, scanline(t5)
+    lhu  t8, scanline(s0)
     andi t8, t8, 0x0001
-    bne  t8, zero, skip_pixel
-    li   t4, 0
-    jr   t7
+    bne  t8, zero, skip_pixel4
+    b    draw_pixel4
 
-check_tile:
-    // Skip the tile if all of its indices are empty
-    bne  t8, zero, check_pixel
-    move s0, v1
-    blt  s0, s2, draw_tile
+prepare_data16:
+    // Prepare data for 16-color tiles
+    lhu  t0, char_data + 0x00(t5)
+    srl  t7, t6, 5
+    lhu  t1, char_data + 0x10(t5)
+    sll  t0, t0, 1
+    or   k0, t0, t1
+    beq  k0, zero, skip_tile
+    sll  t1, t1, 3
+    andi t7, t7, 0x7 << 5 // Palette offset
+    b    check_pixel16
+
+draw_pixel16:
+    // Decode bits 2-3 of the palette index
+    srl  t8, t1, t9
+    andi t4, t8, 0x04 << 1
+    srl  t5, t8, 7
+    andi t5, t5, 0x08 << 1
+    or   t4, t4, t5
+
+    // Decode bits 0-1 of the palette index
+    srl  t8, t0, t9
+    andi t5, t8, 0x01 << 1
+    or   t4, t4, t5
+    srl  t5, t8, 7
+    andi t5, t5, 0x02 << 1
+    or   t4, t4, t5
+
+    // Draw a pixel with the palette color
+    beq  t4, zero, skip_pixel16
+    add  t4, t4, t7
+    lhu  t4, palette(t4)
+    sh   t4, scanline(s0)
+
+skip_pixel16:
+    // Move to the next pixel until the scanline is complete
+    addi s0, s0, 2
+    beq  s0, v1, draw_tile
+    add  t9, t9, s7
+
+check_pixel16:
+    // Check if a pixel has already been drawn, and skip it if so
+    lhu  t8, scanline(s0)
+    andi t8, t8, 0x0001
+    bne  t8, zero, skip_pixel16
+    b    draw_pixel16
+
+prepare_data256:
+    // Prepare data for 256-color tiles
+    lhu  t0, char_data + 0x00(t5)
+    lhu  t1, char_data + 0x10(t5)
+    sll  t0, t0, 1
+    or   k0, t0, t1
+    lhu  t2, char_data + 0x20(t5)
+    sll  t1, t1, 3
+    or   k0, k0, t2
+    lhu  t3, char_data + 0x30(t5)
+    sll  t2, t2, 5
+    or   k0, k0, t3
+    beq  k0, zero, skip_tile
+    sll  t3, t3, 7
+    b    check_pixel256
+
+draw_pixel256:
+    // Decode bits 6-7 of the palette index
+    srl  t8, t3, t9
+    andi t4, t8, 0x40 << 1
+    srl  t5, t8, 7
+    andi t5, t5, 0x80 << 1
+    or   t4, t4, t5
+
+    // Decode bits 4-5 of the palette index
+    srl  t8, t2, t9
+    andi t5, t8, 0x10 << 1
+    or   t4, t4, t5
+    srl  t5, t8, 7
+    andi t5, t5, 0x20 << 1
+    or   t4, t4, t5
+
+    // Decode bits 2-3 of the palette index
+    srl  t8, t1, t9
+    andi t5, t8, 0x04 << 1
+    or   t4, t4, t5
+    srl  t5, t8, 7
+    andi t5, t5, 0x08 << 1
+    or   t4, t4, t5
+
+    // Decode bits 0-1 of the palette index
+    srl  t8, t0, t9
+    andi t5, t8, 0x01 << 1
+    or   t4, t4, t5
+    srl  t5, t8, 7
+    andi t5, t5, 0x02 << 1
+    or   t4, t4, t5
+
+    // Draw a pixel with the palette color
+    beq  t4, zero, skip_pixel256
+    lhu  t4, palette(t4)
+    sh   t4, scanline(s0)
+
+skip_pixel256:
+    // Move to the next pixel until the scanline is complete
+    addi s0, s0, 2
+    beq  s0, v1, draw_tile
+    add  t9, t9, s7
+
+check_pixel256:
+    // Check if a pixel has already been drawn, and skip it if so
+    lhu  t8, scanline(s0)
+    andi t8, t8, 0x0001
+    bne  t8, zero, skip_pixel256
+    b    draw_pixel256
 
 next_bg:
     // Move to the next BG until all have been drawn
