@@ -10,7 +10,8 @@ include $(N64_INST)/include/n64.mk
 
 all: $(PROJ_NAME).z64
 
-$(PROJ_NAME).z64: N64_ROM_TITLE="$(PROJ_NAME)"
+$(PROJ_NAME).z64: N64_ROM_TITLE = "$(PROJ_NAME)"
+$(PROJ_NAME).z64: N64_ROM_SAVETYPE = sram256k
 
 $(BUILD_DIR)/$(PROJ_NAME).elf: $(OFILES)
 

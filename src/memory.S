@@ -19,6 +19,8 @@
 
 #include <regdef.h>
 
+.globl sram
+
 .globl memory_init
 .globl memory_read8
 .globl memory_read16
@@ -30,6 +32,7 @@
 .data
 
 rom:        .incbin "rom.sfc"
+sram:       .byte   0:0x8000
 wram:       .byte   0:0x20000
 empty:      .byte   0:0x2000
 memory_map: .word   0:0x800
@@ -44,16 +47,21 @@ memory_init:
 
 build_map:
     // Determine the memory area from the address bank
+    // TODO: currently hardcoded to LoROM
     li   t3, 0x400000
     blt  t0, t3, system_area // 0x00-0x3F: System, WS1 LoROM
+    li   t3, 0x700000
+    blt  t0, t3, empty_area  // 0x40-0x6F: Empty
     li   t3, 0x7E0000
-    blt  t0, t3, hirom_area  // 0x40-0x7D: WS1 HiROM
+    blt  t0, t3, sram_area   // 0x70-0x7D: 32KB SRAM
     li   t3, 0x800000
     li   t4, 0x1FFFF         // WRAM mask
     blt  t0, t3, wram_area   // 0x7E-0x7F: 128KB WRAM
     li   t3, 0xC00000
     blt  t0, t3, system_area // 0x80-0xBF: System, WS2 LoROM
-    b    hirom_area          // 0xC0-0xFF: WS2 HiROM
+    li   t3, 0xF00000
+    blt  t0, t3, empty_area  // 0xC0-0xEF: Empty
+    b    sram_area           // 0xF0-0xFF: 32KB SRAM
 
 system_area:
     // Further break down the 16-bit system area address
@@ -82,8 +90,18 @@ lorom_area:
     li   t4, 0x7FFF
     and  t4, t4, t0 // Offset within 32KB
     add  t3, t3, t4
-    la   t4, wram   // ROM bounds
+    la   t4, sram   // ROM bounds
     bge  t3, t4, empty_area
+    b    map_block
+
+sram_area:
+    // Get a pointer to a SRAM block mapped as LoROM
+    andi t4, t0, 0xFFFF
+    li   t5, 0x8000 // Upper 32KB empty
+    bge  t4, t5, empty_area
+    la   t3, sram
+    add  t3, t3, t4
+    ori  t3, t3, 1  // Write bit
     b    map_block
 
 io_area:
@@ -91,7 +109,6 @@ io_area:
     li   t3, 0
     b    map_block
 
-hirom_area: // TODO
 empty_area:
     // Get a pointer to the empty placeholder block
     la   t3, empty

@@ -59,9 +59,19 @@ main:
     li   t1, 0x03BC     // Vertical scale (10-bit fraction, 224/240)
     sw   t1, 0x0034(t0) // VI_Y_SCALE_REG
 
+    // Read SRAM from the cart to memory
+    li   t0, 0x0000
+    li   t1, 0x8000
+read_sram:
+    lw   t2, 0xA8000000(t0)
+    jal  sram_wait
+    sw   t2, sram(t0)
+    addi t0, t0, 4
+    bne  t0, t1, read_sram
+
     // Clear VRAM on boot (hardcoded for easy RSP access)
-    li t0, 0xA03F0000
-    li t1, 0xA0400000
+    li   t0, 0xA03F0000
+    li   t1, 0xA0400000
 clear_vram:
     sw   zero, (t0)
     addi t0, t0, 4
@@ -80,11 +90,14 @@ clear_vram:
     sw   t0, 0xA4040010 // SP_STATUS_REG
 
     // Setup the VI interrupt handler using libdragon
-    jal  init_interrupts
     la   a0, vi_interrupt
     jal  register_VI_handler
     li   t0, 1 << 7     // Set VI mask
     sw   t0, 0xA430000C // MI_INTR_MASK_REG
+
+    // Override the exception handler using libdragon
+    la   a0, exception_handler
+    jal  register_exception_handler
 
     // Initialize the emulator
     jal  memory_init
@@ -131,3 +144,32 @@ set_buffer:
     addi t2, t2, -1
     sb   t2, frame_count
     j    update_input
+
+
+exception_handler:
+    // Fall back to the default handler for non-reset exceptions
+    lw   t0, (a0)
+    bne  t0, 1, exception_default_handler
+
+    // Write SRAM from memory to the cart
+    li   t0, 0x0000
+    li   t1, 0x8000
+write_sram:
+    lw   t2, sram(t0)
+    jal  sram_wait
+    sw   t2, 0xA8000000(t0)
+    addi t0, t0, 4
+    bne  t0, t1, write_sram
+
+    // Wait until the system resets
+loop:
+    b    loop
+
+
+sram_wait:
+    // Wait a while between SRAM accesses
+    li   t3, 0x200
+sram_loop:
+    addi t3, t3, -1
+    bne  t3, zero, sram_loop
+    jr   ra
