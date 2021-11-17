@@ -32,10 +32,12 @@
 .data
 
 rom:        .incbin "rom.sfc"
-sram:       .byte   0:0x8000
+sram:       .byte   0:0x2000
 wram:       .byte   0:0x20000
 empty:      .byte   0:0x2000
 memory_map: .word   0:0x800
+
+wmadd: .word 0x00000
 
 .text
 
@@ -53,7 +55,7 @@ build_map:
     li   t3, 0x700000
     blt  t0, t3, empty_area  // 0x40-0x6F: Empty
     li   t3, 0x7E0000
-    blt  t0, t3, sram_area   // 0x70-0x7D: 32KB SRAM
+    blt  t0, t3, sram_area   // 0x70-0x7D: 8KB SRAM
     li   t3, 0x800000
     li   t4, 0x1FFFF         // WRAM mask
     blt  t0, t3, wram_area   // 0x7E-0x7F: 128KB WRAM
@@ -61,7 +63,7 @@ build_map:
     blt  t0, t3, system_area // 0x80-0xBF: System, WS2 LoROM
     li   t3, 0xF00000
     blt  t0, t3, empty_area  // 0xC0-0xEF: Empty
-    b    sram_area           // 0xF0-0xFF: 32KB SRAM
+    b    sram_area           // 0xF0-0xFF: 8KB SRAM
 
 system_area:
     // Further break down the 16-bit system area address
@@ -96,7 +98,7 @@ lorom_area:
 
 sram_area:
     // Get a pointer to a SRAM block mapped as LoROM
-    andi t4, t0, 0xFFFF
+    andi t4, t0, 0x1FFF
     li   t5, 0x8000 // Upper 32KB empty
     bge  t4, t5, empty_area
     la   t3, sram
@@ -280,6 +282,11 @@ io_read8: // a0: address - v0: value
     // TODO: convert to lookup table
     addi s5, s5, -6
     andi a0, a0, 0xFFFF
+    beq  a0, 0x2134, read_mpyl
+    beq  a0, 0x2135, read_mpym
+    beq  a0, 0x2136, read_mpyh
+    beq  a0, 0x213C, rand // OPHCT "stub"
+    beq  a0, 0x213D, rand // OPVCT "stub"
     beq  a0, 0x2140, rand // APUI00 "stub"
     beq  a0, 0x2141, rand // APUI01 "stub"
     beq  a0, 0x2142, rand // APUI02 "stub"
@@ -326,10 +333,16 @@ io_write8: // a0: address, a1: value
     beq  a0, 0x2117, write_vmaddh
     beq  a0, 0x2118, write_vmdatal
     beq  a0, 0x2119, write_vmdatah
+    beq  a0, 0x211B, write_m7a
+    beq  a0, 0x211C, write_m7b
     beq  a0, 0x2121, write_cgadd
     beq  a0, 0x2122, write_cgdata
     beq  a0, 0x212C, write_tm
     beq  a0, 0x212D, write_ts
+    beq  a0, 0x2180, write_wmdata
+    beq  a0, 0x2181, write_wmaddl
+    beq  a0, 0x2182, write_wmaddm
+    beq  a0, 0x2183, write_wmaddh
     beq  a0, 0x4200, write_nmitimen
     beq  a0, 0x4202, write_wrmpya
     beq  a0, 0x4203, write_wrmpyb
@@ -345,4 +358,36 @@ io_write8: // a0: address, a1: value
     beq  t0, 0x4304, write_a1bx
     beq  t0, 0x4305, write_dasxl
     beq  t0, 0x4306, write_dasxh
+    jr   ra
+
+
+write_wmdata: // a1: value
+    // Increment the WRAM address
+    lw   t0, wmadd
+    addi t1, t0, 1
+    li   t2, 0x1FFFF
+    and  t1, t1, t2
+    sw   t1, wmadd
+
+    // Write a byte to WRAM
+    sb   a1, wram(t0)
+    jr   ra
+
+
+write_wmaddl: // a1: value
+    // Set the low byte of the WRAM address
+    sb   a1, wmadd + 3
+    jr   ra
+
+
+write_wmaddm: // a1: value
+    // Set the middle byte of the WRAM address
+    sb   a1, wmadd + 2
+    jr   ra
+
+
+write_wmaddh: // a1: value
+    // Set the high bit of the WRAM address
+    andi t0, a1, 0x01
+    sb   t0, wmadd + 1
     jr   ra

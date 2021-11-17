@@ -61,7 +61,7 @@ main:
 
     // Read SRAM from the cart to memory
     li   t0, 0x0000
-    li   t1, 0x8000
+    li   t1, 0x2000
 read_sram:
     lw   t2, 0xA8000000(t0)
     jal  sram_wait
@@ -153,7 +153,7 @@ exception_handler:
 
     // Write SRAM from memory to the cart
     li   t0, 0x0000
-    li   t1, 0x8000
+    li   t1, 0x2000
 write_sram:
     lw   t2, sram(t0)
     jal  sram_wait

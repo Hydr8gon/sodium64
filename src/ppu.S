@@ -22,6 +22,9 @@
 .globl frame_count
 
 .globl ppu_event
+.globl read_mpyl
+.globl read_mpym
+.globl read_mpyh
 .globl read_rdnmi
 .globl read_hvbjoy
 .globl write_inidisp
@@ -49,6 +52,8 @@
 .globl write_vmaddh
 .globl write_vmdatal
 .globl write_vmdatah
+.globl write_m7a
+.globl write_m7b
 .globl write_cgadd
 .globl write_cgdata
 .globl write_tm
@@ -68,14 +73,18 @@ vram_inch:   .byte 0x00
 oam_reload: .hword 0x0000
 oam_lsb:    .byte  0x00
 bg_old:     .byte  0x00
+m7_old:     .byte  0x00
 cg_lsb:     .byte  0x00
 
 oamadd:   .hword 0x0000
 vmadd:    .hword 0x0000
+m7a:      .hword 0x0000
+m7b:      .byte  0x00
 cgadd:    .hword 0x0000
 tm:       .byte  0x00
 ts:       .byte  0x00
 nmitimen: .byte  0x00
+mpy:      .word  0x000000
 rdnmi:    .byte  0x00
 hvbjoy:   .byte  0x00
 
@@ -214,6 +223,24 @@ frame_wait:
     add  s5, 341 * 225 * 4
 no_nmi:
     j    cpu_execute
+
+
+read_mpyl: // v0: value
+    // Read the low byte of the signed multiply result
+    lbu  v0, mpy + 3
+    jr   ra
+
+
+read_mpym: // v0: value
+    // Read the middle byte of the signed multiply result
+    lbu  v0, mpy + 2
+    jr   ra
+
+
+read_mpyh: // v0: value
+    // Read the high byte of the signed multiply result
+    lbu  v0, mpy + 1
+    jr   ra
 
 
 read_rdnmi: // v0: value
@@ -614,6 +641,37 @@ write_vmdatah: // a1: value
     add  t0, t0, t1
     andi t0, t0, 0x7FFF
     sh   t0, vmadd
+    jr   ra
+
+
+write_m7a: // a1: value
+    // Update M7A with a 16-bit value from the old and new bytes
+    lbu  t0, m7_old
+    sll  t1, a1, 8
+    or   t0, t0, t1
+    sb   a1, m7_old
+    sh   t0, m7a
+
+    // Update the signed multiply result
+    lh   t0, m7a
+    lb   t1, m7b
+    mult t0, t1
+    mflo t0
+    sw   t0, mpy
+    jr   ra
+
+
+write_m7b: // a1: value
+    // Update M7B and the old byte
+    sb   a1, m7_old
+    sb   a1, m7b
+
+    // Update the signed multiply result
+    lh   t0, m7a
+    lb   t1, m7b
+    mult t0, t1
+    mflo t0
+    sw   t0, mpy
     jr   ra
 
 
