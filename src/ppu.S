@@ -138,7 +138,7 @@ rsp_wait:
     sw   t0, 0xA430000C // MI_INTR_MASK_REG
 
     // Schedule the V-blank end and trigger an NMI if enabled
-    add  s5, 341 * 36 * 4 // V-blank period
+    add  s5, 341 * 37 * 4 // V-blank period
     lbu  t0, nmitimen
     blt  t0, 0x80, no_nmi
     j    trigger_nmi

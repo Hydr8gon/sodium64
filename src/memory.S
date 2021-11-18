@@ -135,6 +135,7 @@ memory_read8: // a0: address - v0: value
     la   t1, memory_map
     add  t0, t0, t1
     lw   t0, (t0)
+    addi s5, s5, -6         // Base cycle decrement
     beq  t0, zero, io_read8 // I/O register fallback
 
     // Clear the write bit before using the pointer
@@ -147,7 +148,7 @@ memory_read8: // a0: address - v0: value
 
     // Read a byte from memory and decrease the cycle count
     lbu  v0, 0(t0)
-    addi s5, s5, -8
+    addi s5, s5, -2
     jr   ra
 
 
@@ -158,6 +159,7 @@ memory_read16: // a0: address - v0: value
     la   t1, memory_map
     add  t0, t0, t1
     lw   t0, (t0)
+    addi s5, s5, -6 * 2      // Base cycle decrement
     beq  t0, zero, io_read16 // I/O register fallback
 
     // Clear the write bit before using the pointer
@@ -171,9 +173,9 @@ memory_read16: // a0: address - v0: value
     // Read two bytes from memory and decrease the cycle count
     lbu  v0, 0(t0)
     lbu  t0, 1(t0)
+    addi s5, s5, -2 * 2
     sll  t0, t0, 8
     or   v0, v0, t0
-    addi s5, s5, -8 * 2
     jr   ra
 
 io_read16:
@@ -203,12 +205,12 @@ memory_write8: // a0: address, a1: value
     la   t1, memory_map
     add  t0, t0, t1
     lw   t0, (t0)
+    addi s5, s5, -6          // Base cycle decrement
     beq  t0, zero, io_write8 // I/O register fallback
 
     // Ensure the block is writable
     andi t1, t0, 1
     bne  t1, zero, can_write8
-    addi s5, s5, -6
     jr   ra
 
     // Clear the write bit before using the pointer
@@ -222,7 +224,7 @@ can_write8:
 
     // Write a byte to memory and decrease the cycle count
     sb   a1, 0(t0)
-    addi s5, s5, -8
+    addi s5, s5, -2
     jr   ra
 
 
@@ -233,12 +235,12 @@ memory_write16: // a0: address, a1: value
     la   t1, memory_map
     add  t0, t0, t1
     lw   t0, (t0)
+    addi s5, s5, -6 * 2       // Base cycle decrement
     beq  t0, zero, io_write16 // I/O register fallback
 
     // Ensure the block is writable
     andi t1, t0, 1
     bne  t1, zero, can_write16
-    addi s5, s5, -6 * 2
     jr   ra
 
     // Clear the write bit before using the pointer
@@ -254,7 +256,7 @@ can_write16:
     sb   a1, 0(t0)
     srl  t1, a1, 8
     sb   t1, 1(t0)
-    addi s5, s5, -8 * 2
+    addi s5, s5, -2 * 2
     jr   ra
 
 io_write16:
@@ -278,9 +280,8 @@ io_write16:
 
 
 io_read8: // a0: address - v0: value
-    // Read from an I/O register if it exists and decrease the cycle count
+    // Read from an I/O register if it exists
     // TODO: convert to lookup table
-    addi s5, s5, -6
     andi a0, a0, 0xFFFF
     beq  a0, 0x2134, read_mpyl
     beq  a0, 0x2135, read_mpym
@@ -304,9 +305,8 @@ io_read8: // a0: address - v0: value
 
 
 io_write8: // a0: address, a1: value
-    // Write to an I/O register if it exists and decrease the cycle count
+    // Write to an I/O register if it exists
     // TODO: convert to lookup table
-    addi s5, s5, -6
     andi a0, a0, 0xFFFF
     beq  a0, 0x2100, write_inidisp
     beq  a0, 0x2101, write_obsel
