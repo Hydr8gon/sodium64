@@ -53,17 +53,17 @@ build_map:
     li   t3, 0x400000
     blt  t0, t3, system_area // 0x00-0x3F: System, WS1 LoROM
     li   t3, 0x700000
-    blt  t0, t3, empty_area  // 0x40-0x6F: Empty
+    blt  t0, t3, lorom_area  // 0x40-0x6F: WS1 LoROM
     li   t3, 0x7E0000
-    blt  t0, t3, sram_area   // 0x70-0x7D: 8KB SRAM
+    blt  t0, t3, sram_area   // 0x70-0x7D: 8KB SRAM, WS1 LoROM
     li   t3, 0x800000
     li   t4, 0x1FFFF         // WRAM mask
     blt  t0, t3, wram_area   // 0x7E-0x7F: 128KB WRAM
     li   t3, 0xC00000
     blt  t0, t3, system_area // 0x80-0xBF: System, WS2 LoROM
     li   t3, 0xF00000
-    blt  t0, t3, empty_area  // 0xC0-0xEF: Empty
-    b    sram_area           // 0xF0-0xFF: 8KB SRAM
+    blt  t0, t3, lorom_area  // 0xC0-0xEF: WS2 LoROM
+    b    sram_area           // 0xF0-0xFF: 8KB SRAM, WS2 LoROM
 
 system_area:
     // Further break down the 16-bit system area address
@@ -85,7 +85,7 @@ wram_area:
 lorom_area:
     // Get a pointer to a ROM block mapped as LoROM
     la   t3, rom
-    li   t4, 0x3F0000
+    li   t4, 0x7F0000
     and  t4, t4, t0 // Mirrored bank
     srl  t4, t4, 1  // 32KB every 64KB bank
     add  t3, t3, t4
@@ -98,12 +98,13 @@ lorom_area:
 
 sram_area:
     // Get a pointer to a SRAM block mapped as LoROM
-    andi t4, t0, 0x1FFF
-    li   t5, 0x8000 // Upper 32KB empty
-    bge  t4, t5, empty_area
+    andi t4, t0, 0xFFFF
+    li   t5, 0x8000
+    bge  t4, t5, lorom_area // 0x8000-0xFFFF: WS1/WS2 LoROM
+    andi t4, t4, 0x1FFF
     la   t3, sram
-    add  t3, t3, t4
-    ori  t3, t3, 1  // Write bit
+    add  t3, t3, t4         // 0x0000-0x7FFF: 8KB SRAM
+    ori  t3, t3, 1          // Write bit
     b    map_block
 
 io_area:
@@ -298,8 +299,9 @@ io_read8: // a0: address - v0: value
     beq  a0, 0x4215, read_rddivh
     beq  a0, 0x4216, read_rdmpyl
     beq  a0, 0x4217, read_rdmpyh
-    beq  a0, 0x4218, read_joy1l
-    beq  a0, 0x4219, read_joy1h
+    andi t0, a0, 0xFFF9
+    beq  t0, 0x4218, read_joyxl
+    beq  t0, 0x4219, read_joyxh
     li   v0, 0
     jr   ra
 

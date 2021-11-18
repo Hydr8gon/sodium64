@@ -20,24 +20,51 @@
 #include <regdef.h>
 
 .globl update_input
-.globl read_joy1l
-.globl read_joy1h
+.globl read_joyxl
+.globl read_joyxh
 
 .data
 
-input_data: .word 0:16
+input_data:   .word  0:16
+input_status: .hword 0x0000
+
+// Masks for the connection status of controllers 1-4
+port_masks: .hword 0xF000, 0x0F00, 0x00F0, 0x000F
 
 .text
 
 update_input:
+    // Backup the return address
+    addi sp, sp, -8
+    sw   ra, (sp)
+
+    // Update the connection status using libdragon
+    jal  get_controllers_present
+    sh   v0, input_status
+
+    // Restore the return address
+    lw   ra, (sp)
+    addi sp, sp, 8
+
     // Update the input data every frame using libdragon
     la   a0, input_data
     j    controller_read
 
 
-read_joy1l: // v0: value
-    // Read the button data for controller 1
-    lhu  t0, input_data + 4
+read_joyxl: // a0: address, a1: value
+    // Check if the controller is connected, and return 0 if not
+    andi t2, a0, 0x0006
+    lhu  t0, input_status
+    lhu  t1, port_masks(t2)
+    and  t0, t0, t1
+    bne  t0, zero, joyxl_conn
+    move v0, zero
+    jr   ra
+
+joyxl_conn:
+    // Read the button data for the controller
+    sll  t2, t2, 2
+    lhu  t0, input_data + 4(t2)
 
     // Map N64 LR to SNES LR
     andi v0, t0, 0x3 << 4
@@ -54,9 +81,20 @@ read_joy1l: // v0: value
     jr   ra
 
 
-read_joy1h: // v0: value
-    // Read the button data for controller 1
-    lhu  t0, input_data + 4
+read_joyxh: // a0: address, a1: value
+    // Check if the controller is connected, and return 0 if not
+    andi t2, a0, 0x0006
+    lhu  t0, input_status
+    lhu  t1, port_masks(t2)
+    and  t0, t0, t1
+    bne  t0, zero, joyxh_conn
+    move v0, zero
+    jr   ra
+
+joyxh_conn:
+    // Read the button data for the controller
+    sll  t2, t2, 2
+    lhu  t0, input_data + 4(t2)
 
     // Map N64 Dpad to SNES Dpad
     srl  t1, t0, 8

@@ -59,6 +59,9 @@ main:
     li   t1, 0x03BC     // Vertical scale (10-bit fraction, 224/240)
     sw   t1, 0x0034(t0) // VI_Y_SCALE_REG
 
+    // Initialize the stack below the framebuffer data
+    la   sp, 0x80390000
+
     // Read SRAM from the cart to memory
     li   t0, 0x0000
     li   t1, 0x2000
