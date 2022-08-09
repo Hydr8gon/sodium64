@@ -53,18 +53,26 @@ draw_frame:
     li   s3, 224 // Maximum Y coordinate
     li   a3, 0   // Current BG shift
 
-draw_line:
-    // Clear the scanline with the backdrop color
+    // Fill a vector register with the backdrop color
     lhu  t0, palette
     andi t0, t0, 0xFFFE
-    sll  t1, t0, 16
-    or   t0, t0, t1
-    li   t1, 0
-    li   t2, 0x200
+    mtc2 t0, $v00, 0
+    mtc2 t0, $v00, 2
+    mtc2 t0, $v00, 4
+    mtc2 t0, $v00, 6
+    mtc2 t0, $v00, 8
+    mtc2 t0, $v00, 10
+    mtc2 t0, $v00, 12
+    mtc2 t0, $v00, 14
+
+draw_line:
+    // Clear the scanline with the backdrop color
+    li   t0, 0
+    li   t1, 0x200
 clear_line:
-    sw   t0, scanline(t1)
-    addi t1, t1, 4
-    bne  t1, t2, clear_line
+    sqv  $v00, 0, 0, t0
+    addi t0, t0, 16
+    bne  t0, t1, clear_line
 
     // Check if objects are enabled
     lw   t0, obj_enable
