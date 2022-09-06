@@ -29,10 +29,18 @@ oam:       .byte 0:0x220
 scrn_data: .byte 0:0x80
 char_data: .byte 0:0x40
 
-.space 0x8AC
+vec_data:
+    .hword 0x0100, 0x0200, 0x0400, 0x0800, 0x1000, 0x2000, 0x4000, 0x8000 // Mask
+    .hword 0x0200, 0x0100, 0x0080, 0x0040, 0x0020, 0x0010, 0x0008, 0x0004 // Shift 1
+    .hword 0x0400, 0x0200, 0x0100, 0x0080, 0x0040, 0x0020, 0x0010, 0x0008 // Shift 2
+    .hword 0x0800, 0x0400, 0x0200, 0x0100, 0x0080, 0x0040, 0x0020, 0x0010 // Shift 3
+    .hword 0x1000, 0x0800, 0x0400, 0x0200, 0x0100, 0x0080, 0x0040, 0x0020 // Shift 4
+    .hword 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010 // Shift 5
+
+.space 0x84C
 
 obj_enable:  .word 0x00       // 0xF8C-0xF8F
-bg_order:    .word 0xE4       // 0xF90-0xF93
+bg_order:    .word 0x1B       // 0xF90-0xF93
 bg_type:     .word 0x00       // 0xF94-0xF97
 objcharbase: .word 0x0000     // 0xF98-0xF9B
 bgscrnbase:  .word 0x0000:4   // 0xF9C-0xFAB
@@ -44,6 +52,15 @@ bgvofs:      .word 0x0000:4   // 0xFEC-0xFFB
 framebuffer: .word 0xA03B0000 // 0xFFC-0xFFF
 
 .text
+
+    // Load the constants for vector math
+    la   t0, vec_data
+    lqv  $v26, 0, 0, t0
+    lqv  $v27, 0, 16, t0
+    lqv  $v28, 0, 32, t0
+    lqv  $v29, 0, 48, t0
+    lqv  $v30, 0, 64, t0
+    lqv  $v31, 0, 80, t0
 
 draw_frame:
     // Set initial values for the frame
@@ -73,137 +90,6 @@ clear_line:
     sqv  $v00, 0, 0, t0
     addi t0, t0, 16
     bne  t0, t1, clear_line
-
-    // Check if objects are enabled
-    lw   t0, obj_enable
-    beq  t0, zero, draw_bg
-    li   t3, 0
-
-    // Set the character offset for objects
-    la   a0, char_data
-    la   s5, 0xA03F0000 // VRAM
-    lw   t1, objcharbase
-    add  s5, s5, t1
-    li   a2, 0x003F
-
-draw_object:
-    // Get the object's Y coordinate and test upper bounds
-    lhu  t1, oam(t3)
-    srl  t2, t1, 8
-    ble  s1, t2, next_object
-
-    // Get the 2 additional object bits
-    srl  t4, t3, 4
-    lbu  t4, oam + 0x200(t4)
-    srl  t5, t3, 1
-    andi t5, t5, 0x3 << 1
-    srl  t4, t4, t5
-
-    // Test lower bounds, based on object size
-    addi t2, t2, 9
-    andi v1, t4, 0x2
-    sll  v1, v1, 2
-    add  t2, t2, v1
-    bge  s1, t2, next_object
-
-    // Get the object's X coordinate, including the high bit
-    andi t1, t1, 0xFF
-    andi t4, t4, 0x1
-    sll  t4, t4, 8
-    or   t1, t1, t4
-
-    // Set the initial tile shift and step based on horizontal mirroring
-    li   s6, 7
-    li   s7, -1
-    lhu  t9, oam + 2(t3)
-    andi t8, t9, 0x4000
-    beq  t8, zero, objmir_notx
-    li   s6, 0
-    li   s7, 1
-
-objmir_notx:
-    // Load the tile's character data based on Y offset and vertical mirroring
-    // TODO: priority
-    andi t8, t9, 0x01FF
-    sll  t8, t8, 5
-    add  a1, s5, t8
-    sub  t2, s1, t2
-    andi t8, t9, 0x8000
-    beq  t8, zero, objmir_noty
-    not  t2, t2
-objmir_noty:
-    and  t8, t2, v1
-    sll  t8, t8, 6
-    add  a1, a1, t8
-    andi t2, t2, 0x7
-    sll  t2, t2, 1
-    add  a1, a1, t2
-    jal  dma_read
-
-    // Get the object's palette offset and scanline bounds
-    srl  t8, t9, 4
-    andi t8, t8, 0x7 << 5
-    sll  t1, t1, 1
-    addi t2, t1, 8 << 1
-
-    // Get the DMA offset, adjusted for the current tile
-    andi a1, a1, 7
-    beq  v1, zero, draw_objtile
-    bne  s6, zero, draw_objtile
-    addi a1, a1, 0x20
-
-draw_objtile:
-    // Prepare data for 16-color tiles
-    lhu  t6, char_data + 0x00(a1)
-    lhu  t7, char_data + 0x10(a1)
-    sll  t7, t7, 2
-
-draw_objpix:
-    // Don't draw outside of scanline bounds
-    bge  t1, 0x200, next_object
-
-    // Decode bits 2-3 of the palette index
-    srl  s4, t7, s6
-    andi t4, s4, 0x04
-    srl  t5, s4, 7
-    andi t5, t5, 0x08
-    or   t4, t4, t5
-
-    // Decode bits 0-1 of the palette index
-    srl  s4, t6, s6
-    andi t5, s4, 0x01
-    or   t4, t4, t5
-    srl  t5, s4, 7
-    andi t5, t5, 0x02
-    or   t4, t4, t5
-
-    // Draw a pixel with the palette color
-    beq  t4, zero, skip_objpix
-    sll  t4, t4, 1
-    add  t4, t4, t8
-    lhu  t4, palette + 0x100(t4)
-    sh   t4, scanline(t1)
-
-skip_objpix:
-    // Move to the next pixel until the object bounds
-    addi t1, t1, 2
-    add  s6, s6, s7
-    bne  t1, t2, draw_objpix
-
-    // Move to the next tile in the object if there is one
-    beq  v1, zero, next_object
-    li   v1, 0
-    sll  t4, s7, 5
-    sub  a1, a1, t4
-    addi t2, t2, 8 << 1
-    andi s6, s6, 0x7
-    b    draw_objtile
-
-next_object:
-    // Move to the next object until all are drawn
-    addi t3, t3, 4
-    andi t3, t3, 0x1FF
-    bne  t3, zero, draw_object
 
 draw_bg:
     // Get the index for the current BG
@@ -311,11 +197,12 @@ mirror_noty:
     andi t5, a1, 7
 
     // Set the initial tile shift and step based on horizontal mirroring
-    li   s7, 1
+    li   s7, 2
+    sll  t9, t9, 1
     andi t0, t6, 0x4000
     bne  t0, zero, prepare_data
-    addi s7, s7, -2
-    xori t9, t9, 0x7
+    addi s7, s7, -4
+    xori t9, t9, 0x7 << 1
 
 prepare_data:
     // Branch based on the tile type
@@ -327,35 +214,39 @@ same_tile:
     // Take the fast path for equal tiles
     beq  k0, zero, skip_tile
     andi t4, t6, 0x4000
-    bne  t4, zero, check_pixel
-    xori t9, t9, 0x7
+    bne  t4, zero, draw_pixel
+    xori t9, t9, 0x7 << 1
 
-check_pixel:
+draw_pixel:
     // Branch based on the tile type
-    beq  s4, 5, check_pixel16
-    beq  s4, 4, check_pixel4
-    b    check_pixel256
+    beq  s4, 5, draw_pixel16
+    beq  s4, 4, draw_pixel4
+    b    draw_pixel256
 
 prepare_data4:
-    // Prepare data for 4-color tiles
+    // Load data for a 4-color tile, and skip if it's empty
     lhu  k0, char_data + 0x00(t5)
-    srl  t7, t6, 7
     beq  k0, zero, skip_tile
-    sll  t0, k0, 1
-    andi t7, t7, 0x7 << 3 // Palette offset
-    b    check_pixel4
+    srl  t7, t6, 7
+    andi t7, t7, 0x7 << 3
+    la   t5, vec_data
+    mtc2 k0, $v03, 0 // Upper byte to lane 0, bits 8-15
+    mtc2 k0, $v03, 1 // Lower byte to lane 1, bits 8-15
+    mtc2 t7, $v05, 0 // Palette offset
+
+    // Decode the palette indices
+    vand  $v01, $v26, $v03, 9 // Mask out other lower bits
+    vand  $v02, $v26, $v03, 8 // Mask out other upper bits
+    vmudl $v03, $v27, $v01, 0 // Shift lower bits to bit 1
+    vmudl $v04, $v28, $v02, 0 // Shift upper bits to bit 2
+    vor   $v02, $v03, $v04, 0 // Combine bits to form indices
+    vadd  $v01, $v02, $v05, 8 // Add palette offset
+    sqv   $v01, 0, 0, t5 // Store indices to memory
 
 draw_pixel4:
-    // Decode bits 0-1 of the palette index
-    srl  t8, t0, t9
-    andi t4, t8, 0x01 << 1
-    srl  t5, t8, 7
-    andi t5, t5, 0x02 << 1
-    or   t4, t4, t5
-
     // Draw a pixel with the palette color
-    beq  t4, zero, skip_pixel4
-    add  t4, t4, t7
+    lh   t4, vec_data(t9)
+    beq  t4, t7, skip_pixel4
     lhu  t4, palette(t4)
     sh   t4, scanline(s0)
 
@@ -364,45 +255,42 @@ skip_pixel4:
     addi s0, s0, 2
     beq  s0, v1, draw_tile
     add  t9, t9, s7
-
-check_pixel4:
-    // Check if a pixel has already been drawn, and skip it if so
-    lhu  t8, scanline(s0)
-    andi t8, t8, 0x0001
-    bne  t8, zero, skip_pixel4
     b    draw_pixel4
 
 prepare_data16:
-    // Prepare data for 16-color tiles
+    // Load data for a 16-color tile, and skip if it's empty
     lhu  t0, char_data + 0x00(t5)
-    srl  t7, t6, 5
     lhu  t1, char_data + 0x10(t5)
-    sll  t0, t0, 1
     or   k0, t0, t1
     beq  k0, zero, skip_tile
-    sll  t1, t1, 3
-    andi t7, t7, 0x7 << 5 // Palette offset
-    b    check_pixel16
+    srl  t7, t6, 5
+    andi t7, t7, 0x7 << 5
+    la   t5, vec_data
+    mtc2 t0, $v03, 0 // Upper byte 1 to lane 0, bits 8-15
+    mtc2 t0, $v03, 1 // Lower byte 1 to lane 1, bits 8-15
+    mtc2 t1, $v13, 0 // Upper byte 2 to lane 0, bits 8-15
+    mtc2 t1, $v13, 1 // Lower byte 2 to lane 1, bits 8-15
+    mtc2 t7, $v05, 0 // Palette offset
+
+    // Decode the palette indices
+    vand  $v01, $v26, $v03, 9 // Mask out other lower bits
+    vand  $v02, $v26, $v03, 8 // Mask out other upper bis
+    vmudl $v03, $v27, $v01, 0 // Shift lower bits to bit 1
+    vmudl $v04, $v28, $v02, 0 // Shift upper bits to bit 2
+    vor   $v02, $v03, $v04, 0 // Combine bits to form partial indices
+    vand  $v11, $v26, $v13, 9 // Mask out other lower bits
+    vand  $v12, $v26, $v13, 8 // Mask out other upper bits
+    vmudl $v13, $v29, $v11, 0 // Shift lower bits to bit 3
+    vmudl $v14, $v30, $v12, 0 // Shift upper bits to bit 4
+    vor   $v12, $v13, $v14, 0 // Combine bits to form partial indices
+    vor   $v01, $v12, $v02, 0 // Combine partial indices
+    vadd  $v02, $v01, $v05, 8 // Add palette offset
+    sqv   $v02, 0, 0, t5 // Store indices to memory
 
 draw_pixel16:
-    // Decode bits 2-3 of the palette index
-    srl  t8, t1, t9
-    andi t4, t8, 0x04 << 1
-    srl  t5, t8, 7
-    andi t5, t5, 0x08 << 1
-    or   t4, t4, t5
-
-    // Decode bits 0-1 of the palette index
-    srl  t8, t0, t9
-    andi t5, t8, 0x01 << 1
-    or   t4, t4, t5
-    srl  t5, t8, 7
-    andi t5, t5, 0x02 << 1
-    or   t4, t4, t5
-
     // Draw a pixel with the palette color
-    beq  t4, zero, skip_pixel16
-    add  t4, t4, t7
+    lh   t4, vec_data(t9)
+    beq  t4, t7, skip_pixel16
     lhu  t4, palette(t4)
     sh   t4, scanline(s0)
 
@@ -411,63 +299,58 @@ skip_pixel16:
     addi s0, s0, 2
     beq  s0, v1, draw_tile
     add  t9, t9, s7
-
-check_pixel16:
-    // Check if a pixel has already been drawn, and skip it if so
-    lhu  t8, scanline(s0)
-    andi t8, t8, 0x0001
-    bne  t8, zero, skip_pixel16
     b    draw_pixel16
 
 prepare_data256:
-    // Prepare data for 256-color tiles
+    // Load data for a 256-color tile, and skip if it's empty
     lhu  t0, char_data + 0x00(t5)
     lhu  t1, char_data + 0x10(t5)
-    sll  t0, t0, 1
-    or   k0, t0, t1
     lhu  t2, char_data + 0x20(t5)
-    sll  t1, t1, 3
-    or   k0, k0, t2
     lhu  t3, char_data + 0x30(t5)
-    sll  t2, t2, 5
+    or   k0, t0, t1
+    or   k0, k0, t2
     or   k0, k0, t3
     beq  k0, zero, skip_tile
-    sll  t3, t3, 7
-    b    check_pixel256
+    la   t5, vec_data
+    mtc2 t0, $v03, 0 // Upper byte 1 to lane 0, bits 8-15
+    mtc2 t0, $v03, 1 // Lower byte 1 to lane 1, bits 8-15
+    mtc2 t1, $v13, 0 // Upper byte 2 to lane 0, bits 8-15
+    mtc2 t1, $v13, 1 // Lower byte 2 to lane 1, bits 8-15
+    mtc2 t2, $v08, 0 // Upper byte 3 to lane 0, bits 8-15
+    mtc2 t2, $v08, 1 // Lower byte 3 to lane 1, bits 8-15
+    mtc2 t3, $v18, 0 // Upper byte 4 to lane 0, bits 8-15
+    mtc2 t3, $v18, 1 // Lower byte 4 to lane 1, bits 8-15
+
+    // Decode the palette indices
+    vand  $v01, $v26, $v03, 9 // Mask out other lower bits
+    vand  $v02, $v26, $v03, 8 // Mask out other upper bis
+    vmudl $v03, $v27, $v01, 0 // Shift lower bits to bit 1
+    vmudl $v04, $v28, $v02, 0 // Shift upper bits to bit 2
+    vor   $v02, $v03, $v04, 0 // Combine bits to form partial indices
+    vand  $v11, $v26, $v13, 9 // Mask out other lower bits
+    vand  $v12, $v26, $v13, 8 // Mask out other upper bits
+    vmudl $v13, $v29, $v11, 0 // Shift lower bits to bit 3
+    vmudl $v14, $v30, $v12, 0 // Shift upper bits to bit 4
+    vor   $v12, $v13, $v14, 0 // Combine bits to form partial indices
+    vor   $v06, $v12, $v02, 0 // Combine partial indices
+    vand  $v01, $v26, $v08, 9 // Mask out other lower bits
+    vand  $v02, $v26, $v08, 8 // Mask out other upper bis
+    vmudl $v03, $v27, $v01, 0 // Shift lower bits to bit 1
+    vmudl $v04, $v28, $v02, 0 // Shift upper bits to bit 2
+    vor   $v02, $v03, $v04, 0 // Combine bits to form partial indices
+    vand  $v11, $v26, $v18, 9 // Mask out other lower bits
+    vand  $v12, $v26, $v18, 8 // Mask out other upper bits
+    vmudl $v13, $v29, $v11, 0 // Shift lower bits to bit 3
+    vmudl $v14, $v30, $v12, 0 // Shift upper bits to bit 4
+    vor   $v12, $v13, $v14, 0 // Combine bits to form partial indices
+    vor   $v07, $v12, $v02, 0 // Combine partial indices
+    vmudn $v07, $v07, $v31, 0 // Shift upper indices left
+    vor   $v02, $v06, $v07, 0 // Combine indices
+    sqv   $v02, 0, 0, t5 // Store indices to memory
 
 draw_pixel256:
-    // Decode bits 6-7 of the palette index
-    srl  t8, t3, t9
-    andi t4, t8, 0x40 << 1
-    srl  t5, t8, 7
-    andi t5, t5, 0x80 << 1
-    or   t4, t4, t5
-
-    // Decode bits 4-5 of the palette index
-    srl  t8, t2, t9
-    andi t5, t8, 0x10 << 1
-    or   t4, t4, t5
-    srl  t5, t8, 7
-    andi t5, t5, 0x20 << 1
-    or   t4, t4, t5
-
-    // Decode bits 2-3 of the palette index
-    srl  t8, t1, t9
-    andi t5, t8, 0x04 << 1
-    or   t4, t4, t5
-    srl  t5, t8, 7
-    andi t5, t5, 0x08 << 1
-    or   t4, t4, t5
-
-    // Decode bits 0-1 of the palette index
-    srl  t8, t0, t9
-    andi t5, t8, 0x01 << 1
-    or   t4, t4, t5
-    srl  t5, t8, 7
-    andi t5, t5, 0x02 << 1
-    or   t4, t4, t5
-
     // Draw a pixel with the palette color
+    lh   t4, vec_data(t9)
     beq  t4, zero, skip_pixel256
     lhu  t4, palette(t4)
     sh   t4, scanline(s0)
@@ -477,12 +360,6 @@ skip_pixel256:
     addi s0, s0, 2
     beq  s0, v1, draw_tile
     add  t9, t9, s7
-
-check_pixel256:
-    // Check if a pixel has already been drawn, and skip it if so
-    lhu  t8, scanline(s0)
-    andi t8, t8, 0x0001
-    bne  t8, zero, skip_pixel256
     b    draw_pixel256
 
 next_bg:
@@ -492,6 +369,142 @@ next_bg:
     andi a3, a3, 7
     bne  a3, zero, draw_bg
 
+    // Check if objects are enabled
+    lw   t0, obj_enable
+    beq  t0, zero, end_line
+    li   t3, 0
+
+    // Set the character offset for objects
+    la   a0, char_data
+    la   s5, 0xA03F0000 // VRAM
+    lw   t1, objcharbase
+    add  s5, s5, t1
+    li   a2, 0x003F
+
+draw_object:
+    // Get the object's Y coordinate and test upper bounds
+    lhu  t1, oam(t3)
+    srl  t2, t1, 8
+    ble  s1, t2, next_object
+
+    // Get the 2 additional object bits
+    srl  t4, t3, 4
+    lbu  t4, oam + 0x200(t4)
+    srl  t5, t3, 1
+    andi t5, t5, 0x3 << 1
+    srl  t4, t4, t5
+
+    // Test lower bounds, based on object size
+    addi t2, t2, 9
+    andi v1, t4, 0x2
+    sll  v1, v1, 2
+    add  t2, t2, v1
+    bge  s1, t2, next_object
+
+    // Get the object's X coordinate, including the high bit
+    andi t1, t1, 0xFF
+    andi t4, t4, 0x1
+    sll  t4, t4, 8
+    or   t1, t1, t4
+
+    // Set the initial tile shift and step based on horizontal mirroring
+    li   s6, 7 << 1
+    li   s7, -2
+    lhu  t9, oam + 2(t3)
+    andi t8, t9, 0x4000
+    beq  t8, zero, objmir_notx
+    li   s6, 0
+    li   s7, 2
+
+objmir_notx:
+    // Load the tile's character data based on Y offset and vertical mirroring
+    // TODO: priority
+    andi t8, t9, 0x01FF
+    sll  t8, t8, 5
+    add  a1, s5, t8
+    sub  t2, s1, t2
+    andi t8, t9, 0x8000
+    beq  t8, zero, objmir_noty
+    not  t2, t2
+objmir_noty:
+    and  t8, t2, v1
+    sll  t8, t8, 6
+    add  a1, a1, t8
+    andi t2, t2, 0x7
+    sll  t2, t2, 1
+    add  a1, a1, t2
+    jal  dma_read
+
+    // Get the object's palette offset and scanline bounds
+    srl  t8, t9, 4
+    andi t8, t8, 0x7 << 5
+    sll  t1, t1, 1
+    addi t2, t1, 8 << 1
+
+    // Get the DMA offset, adjusted for the current tile
+    andi a1, a1, 7
+    beq  v1, zero, draw_objtile
+    bne  s6, zero, draw_objtile
+    addi a1, a1, 0x20
+
+draw_objtile:
+    // Load data for a 16-color tile
+    lhu  t6, char_data + 0x00(a1)
+    lhu  t7, char_data + 0x10(a1)
+    la   t5, vec_data
+    mtc2 t6, $v03, 0 // Upper byte 1 to lane 0, bits 8-15
+    mtc2 t6, $v03, 1 // Lower byte 1 to lane 1, bits 8-15
+    mtc2 t7, $v13, 0 // Upper byte 2 to lane 0, bits 8-15
+    mtc2 t7, $v13, 1 // Lower byte 2 to lane 1, bits 8-15
+    mtc2 t8, $v05, 0 // Palette offset
+
+    // Decode the palette indices
+    vand  $v01, $v26, $v03, 9 // Mask out other lower bits
+    vand  $v02, $v26, $v03, 8 // Mask out other upper bis
+    vmudl $v03, $v27, $v01, 0 // Shift lower bits to bit 1
+    vmudl $v04, $v28, $v02, 0 // Shift upper bits to bit 2
+    vor   $v02, $v03, $v04, 0 // Combine bits to form partial indices
+    vand  $v11, $v26, $v13, 9 // Mask out other lower bits
+    vand  $v12, $v26, $v13, 8 // Mask out other upper bits
+    vmudl $v13, $v29, $v11, 0 // Shift lower bits to bit 3
+    vmudl $v14, $v30, $v12, 0 // Shift upper bits to bit 4
+    vor   $v12, $v13, $v14, 0 // Combine bits to form partial indices
+    vor   $v01, $v12, $v02, 0 // Combine partial indices
+    vadd  $v02, $v01, $v05, 8 // Add palette offset
+    sqv   $v02, 0, 0, t5 // Store indices to memory
+
+draw_objpix:
+    // Don't draw outside of scanline bounds
+    bge  t1, 0x200, next_object
+
+    // Draw a pixel with the palette color
+    lh   t4, vec_data(s6)
+    beq  t4, t8, skip_objpix
+    lhu  t4, palette + 0x100(t4)
+    sh   t4, scanline(t1)
+
+skip_objpix:
+    // Move to the next pixel until the object bounds
+    addi t1, t1, 2
+    add  s6, s6, s7
+    bne  t1, t2, draw_objpix
+
+    // Move to the next tile in the object if there is one
+    beq  v1, zero, next_object
+    li   v1, 0
+    sll  t4, s7, 4
+    sub  a1, a1, t4
+    addi t2, t2, 8 << 1
+    andi s6, s6, 0x7 << 1
+    b    draw_objtile
+
+next_object:
+    // Move to the next object until all are drawn
+    addi t3, t3, 4
+    andi t3, t3, 0x1FF
+    bne  t3, zero, draw_object
+
+end_line:
     // DMA the scanline to the framebuffer
     la   a0, scanline
     lw   a1, framebuffer

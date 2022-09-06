@@ -89,7 +89,7 @@ rdnmi:    .byte  0x00
 hvbjoy:   .byte  0x00
 
 // 2 bits per BG; the order they should be drawn in
-bg_orders: .byte 0xE4, 0xD2
+bg_orders: .byte 0x1B, 0x87
 
 // 2 bits per BG: 0 = none, 1 = 4-color, 2 = 16-color, 3 = 256-color
 // TODO: offset-per-tile, hi-res, rotscale
