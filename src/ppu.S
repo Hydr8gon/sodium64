@@ -187,7 +187,7 @@ update_dpal:
 
     // DMEM access from the main CPU is 32-bit, so check if this is a low or high half-word
     andi t7, t9, 0x1FF & ~3
-    la   t8, 0xA4000200 // Palette in DMEM
+    la   t8, 0xA4000220 // Palette in DMEM
     add  t8, t8, t7
     bne  t7, t9, dpal_high
 
@@ -331,7 +331,7 @@ oam_high:
     // Update the OAM data in DMEM
     // DMEM access from the main CPU is 32-bit, so check if this is a low or high half-word
     andi t1, t0, 0x3FF & ~3
-    la   t2, 0xA4000400 // OAM in DMEM
+    la   t2, 0xA4000420 // OAM in DMEM
     add  t2, t2, t1
     bne  t1, t0, doam_high
 
@@ -364,7 +364,7 @@ oam_end:
 
     // Update the DMEM word containing the byte
     andi t0, t0, 0x3FF & ~3
-    la   t4, 0xA4000400 // OAM in DMEM
+    la   t4, 0xA4000420 // OAM in DMEM
     add  t0, t0, t4
     lw   t4, (t0)
     and  t4, t4, t2
