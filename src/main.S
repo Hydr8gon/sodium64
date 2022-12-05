@@ -80,6 +80,11 @@ clear_vram:
     addi t0, t0, 4
     bne  t0, t1, clear_vram
 
+    // Initialize the emulator
+    jal  input_init
+    jal  memory_init
+    jal  cpu_init
+
     // Upload the RSP code and data
     li   a0, 0x1000 // IMEM address
     la   a1, rsp_main_text_start
@@ -101,10 +106,6 @@ clear_vram:
     // Override the exception handler using libdragon
     la   a0, exception_handler
     jal  register_exception_handler
-
-    // Initialize the emulator
-    jal  memory_init
-    jal  cpu_init
 
     // Start execution
     j    cpu_execute
@@ -129,7 +130,7 @@ vi_interrupt:
     // Continue if the next frame is ready, otherwise just update input
     lbu  t2, frame_count
     bne  t2, zero, swap_buffers
-    j    update_input
+    j    input_update
 
 swap_buffers:
     // Move to the next of three framebuffers
@@ -146,7 +147,7 @@ set_buffer:
     // Decrement the frame counter and update input
     addi t2, t2, -1
     sb   t2, frame_count
-    j    update_input
+    j    input_update
 
 
 exception_handler:

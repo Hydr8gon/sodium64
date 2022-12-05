@@ -19,52 +19,52 @@
 
 #include <regdef.h>
 
-.globl update_input
+.globl input_init
+.globl input_update
 .globl read_joyxl
 .globl read_joyxh
 
 .data
 
-input_data:   .word  0:16
-input_status: .hword 0x0000
-
-// Masks for the connection status of controllers 1-4
-port_masks: .hword 0xF000, 0x0F00, 0x00F0, 0x000F
+// Command that reads controller status when copied to PIF RAM
+joybus_cmd:
+    .dword 0xFF010401FFFFFFFF // Read controller 1
+    .dword 0xFF010401FFFFFFFF // Read controller 2
+    .dword 0xFF010401FFFFFFFF // Read controller 3
+    .dword 0xFF010401FFFFFFFF // Read controller 4
+    .dword 0xFE00000000000000 // Finish execution
+    .dword 0x0000000000000000 // Nothing
+    .dword 0x0000000000000000 // Nothing
+    .dword 0x0000000000000001 // Run command
 
 .text
 
-update_input:
-    // Backup the return address
-    addi sp, sp, -8
-    sw   ra, (sp)
-
-    // Update the connection status using libdragon
-    jal  get_controllers_present
-    sh   v0, input_status
-
-    // Restore the return address
-    lw   ra, (sp)
-    addi sp, sp, 8
-
-    // Update the input data every frame using libdragon
-    la   a0, input_data
-    j    controller_read
-
-
-read_joyxl: // a0: address, a1: value
-    // Check if the controller is connected, and return 0 if not
-    andi t2, a0, 0x0006
-    lhu  t0, input_status
-    lhu  t1, port_masks(t2)
-    and  t0, t0, t1
-    bne  t0, zero, joyxl_conn
-    move v0, zero
+input_init:
+    // Send the initial joybus command to PIF RAM via DMA
+    lui  t0, 0xA480     // SI register upper address
+    la   t1, joybus_cmd  // Input buffer
+    sw   t1, 0x0000(t0) // SI_DRAM_ADDR
+    li   t1, 0x0FC0     // PIF RAM
+    sw   t1, 0x0010(t0) // SI_PIF_AD_WR64B
     jr   ra
 
-joyxl_conn:
+
+input_update:
+    // Read the output of the joybus command via DMA
+    // TODO: fix input breaking after a while on console (???)
+    lui  t0, 0xA480     // SI register upper address
+    la   t1, joybus_cmd // Output buffer
+    sw   t1, 0x0000(t0) // SI_DRAM_ADDR
+    li   t1, 0x0FC0     // PIF RAM
+    sw   t1, 0x0004(t0) // SI_PIF_AD_RD64B
+    jr   ra
+
+
+read_joyxl: // a0: address
     // Read the button data for the controller
+    andi t2, a0, 0x0006
     sll  t2, t2, 2
-    lhu  t0, input_data + 4(t2)
+    lhu  t0, joybus_cmd + 4(t2)
 
     // Map N64 LR to SNES LR
     andi v0, t0, 0x3 << 4
@@ -81,20 +81,11 @@ joyxl_conn:
     jr   ra
 
 
-read_joyxh: // a0: address, a1: value
-    // Check if the controller is connected, and return 0 if not
-    andi t2, a0, 0x0006
-    lhu  t0, input_status
-    lhu  t1, port_masks(t2)
-    and  t0, t0, t1
-    bne  t0, zero, joyxh_conn
-    move v0, zero
-    jr   ra
-
-joyxh_conn:
+read_joyxh: // a0: address
     // Read the button data for the controller
+    andi t2, a0, 0x0006
     sll  t2, t2, 2
-    lhu  t0, input_data + 4(t2)
+    lhu  t0, joybus_cmd + 4(t2)
 
     // Map N64 Dpad to SNES Dpad
     srl  t1, t0, 8
