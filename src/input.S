@@ -42,7 +42,7 @@ joybus_cmd:
 input_init:
     // Send the initial joybus command to PIF RAM via DMA
     lui  t0, 0xA480     // SI register upper address
-    la   t1, joybus_cmd  // Input buffer
+    la   t1, joybus_cmd // Input buffer
     sw   t1, 0x0000(t0) // SI_DRAM_ADDR
     li   t1, 0x0FC0     // PIF RAM
     sw   t1, 0x0010(t0) // SI_PIF_AD_WR64B
@@ -51,12 +51,17 @@ input_init:
 
 input_update:
     // Read the output of the joybus command via DMA
-    // TODO: fix input breaking after a while on console (???)
     lui  t0, 0xA480     // SI register upper address
     la   t1, joybus_cmd // Output buffer
     sw   t1, 0x0000(t0) // SI_DRAM_ADDR
-    li   t1, 0x0FC0     // PIF RAM
-    sw   t1, 0x0004(t0) // SI_PIF_AD_RD64B
+    li   t2, 0x0FC0     // PIF RAM
+    sw   t2, 0x0004(t0) // SI_PIF_AD_RD64B
+
+    // Invalidate cache for the DMA buffer
+    cache 0x11, 0x00(t1)
+    cache 0x11, 0x10(t1)
+    cache 0x11, 0x20(t1)
+    cache 0x11, 0x30(t1)
     jr   ra
 
 
