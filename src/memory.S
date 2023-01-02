@@ -31,17 +31,28 @@
 
 .data
 
-rom:        .incbin "rom.sfc"
-sram:       .byte   0:0x2000
-wram:       .byte   0:0x20000
-empty:      .byte   0:0x2000
-memory_map: .word   0:0x800
+sram:       .byte 0:0x2000
+wram:       .byte 0:0x20000
+empty:      .byte 0:0x2000
+memory_map: .word 0:0x800
 
 wmadd: .word 0x00000
 
 .text
 
 memory_init:
+    // Copy a ROM appended to the file into memory
+    // TODO: support more than 3MB
+    la   t0, 0xB0104000 // ROM appended to file
+    la   t1, 0x80090000 // ROM buffer start
+    la   t2, 0x80390000 // ROM buffer end
+rom_loop:
+    lw   t3, (t0)
+    addi t0, t0, 4
+    sw   t3, (t1)
+    addi t1, t1, 4
+    bne  t1, t2, rom_loop
+
     // Set initial values for building the memory map
     li   t0, 0x000000 // Current address
     li   t1, 0xFFFFFF // Maximum address
@@ -84,15 +95,15 @@ wram_area:
 
 lorom_area:
     // Get a pointer to a ROM block mapped as LoROM
-    la   t3, rom
+    la   t3, 0x80090000 // ROM buffer
     li   t4, 0x7F0000
-    and  t4, t4, t0 // Mirrored bank
-    srl  t4, t4, 1  // 32KB every 64KB bank
+    and  t4, t4, t0     // Mirrored bank
+    srl  t4, t4, 1      // 32KB every 64KB bank
     add  t3, t3, t4
     li   t4, 0x7FFF
-    and  t4, t4, t0 // Offset within 32KB
+    and  t4, t4, t0     // Offset within 32KB
     add  t3, t3, t4
-    la   t4, sram   // ROM bounds
+    la   t4, 0x80390000 // ROM bounds
     bge  t3, t4, empty_area
     b    map_block
 

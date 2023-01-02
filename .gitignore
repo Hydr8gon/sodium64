@@ -1,3 +1,4 @@
 /build
-/rom.sfc
+/out
 /sodium64.z64
+/*.sfc
