@@ -1,5 +1,5 @@
 /*
-    Copyright 2021 Hydr8gon
+    Copyright 2021-2023 Hydr8gon
 
     This file is part of sodium64.
 
@@ -184,7 +184,7 @@ trigger_nmi:
     // Check if currently in emulation mode
     lhu  a0, stack_ptr
     andi s0, s4, 0x100
-    beq  s0, zero, nmi_notemu
+    beqz s0, nmi_notemu
 
     // Set the NMI vector for emulation mode
     li   s0, 0xFFFA // NMI vector (emulation mode)
@@ -229,7 +229,7 @@ nmi_cont:
 update_mode:
     // Check if the emulation flag is set
     andi t0, s4, 0x100
-    beq  t0, zero, not_emu
+    beqz t0, not_emu
 
     // Switch to emulation mode
     la   s6, opcodes_emu
@@ -257,7 +257,7 @@ not_emu:
 not_8:
     // Check if the 8-bit register flag is set
     andi t0, s4, 0x10
-    beq  t0, zero, not_r8
+    beqz t0, not_r8
 
     // Switch to 8-bit register mode
     la   s6, opcodes_r8
@@ -268,7 +268,7 @@ not_8:
 not_r8:
     // Check if the 8-bit accumulator flag is set
     andi t0, s4, 0x20
-    beq  t0, zero, not_a8
+    beqz t0, not_a8
 
     // Switch to 8-bit accumulator mode
     la   s6, opcodes_a8

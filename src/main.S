@@ -1,5 +1,5 @@
 /*
-    Copyright 2021 Hydr8gon
+    Copyright 2021-2023 Hydr8gon
 
     This file is part of sodium64.
 
@@ -119,17 +119,17 @@ rsp_upload: // a0: RSP address, a1: DRAM address
     li   t1, 0x0FFF     // Data size
     sw   t1, 0x0008(t0) // SP_RD_LEN_REG
 
-    // Wait for the DMA to complete
 dma_wait:
+    // Wait for the DMA to complete
     lw   t1, 0x0018(t0) // SP_DMA_BUSY_REG
-    bne  t1, zero, dma_wait
+    bnez t1, dma_wait
     jr   ra
 
 
 vi_interrupt:
     // Continue if the next frame is ready, otherwise just update input
     lbu  t2, frame_count
-    bne  t2, zero, swap_buffers
+    bnez t2, swap_buffers
     j    input_update
 
 swap_buffers:
@@ -165,8 +165,8 @@ write_sram:
     addi t0, t0, 4
     bne  t0, t1, write_sram
 
-    // Wait until the system resets
 loop:
+    // Wait until the system resets
     b    loop
 
 
@@ -175,5 +175,5 @@ sram_wait:
     li   t3, 0x200
 sram_loop:
     addi t3, t3, -1
-    bne  t3, zero, sram_loop
+    bnez t3, sram_loop
     jr   ra

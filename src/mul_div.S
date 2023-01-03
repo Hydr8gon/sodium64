@@ -1,5 +1,5 @@
 /*
-    Copyright 2021 Hydr8gon
+    Copyright 2021-2023 Hydr8gon
 
     This file is part of sodium64.
 
@@ -92,7 +92,7 @@ write_wrdivh: // a1: value
 
 write_wrdivb: // a1: value
     // Divide the dividend by the value and set the quotient and remainder
-    beq  a1, zero, div_zero
+    beqz a1, div_zero
     lhu  t0, wrdiva
     div  t0, a1
     mflo t0

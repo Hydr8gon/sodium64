@@ -1,5 +1,5 @@
 /*
-    Copyright 2021 Hydr8gon
+    Copyright 2021-2023 Hydr8gon
 
     This file is part of sodium64.
 
@@ -126,7 +126,7 @@ rsp_wait:
     // Wait until the RSP is finished rendering
     lw   t0, 0xA4040010 // SP_STATUS_REG
     andi t0, t0, 0x0001 // Halt
-    beq  t0, zero, rsp_wait
+    beqz t0, rsp_wait
 
     // Increment the frame counter with VI interrupts disabled
     li   t0, 1 << 6     // Clear VI mask
@@ -199,7 +199,7 @@ update_dpal:
     sll  t3, t3, 16
     or   t3, t3, t7
     sw   t3, (t8)
-    bne  t9, zero, update_dpal
+    bnez t9, update_dpal
     b    frame_wait
 
 dpal_high:
@@ -209,7 +209,7 @@ dpal_high:
     and  t7, t7, t6
     or   t3, t3, t7
     sw   t3, (t8)
-    bne  t9, zero, update_dpal
+    bnez t9, update_dpal
 
 frame_wait:
     // Wait for a framebuffer to be available
@@ -262,9 +262,9 @@ read_hvbjoy: // v0: value
 
 write_inidisp: // a1: value
     // Check for zero values and the force blank bit
-    beq  a1, zero, blank
+    beqz a1, blank
     andi t0, a1, 0x80
-    beq  t0, zero, no_blank
+    beqz t0, no_blank
 
 blank:
     // Force the screen blank
@@ -317,9 +317,9 @@ no_wrap:
 
     // Check if writing to the last 32 bytes, otherwise check for first/second access
     andi t1, t0, 0x200
-    bne  t1, zero, oam_end
+    bnez t1, oam_end
     andi t1, t0, 1
-    bne  t1, zero, oam_high
+    bnez t1, oam_high
 
     // Save the low byte on first access
     sb   a1, oam_lsb
@@ -593,7 +593,7 @@ write_vmain: // a1: value
     andi t0, a1, 0x03
     lbu  t0, vram_incrs(t0)
     andi t1, a1, 0x80
-    bne  t1, zero, vmain_high
+    bnez t1, vmain_high
 
     // Set the VRAM increment for low access
     sb   t0, vram_incl
@@ -692,7 +692,7 @@ write_cgdata: // a1: value
     addi t1, t0, 1
     sh   t1, cgadd
     andi t1, t0, 1
-    bne  t1, zero, cg_high
+    bnez t1, cg_high
 
     // Save the low byte on first access
     sb   a1, cg_lsb

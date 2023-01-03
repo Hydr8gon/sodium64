@@ -1,5 +1,5 @@
 /*
-    Copyright 2021 Hydr8gon
+    Copyright 2021-2023 Hydr8gon
 
     This file is part of sodium64.
 
@@ -102,7 +102,7 @@ draw_bg:
     lw   s4, bg_type
     srl  s4, s4, t1
     andi s4, s4, 0x3
-    beq  s4, zero, next_bg
+    beqz s4, next_bg
     addi s4, s4, 3
 
     // Get the vertical and horizontal offsets within the BG
@@ -119,7 +119,7 @@ draw_bg:
 
     // Apply the vertical base offset if past the bounds of the first screen
     andi t0, s5, 0x100
-    beq  t0, zero, load_screen
+    beqz t0, load_screen
     lw   t0, bgbaseofsv(t1)
     add  a1, a1, t0
 
@@ -195,7 +195,7 @@ check_tile:
     sll  t0, t0, s4
     add  a1, s5, t0
     andi t0, t6, 0x8000
-    beq  t0, zero, mirror_noty
+    beqz t0, mirror_noty
     xori a1, a1, 7 << 1
 mirror_noty:
     jal  dma_read
@@ -214,19 +214,19 @@ prepare_data:
 
 same_tile:
     // Take the fast path for equal tiles
-    beq  k0, zero, skip_tile
+    beqz k0, skip_tile
     b    draw_tile
 
 prepare_data4:
     // Load data for a 4-color tile, and skip if it's empty
     lhu  k0, char_data + 0x00(t5)
-    beq  k0, zero, skip_tile
+    beqz k0, skip_tile
     srl  t7, t6, 7
     andi t7, t7, 0x7 << 3
     mtc2 k0, $v03, 0 // Upper byte to lane 0, bits 8-15
     mtc2 k0, $v03, 1 // Lower byte to lane 1, bits 8-15
     mtc2 t7, $v05, 0 // Palette offset
-    bne  s7, zero, mirror_x4
+    bnez s7, mirror_x4
 
     // Decode the palette indices
     vand  $v01, $v20, $v03, 9 // Mask out other lower bits
@@ -252,7 +252,7 @@ prepare_data16:
     lhu  t0, char_data + 0x00(t5)
     lhu  t1, char_data + 0x10(t5)
     or   k0, t0, t1
-    beq  k0, zero, skip_tile
+    beqz k0, skip_tile
     srl  t7, t6, 5
     andi t7, t7, 0x7 << 5
     mtc2 t0, $v03, 0 // Upper byte 1 to lane 0, bits 8-15
@@ -260,7 +260,7 @@ prepare_data16:
     mtc2 t1, $v13, 0 // Upper byte 2 to lane 0, bits 8-15
     mtc2 t1, $v13, 1 // Lower byte 2 to lane 1, bits 8-15
     mtc2 t7, $v05, 0 // Palette offset
-    bne  s7, zero, mirror_x16
+    bnez s7, mirror_x16
 
     // Decode the palette indices
     vand  $v01, $v20, $v03, 9 // Mask out other lower bits
@@ -302,7 +302,7 @@ prepare_data256:
     or   k0, t0, t1
     or   k0, k0, t2
     or   k0, k0, t3
-    beq  k0, zero, skip_tile
+    beqz k0, skip_tile
     mtc2 t0, $v03, 0 // Upper byte 1 to lane 0, bits 8-15
     mtc2 t0, $v03, 1 // Lower byte 1 to lane 1, bits 8-15
     mtc2 t1, $v13, 0 // Upper byte 2 to lane 0, bits 8-15
@@ -311,7 +311,7 @@ prepare_data256:
     mtc2 t2, $v08, 1 // Lower byte 3 to lane 1, bits 8-15
     mtc2 t3, $v18, 0 // Upper byte 4 to lane 0, bits 8-15
     mtc2 t3, $v18, 1 // Lower byte 4 to lane 1, bits 8-15
-    bne  s7, zero, mirror_x256
+    bnez s7, mirror_x256
 
     // Decode the palette indices
     vand  $v01, $v20, $v03, 9 // Mask out other lower bits
@@ -373,11 +373,11 @@ next_bg:
     li   s0, 0
     addi a3, a3, 2
     andi a3, a3, 7
-    bne  a3, zero, draw_bg
+    bnez a3, draw_bg
 
     // Check if objects are enabled
     lw   t0, obj_enable
-    beq  t0, zero, end_line
+    beqz t0, end_line
     li   t3, 0
 
     // Set the character offset for objects
@@ -418,7 +418,7 @@ draw_object:
     li   s7, -2
     lhu  t9, oam + 2(t3)
     andi t8, t9, 0x4000
-    beq  t8, zero, objmir_notx
+    beqz t8, objmir_notx
     li   s6, 0
     li   s7, 2
 
@@ -430,7 +430,7 @@ objmir_notx:
     add  a1, s5, t8
     sub  t2, s1, t2
     andi t8, t9, 0x8000
-    beq  t8, zero, objmir_noty
+    beqz t8, objmir_noty
     not  t2, t2
 objmir_noty:
     and  t8, t2, v1
@@ -450,8 +450,8 @@ objmir_noty:
 
     // Get the DMA offset, adjusted for the current tile
     andi a1, a1, 7
-    beq  v1, zero, load_objtile
-    bne  s6, zero, load_objtile
+    beqz v1, load_objtile
+    bnez s6, load_objtile
     addi a1, a1, 0x20
 
 load_objtile:
@@ -463,7 +463,7 @@ load_objtile:
     mtc2 t7, $v13, 0 // Upper byte 2 to lane 0, bits 8-15
     mtc2 t7, $v13, 1 // Lower byte 2 to lane 1, bits 8-15
     mtc2 t8, $v05, 0 // Palette offset
-    beq  s6, zero, objmir_x
+    beqz s6, objmir_x
 
     // Decode the palette indices
     vand  $v01, $v20, $v03, 9 // Mask out other lower bits
@@ -509,7 +509,7 @@ draw_objtile:
     addi  t1, t1, 16
 
     // Move to the next tile in the object if there is one
-    beq  v1, zero, next_object
+    beqz v1, next_object
     li   v1, 0
     sll  t4, s7, 4
     sub  a1, a1, t4
@@ -521,7 +521,7 @@ next_object:
     // Move to the next object until all are drawn
     addi t3, t3, 4
     andi t3, t3, 0x1FF
-    bne  t3, zero, draw_object
+    bnez t3, draw_object
 
 end_line:
     // Replace palette indices with palette entries
@@ -583,5 +583,5 @@ dma_read: // a0: RSP address, a1: DRAM address, a2: size
 dma_wait:
     // Wait for the DMA to complete
     mfc0 t0, COP0_DMA_BUSY
-    bne  t0, zero, dma_wait
+    bnez t0, dma_wait
     jr   ra

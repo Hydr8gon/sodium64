@@ -1,5 +1,5 @@
 /*
-    Copyright 2021 Hydr8gon
+    Copyright 2021-2023 Hydr8gon
 
     This file is part of sodium64.
 
@@ -375,7 +375,7 @@ rts: // RTS
 bpl: // BPL disp8
     // Check the condition
     and  t0, s4, 0x80 // N
-    bne  t0, zero, bpl_end
+    bnez t0, bpl_end
 
     // Fetch the 8-bit immediate value
     add  a0, s7, 1
@@ -393,7 +393,7 @@ bpl_end:
 bmi: // BMI disp8
     // Check the condition
     and  t0, s4, 0x80 // N
-    beq  t0, zero, bmi_end
+    beqz t0, bmi_end
 
     // Fetch the 8-bit immediate value
     add  a0, s7, 1
@@ -411,7 +411,7 @@ bmi_end:
 bvc: // BVC disp8
     // Check the condition
     and  t0, s4, 0x40 // V
-    bne  t0, zero, bvc_end
+    bnez t0, bvc_end
 
     // Fetch the 8-bit immediate value
     add  a0, s7, 1
@@ -429,7 +429,7 @@ bvc_end:
 bvs: // BVS disp8
     // Check the condition
     and  t0, s4, 0x40 // V
-    beq  t0, zero, bvs_end
+    beqz t0, bvs_end
 
     // Fetch the 8-bit immediate value
     add  a0, s7, 1
@@ -447,7 +447,7 @@ bvs_end:
 bcc: // BCC disp8
     // Check the condition
     and  t0, s4, 0x01 // C
-    bne  t0, zero, bcc_end
+    bnez t0, bcc_end
 
     // Fetch the 8-bit immediate value
     add  a0, s7, 1
@@ -465,7 +465,7 @@ bcc_end:
 bcs: // BCS disp8
     // Check the condition
     and  t0, s4, 0x01 // C
-    beq  t0, zero, bcs_end
+    beqz t0, bcs_end
 
     // Fetch the 8-bit immediate value
     add  a0, s7, 1
@@ -483,7 +483,7 @@ bcs_end:
 bne: // BNE disp8
     // Check the condition
     and  t0, s4, 0x02 // Z
-    bne  t0, zero, bne_end
+    bnez t0, bne_end
 
     // Fetch the 8-bit immediate value
     add  a0, s7, 1
@@ -501,7 +501,7 @@ bne_end:
 beq: // BEQ disp8
     // Check the condition
     and  t0, s4, 0x02 // Z
-    beq  t0, zero, beq_end
+    beqz t0, beq_end
 
     // Fetch the 8-bit immediate value
     add  a0, s7, 1

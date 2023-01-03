@@ -1,5 +1,5 @@
 /*
-    Copyright 2021 Hydr8gon
+    Copyright 2021-2023 Hydr8gon
 
     This file is part of sodium64.
 
@@ -147,8 +147,8 @@ memory_read8: // a0: address - v0: value
     la   t1, memory_map
     add  t0, t0, t1
     lw   t0, (t0)
-    addi s5, s5, -6         // Base cycle decrement
-    beq  t0, zero, io_read8 // I/O register fallback
+    addi s5, s5, -6   // Base cycle decrement
+    beqz t0, io_read8 // I/O register fallback
 
     // Clear the write bit before using the pointer
     li   t1, ~1
@@ -171,8 +171,8 @@ memory_read16: // a0: address - v0: value
     la   t1, memory_map
     add  t0, t0, t1
     lw   t0, (t0)
-    addi s5, s5, -6 * 2      // Base cycle decrement
-    beq  t0, zero, io_read16 // I/O register fallback
+    addi s5, s5, -6 * 2 // Base cycle decrement
+    beqz t0, io_read16  // I/O register fallback
 
     // Clear the write bit before using the pointer
     li   t1, ~1
@@ -217,16 +217,16 @@ memory_write8: // a0: address, a1: value
     la   t1, memory_map
     add  t0, t0, t1
     lw   t0, (t0)
-    addi s5, s5, -6          // Base cycle decrement
-    beq  t0, zero, io_write8 // I/O register fallback
+    addi s5, s5, -6    // Base cycle decrement
+    beqz t0, io_write8 // I/O register fallback
 
     // Ensure the block is writable
     andi t1, t0, 1
-    bne  t1, zero, can_write8
+    bnez t1, can_write8
     jr   ra
 
-    // Clear the write bit before using the pointer
 can_write8:
+    // Clear the write bit before using the pointer
     li   t1, ~1
     and  t0, t0, t1
 
@@ -247,16 +247,16 @@ memory_write16: // a0: address, a1: value
     la   t1, memory_map
     add  t0, t0, t1
     lw   t0, (t0)
-    addi s5, s5, -6 * 2       // Base cycle decrement
-    beq  t0, zero, io_write16 // I/O register fallback
+    addi s5, s5, -6 * 2 // Base cycle decrement
+    beqz t0, io_write16 // I/O register fallback
 
     // Ensure the block is writable
     andi t1, t0, 1
-    bne  t1, zero, can_write16
+    bnez t1, can_write16
     jr   ra
 
-    // Clear the write bit before using the pointer
 can_write16:
+    // Clear the write bit before using the pointer
     li   t1, ~1
     and  t0, t0, t1
 

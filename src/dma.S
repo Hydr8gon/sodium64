@@ -1,5 +1,5 @@
 /*
-    Copyright 2021 Hydr8gon
+    Copyright 2021-2023 Hydr8gon
 
     This file is part of sodium64.
 
@@ -64,7 +64,7 @@ write_mdmaen: // a1: value
 dma_start:
     // Check if the current DMA channel is enabled
     andi t0, s0, 1
-    beq  t0, zero, dma_end
+    beqz t0, dma_end
     lbu  t0, dmapx(s1)
 
     // Get the channel's CPU address step (s2)
@@ -80,7 +80,7 @@ dma_start:
 
     // Check the channel's transfer direction
     andi t0, t0, 0x80
-    bne  t0, zero, io_cpu
+    bnez t0, io_cpu
 
 cpu_io:
     // Read a value from the CPU address and adjust
@@ -111,7 +111,7 @@ cpu_io:
     lhu  t1, dasx(t0)
     addi t1, t1, -1
     sh   t1, dasx(t0)
-    bne  t1, zero, cpu_io
+    bnez t1, cpu_io
     b    dma_end
 
 io_cpu:
@@ -143,14 +143,14 @@ io_cpu:
     lhu  t1, dasx(t0)
     addi t1, t1, -1
     sh   t1, dasx(t0)
-    bne  t1, zero, io_cpu
+    bnez t1, io_cpu
     b    dma_end
 
 dma_end:
     // Move to the next channel until no more are enabled
     srl  s0, s0, 1
     addi s1, s1, 1
-    bne  s0, zero, dma_start
+    bnez s0, dma_start
 
     // Restore the return address and APU cycle count
     lw   ra, 8(sp)

@@ -1,5 +1,5 @@
 /*
-    Copyright 2021 Hydr8gon
+    Copyright 2021-2023 Hydr8gon
 
     This file is part of sodium64.
 
@@ -874,7 +874,7 @@ mvp_8: // MVP ss,dd (8-bit)
     lhu  t0, accumulator
     addi t1, t0, -1
     sh   t1, accumulator
-    bne  t0, zero, mvp8_cont
+    bnez t0, mvp8_cont
     addi s7, s7, 3
 mvp8_cont:
     j    cpu_execute
@@ -912,7 +912,7 @@ mvp_16: // MVP ss,dd (16-bit)
     lhu  t0, accumulator
     addi t1, t0, -1
     sh   t1, accumulator
-    bne  t0, zero, mvp16_cont
+    bnez t0, mvp16_cont
     addi s7, s7, 3
 mvp16_cont:
     j    cpu_execute
@@ -950,7 +950,7 @@ mvn_8: // MVN ss,dd (8-bit)
     lhu  t0, accumulator
     addi t1, t0, -1
     sh   t1, accumulator
-    bne  t0, zero, mvn8_cont
+    bnez t0, mvn8_cont
     addi s7, s7, 3
 mvn8_cont:
     j    cpu_execute
@@ -988,7 +988,7 @@ mvn_16: // MVN ss,dd (16-bit)
     lhu  t0, accumulator
     addi t1, t0, -1
     sh   t1, accumulator
-    bne  t0, zero, mvn16_cont
+    bnez t0, mvn16_cont
     addi s7, s7, 3
 mvn16_cont:
     j    cpu_execute
