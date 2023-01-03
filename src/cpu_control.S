@@ -730,11 +730,11 @@ xba: // XBA
 
 
 wai: // WAI
-    // Halt the CPU and skip to the next PPU event
+    // Halt the CPU until the next PPU event
     ori  s4, s4, 0x200 // Halted
     li   s5, 0
     addi s7, s7, 1
-    j    ppu_event
+    j    cpu_execute
 
 
 wdm: // WDM #nn

@@ -52,9 +52,10 @@ transfer_modes:
 .text
 
 write_mdmaen: // a1: value
-    // Backup the return address
-    addi sp, sp, -8
-    sw   ra, (sp)
+    // Backup the return address and APU cycle count
+    addi sp, sp, -16
+    sw   ra, 8(sp)
+    sw   s3, 0(sp)
 
     // Set the initial enabled channels (s0) and current channel (s1)
     move s0, a1
@@ -151,9 +152,10 @@ dma_end:
     addi s1, s1, 1
     bne  s0, zero, dma_start
 
-    // Restore the return address
-    lw   ra, (sp)
-    addi sp, sp, 8
+    // Restore the return address and APU cycle count
+    lw   ra, 8(sp)
+    lw   s3, 0(sp)
+    addi sp, sp, 16
     jr   ra
 
 

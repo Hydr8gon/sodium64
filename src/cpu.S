@@ -141,10 +141,11 @@ cpu_init:
     jal  memory_read16
     move s7, v0
 
-    // Set the initial lookup table (s6), cycle count (s5), and status flags (s4)
+    // Set the initial lookup table (s6), cycle count (s5), status flags (s4), and APU cycle count (s3)
     la   s6, opcodes_emu
     li   s5, 341 * 225 * 4
     li   s4, 0x100
+    move s3, s5
     jr   s0
 
 
@@ -164,15 +165,16 @@ set_nz16: // a0: value
 
 
 cpu_execute:
-    // Run a PPU event once enough cycles have passed
-    ble  s5, zero, ppu_event
+    // Run an APU or PPU event once enough cycles have passed
+    ble  s5, s3, apu_execute
+    blez s5, ppu_event
 
     // Fetch the current opcode
     move a0, s7
     jal  memory_read8
 
     // Jump to the opcode's function in the lookup table
-    sll  t0, v0, 2 // Table offset
+    sll  t0, v0, 2 // Word offset
     add  t0, t0, s6
     lw   t0, (t0)
     jr   t0
