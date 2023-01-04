@@ -22,7 +22,15 @@
 // Approximate master cycle count for each APU cycle
 #define APU_CYCLE 21 // 21477000Hz / 1024000Hz = 20.973632812
 
+.globl apu_reg_x
+.globl apu_reg_y
+.globl apu_accum
+.globl apu_stack
+.globl apu_count
+
 .globl apu_execute
+.globl apu_set_nz
+.globl apu_read8
 .globl read_apuio0
 .globl read_apuio1
 .globl read_apuio2
@@ -35,7 +43,7 @@
 .data
 
 // The APU boot ROM allows uploading code from the CPU
-apu_ram: .byte 0:0xFFC0
+apu_ram: .byte 0:0x10000
 apu_rom:
     .byte 0xCD, 0xEF, 0xBD, 0xE8, 0x00, 0xC6, 0x1D, 0xD0 // 0xFFC0-0xFFC7
     .byte 0xFC, 0x8F, 0xAA, 0xF4, 0x8F, 0xBB, 0xF5, 0x78 // 0xFFC8-0xFFCF
@@ -46,6 +54,7 @@ apu_rom:
     .byte 0xF6, 0xDA, 0x00, 0xBA, 0xF4, 0xC4, 0xF4, 0xDD // 0xFFF0-0xFFF7
     .byte 0x5D, 0xD0, 0xDB, 0x1F, 0x00, 0x00, 0xC0, 0xFF // 0xFFF8-0xFFFF
 
+apu_control: .byte 0xB0
 apu_inputs:  .byte 0:4
 apu_outputs: .byte 0:4
 
@@ -57,28 +66,46 @@ apu_flags: .byte 0x00
 apu_count: .hword 0xFFC0
 
 apu_opcodes:
-    .word apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk // 0x00-0x0F
-    .word apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk // 0x10-0x1F
-    .word apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk // 0x20-0x2F
-    .word apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk // 0x30-0x3F
-    .word apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk // 0x40-0x4F
-    .word apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk // 0x50-0x5F
-    .word apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk // 0x60-0x6F
-    .word apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk // 0x70-0x7F
-    .word apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk // 0x80-0x8F
-    .word apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk // 0x90-0x9F
-    .word apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk // 0xA0-0xAF
-    .word apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk // 0xB0-0xBF
-    .word apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk // 0xC0-0xCF
-    .word apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk // 0xD0-0xDF
-    .word apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk // 0xE0-0xEF
-    .word apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk // 0xF0-0xFF
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x00-0x07
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x08-0x0F
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x10-0x17
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x18-0x1F
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x20-0x27
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x28-0x2F
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x30-0x37
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x38-0x3F
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x40-0x47
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x48-0x4F
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x50-0x57
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_movxa,  apu_unk, apu_unk // 0x58-0x5F
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x60-0x67
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x68-0x6F
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x70-0x77
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_movax,  apu_unk, apu_unk // 0x78-0x7F
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x80-0x87
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_mvyimm, apu_unk, apu_unk // 0x88-0x8F
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x90-0x97
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_movxs,  apu_unk, apu_unk // 0x98-0x9F
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0xA0-0xA7
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0xA8-0xAF
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0xB0-0xB7
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_movsx,  apu_unk, apu_unk // 0xB8-0xBF
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0xC0-0xC7
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_mvximm, apu_unk, apu_unk // 0xC8-0xCF
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0xD0-0xD7
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_movay,  apu_unk, apu_unk // 0xD8-0xDF
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0xE0-0xE7
+    .word apu_mvaimm, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0xE8-0xEF
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0xF0-0xF7
+    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_movya,  apu_unk, apu_unk // 0xF8-0xFF
 
 .text
+
 
 apu_execute:
     // Fetch the current opcode
     lhu  a0, apu_count
+    move s0, a0 // Save PC
     jal  apu_read8
 
     // Jump to the opcode's function in the lookup table
@@ -87,12 +114,37 @@ apu_execute:
     jr   t0
 
 
+apu_set_nz: // a0: value
+    // Set the NZ flags and finish executing an APU opcode
+    lbu  t0, apu_flags
+    andi t0, t0, 0xFF & ~0x82
+    seq  t1, a0, zero
+    sll  t1, t1, 1    // Z
+    or   t0, t0, t1
+    andi t1, a0, 0x80 // N
+    or   t0, t0, t1
+    sb   t0, apu_flags
+    j    cpu_execute
+
+
 apu_unk:
     // Do nothing for unimplemented opcodes; this essentially hangs the APU
     j    cpu_execute
 
 
 apu_read8: // a0: address - v0: value
+    // Check if the APU ROM is enabled
+    lbu  t0, apu_control
+    andi t0, t0, 0x80
+    beqz t0, read_ram
+
+    // Add an offset to the top 0x40 bytes, redirecting to ROM
+    li   t0, 0xFFBF
+    slt  t0, t0, a0
+    sll  t0, t0, 6
+    add  a0, a0, t0
+
+read_ram:
     // Read a byte from memory and decrease the APU cycle count
     lbu  v0, apu_ram(a0)
     addi s3, s3, -APU_CYCLE
@@ -123,6 +175,7 @@ apu_write8: // a0: address, a1: value
 
 io_write8:
     // Write to an APU I/O register
+    beq  a0, 0x00F1, write_control
     beq  a0, 0x00F4, write_cpuio0
     beq  a0, 0x00F5, write_cpuio1
     beq  a0, 0x00F6, write_cpuio2
@@ -151,6 +204,26 @@ read_cpuio2: // v0: value
 read_cpuio3: // v0: value
     // Read APU input communication value 3
     lbu  v0, apu_inputs + 3
+    jr   ra
+
+
+write_control: // a1: value
+    // Write to the APU control register
+    // TODO: implement bits 0-2
+    sb   a1, apu_control
+
+    // Clear the first 2 input latches if bit 4 is set
+    andi t0, a1, 0x10
+    beqz t0, reset1
+    sh   zero, apu_inputs + 0
+
+reset1:
+    // Clear the last 2 input latches if bit 5 is set
+    andi t0, a1, 0x20
+    beqz t0, reset2
+    sh   zero, apu_inputs + 2
+
+reset2:
     jr   ra
 
 
