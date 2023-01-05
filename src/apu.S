@@ -26,11 +26,13 @@
 .globl apu_reg_y
 .globl apu_accum
 .globl apu_stack
+.globl apu_flags
 .globl apu_count
 
 .globl apu_execute
 .globl apu_set_nz
 .globl apu_read8
+.globl apu_write8
 .globl read_apuio0
 .globl read_apuio1
 .globl read_apuio2
@@ -66,41 +68,40 @@ apu_flags: .byte 0x00
 apu_count: .hword 0xFFC0
 
 apu_opcodes:
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x00-0x07
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x08-0x0F
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x10-0x17
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x18-0x1F
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x20-0x27
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x28-0x2F
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x30-0x37
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x38-0x3F
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x40-0x47
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x48-0x4F
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x50-0x57
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_movxa,  apu_unk, apu_unk // 0x58-0x5F
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x60-0x67
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x68-0x6F
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x70-0x77
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_movax,  apu_unk, apu_unk // 0x78-0x7F
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x80-0x87
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_mvyimm, apu_unk, apu_unk // 0x88-0x8F
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0x90-0x97
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_movxs,  apu_unk, apu_unk // 0x98-0x9F
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0xA0-0xA7
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0xA8-0xAF
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0xB0-0xB7
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_movsx,  apu_unk, apu_unk // 0xB8-0xBF
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0xC0-0xC7
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_mvximm, apu_unk, apu_unk // 0xC8-0xCF
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0xD0-0xD7
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_movay,  apu_unk, apu_unk // 0xD8-0xDF
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0xE0-0xE7
-    .word apu_mvaimm, apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0xE8-0xEF
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_unk,    apu_unk, apu_unk // 0xF0-0xF7
-    .word apu_unk,    apu_unk, apu_unk, apu_unk, apu_unk, apu_movya,  apu_unk, apu_unk // 0xF8-0xFF
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x00-0x07
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_php,    apu_unk,    apu_unk    // 0x08-0x0F
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x10-0x17
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x18-0x1F
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x20-0x27
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_pha,    apu_unk,    apu_unk    // 0x28-0x2F
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x30-0x37
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x38-0x3F
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x40-0x47
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_phx,    apu_unk,    apu_unk    // 0x48-0x4F
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x50-0x57
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_movxa,  apu_unk,    apu_unk    // 0x58-0x5F
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x60-0x67
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_phy,    apu_unk,    apu_unk    // 0x68-0x6F
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x70-0x77
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_movax,  apu_unk,    apu_unk    // 0x78-0x7F
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x80-0x87
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_mvyimm, apu_ppp,    apu_movdri // 0x88-0x8F
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x90-0x97
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_movxs,  apu_unk,    apu_unk    // 0x98-0x9F
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0xA0-0xA7
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_ppa,    apu_amvbxp // 0xA8-0xAF
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0xB0-0xB7
+    .word apu_unk,    apu_unk,    apu_movwya, apu_unk,    apu_unk,    apu_movsx,  apu_unk,    apu_mvabxp // 0xB8-0xBF
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_amvdir, apu_amvabs, apu_amvbrx, apu_amvidx // 0xC0-0xC7
+    .word apu_unk,    apu_xmvabs, apu_unk,    apu_ymvdir, apu_ymvabs, apu_mvximm, apu_ppx,    apu_unk    // 0xC8-0xCF
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_amvdrx, apu_amvabx, apu_amvaby, apu_amvidy // 0xD0-0xD7
+    .word apu_xmvdir, apu_xmvdry, apu_movway, apu_ymvdrx, apu_unk,    apu_movay,  apu_unk,    apu_unk    // 0xD8-0xDF
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_mvadir, apu_mvaabs, apu_mvabrx, apu_mvaidx // 0xE0-0xE7
+    .word apu_mvaimm, apu_unk,    apu_mvxabs, apu_mvydir, apu_mvyabs, apu_unk,    apu_ppy,    apu_unk    // 0xE8-0xEF
+    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_mvadrx, apu_mvaabx, apu_mvaaby, apu_mvaidy // 0xF0-0xF7
+    .word apu_mvxdir, apu_mvxdry, apu_movdr2, apu_mvydrx, apu_unk,    apu_movya,  apu_unk,    apu_unk    // 0xF8-0xFF
 
 .text
-
 
 apu_execute:
     // Fetch the current opcode
