@@ -19,24 +19,24 @@
 
 #include <regdef.h>
 
-.macro NONE
-    // Increment the program counter by 1
-    addi t0, s0, 1
+.macro NONE inc=1
+    // Increment the program counter
+    addi t0, s0, \inc
     sh   t0, apu_count
 .endm
 
-.macro IMM // #nn
-    // Increment the program counter by 2
-    addi t0, s0, 2
+.macro IMM inc=2 // #nn
+    // Increment the program counter
+    addi t0, s0, \inc
     sh   t0, apu_count
 
     // Get the address of the 8-bit immediate value
     addi a0, s0, 1
 .endm
 
-.macro DIR // aa
-    // Increment the program counter by 2
-    addi t0, s0, 2
+.macro DIR inc=2 // aa
+    // Increment the program counter
+    addi t0, s0, \inc
     sh   t0, apu_count
 
     // Get the 8-bit immediate value as an address
@@ -50,9 +50,9 @@
     or   a0, v0, t0
 .endm
 
-.macro DRX // aa+X
-    // Increment the program counter by 2
-    addi t0, s0, 2
+.macro DRX inc=2 // aa+X
+    // Increment the program counter
+    addi t0, s0, \inc
     sh   t0, apu_count
 
     // Get the 8-bit immediate value plus register X as an address
@@ -69,9 +69,9 @@
     or   a0, a0, t0
 .endm
 
-.macro DRY // aa+Y
-    // Increment the program counter by 2
-    addi t0, s0, 2
+.macro DRY inc=2 // aa+Y
+    // Increment the program counter
+    addi t0, s0, \inc
     sh   t0, apu_count
 
     // Get the 8-bit immediate value plus register Y as an address
@@ -88,9 +88,9 @@
     or   a0, a0, t0
 .endm
 
-.macro BRX // (X)
-    // Increment the program counter by 1
-    addi t0, s0, 1
+.macro BRX inc=1 // (X)
+    // Increment the program counter
+    addi t0, s0, \inc
     sh   t0, apu_count
 
     // Get the value of register X, offset based on the P flag, as an address
@@ -101,9 +101,9 @@
     or   a0, a0, t0
 .endm
 
-.macro BRY // (Y)
-    // Increment the program counter by 1
-    addi t0, s0, 1
+.macro BRY inc=1 // (Y)
+    // Increment the program counter
+    addi t0, s0, \inc
     sh   t0, apu_count
 
     // Get the value of register Y, offset based on the P flag, as an address
@@ -114,9 +114,9 @@
     or   a0, a0, t0
 .endm
 
-.macro BXP // (X)+
-    // Increment the program counter by 1
-    addi t0, s0, 1
+.macro BXP inc=1 // (X)+
+    // Increment the program counter
+    addi t0, s0, \inc
     sh   t0, apu_count
 
     // Get the value of register X as an address, and increment the register
@@ -131,9 +131,9 @@
     or   a0, a0, t0
 .endm
 
-.macro ABS // aaaa
-    // Increment the program counter by 3
-    addi t0, s0, 3
+.macro ABS inc=3 // aaaa
+    // Increment the program counter
+    addi t0, s0, \inc
     sh   t0, apu_count
 
     // Get the 16-bit immediate value as an address
@@ -146,9 +146,9 @@
     or   a0, a0, s1
 .endm
 
-.macro ABX // aaaa+X
-    // Increment the program counter by 3
-    addi t0, s0, 3
+.macro ABX inc=3 // aaaa+X
+    // Increment the program counter
+    addi t0, s0, \inc
     sh   t0, apu_count
 
     // Get the 16-bit immediate value
@@ -166,9 +166,9 @@
     andi a0, a0, 0xFFFF
 .endm
 
-.macro ABY // aaaa+Y
-    // Increment the program counter by 3
-    addi t0, s0, 3
+.macro ABY inc=3 // aaaa+Y
+    // Increment the program counter
+    addi t0, s0, \inc
     sh   t0, apu_count
 
     // Get the 16-bit immediate value
@@ -186,9 +186,9 @@
     andi a0, a0, 0xFFFF
 .endm
 
-.macro IDX // [aa+X]
-    // Increment the program counter by 2
-    addi t0, s0, 2
+.macro IDX inc=2 // [aa+X]
+    // Increment the program counter
+    addi t0, s0, \inc
     sh   t0, apu_count
 
     // Get the 8-bit immediate value plus register X as an address
@@ -214,9 +214,9 @@
     or   a0, a0, s2
 .endm
 
-.macro IDY // [aa]+Y
-    // Increment the program counter by 2
-    addi t0, s0, 2
+.macro IDY inc=2 // [aa]+Y
+    // Increment the program counter
+    addi t0, s0, \inc
     sh   t0, apu_count
 
     // Get the 8-bit immediate value as an address
@@ -244,9 +244,9 @@
     andi a0, a0, 0xFFFF
 .endm
 
-.macro DRI // aa,#nn
-    // Increment the program counter by 3
-    addi t0, s0, 3
+.macro DRI inc=3 // aa,#nn
+    // Increment the program counter
+    addi t0, s0, \inc
     sh   t0, apu_count
 
     // Save the first 8-bit immediate value (#nn)
@@ -265,9 +265,9 @@
     or   a0, v0, t0
 .endm
 
-.macro DR2 // aa,bb
-    // Increment the program counter by 3
-    addi t0, s0, 3
+.macro DR2 inc=3 // aa,bb
+    // Increment the program counter
+    addi t0, s0, \inc
     sh   t0, apu_count
 
     // Save the first 8-bit immediate value (bb)
