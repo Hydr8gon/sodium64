@@ -121,7 +121,7 @@ apu_movsx: // MOV SP,X
     j    cpu_execute
 
 
-.macro MVA // MOV A,op
+.macro MOVA // MOV A,op
     // Move a value to the accumulator and set flags
     jal  apu_read8
     move a0, v0
@@ -129,19 +129,19 @@ apu_movsx: // MOV SP,X
     j    apu_set_nz
 .endm
 
-apu_mvaimm: IMM; MVA // MOV A,#nn
-apu_mvadir: DIR; MVA // MOV A,aa
-apu_mvadrx: DRX; MVA // MOV A,aa+X
-apu_mvabrx: BRX; MVA // MOV A,(X)
-apu_mvabxp: BXP; MVA // MOV A,(X)+
-apu_mvaabs: ABS; MVA // MOV A,aaaa
-apu_mvaabx: ABX; MVA // MOV A,aaaa+X
-apu_mvaaby: ABY; MVA // MOV A,aaaa+Y
-apu_mvaidx: IDX; MVA // MOV A,[aa+X]
-apu_mvaidy: IDY; MVA // MOV A,[aa]+Y
+apu_mvaimm: IMM; MOVA // MOV A,#nn
+apu_mvadir: DIR; MOVA // MOV A,aa
+apu_mvadrx: DRX; MOVA // MOV A,aa+X
+apu_mvabrx: BRX; MOVA // MOV A,(X)
+apu_mvabxp: BXP; MOVA // MOV A,(X)+
+apu_mvaabs: ABS; MOVA // MOV A,aaaa
+apu_mvaabx: ABX; MOVA // MOV A,aaaa+X
+apu_mvaaby: ABY; MOVA // MOV A,aaaa+Y
+apu_mvaidx: IDX; MOVA // MOV A,[aa+X]
+apu_mvaidy: IDY; MOVA // MOV A,[aa]+Y
 
 
-.macro MVX // MOV X,op
+.macro MOVX // MOV X,op
     // Move a value to register X and set flags
     jal  apu_read8
     move a0, v0
@@ -149,13 +149,13 @@ apu_mvaidy: IDY; MVA // MOV A,[aa]+Y
     j    apu_set_nz
 .endm
 
-apu_mvximm: IMM; MVX // MOV X,#nn
-apu_mvxdir: DIR; MVX // MOV X,aa
-apu_mvxdry: DRY; MVX // MOV X,aa+Y
-apu_mvxabs: ABS; MVX // MOV X,aaaa
+apu_mvximm: IMM; MOVX // MOV X,#nn
+apu_mvxdir: DIR; MOVX // MOV X,aa
+apu_mvxdry: DRY; MOVX // MOV X,aa+Y
+apu_mvxabs: ABS; MOVX // MOV X,aaaa
 
 
-.macro MVY // MOV Y,op
+.macro MOVY // MOV Y,op
     // Move a value to register Y and set flags
     jal  apu_read8
     move a0, v0
@@ -163,22 +163,21 @@ apu_mvxabs: ABS; MVX // MOV X,aaaa
     j    apu_set_nz
 .endm
 
-apu_mvyimm: IMM; MVY // MOV Y,#nn
-apu_mvydir: DIR; MVY // MOV Y,aa
-apu_mvydrx: DRX; MVY // MOV Y,aa+X
-apu_mvyabs: ABS; MVY // MOV Y,aaaa
+apu_mvyimm: IMM; MOVY // MOV Y,#nn
+apu_mvydir: DIR; MOVY // MOV Y,aa
+apu_mvydrx: DRX; MOVY // MOV Y,aa+X
+apu_mvyabs: ABS; MOVY // MOV Y,aaaa
 
 
 apu_movwya: // MOVW YA,aa
-    // Move a 16-bit value to register Y and the accumulator
+    // Move a 16-bit value to register YA
     DIR
-    move s1, a0
+    addi a0, a0, 1
     jal  apu_read8
-    move s2, v0
-    addi a0, s1, 1
+    sll  s1, v0, 8
+    addi a0, a0, -1
     jal  apu_read8
-    sll  a0, v0, 8
-    or   a0, a0, s2
+    or   a0, v0, s1
     sh   a0, apu_reg_y
 
     // Adjust the 16-bit value for 8-bit flag logic and set flags
@@ -188,66 +187,60 @@ apu_movwya: // MOVW YA,aa
     j    apu_set_nz
 
 
-apu_movdri: // MOV aa,#nn
-    // Move an immediate value to a zero page address
-    DRI
-    move a1, s1
+.macro MOVM // MOV aa,op
+    // Move a value to another memory address
     jal  apu_write8
     j    cpu_execute
+.endm
+
+apu_movdri: DRI; MOVM // MOV aa,#nn
+apu_movdr2: DR2; MOVM // MOV aa,bb
 
 
-apu_movdr2: // MOV aa,bb
-    // Move a zero page value to another zero page address
-    DR2
-    move a1, v0
-    jal  apu_write8
-    j    cpu_execute
-
-
-.macro AMV // MOV op,A
+.macro AMOV // MOV op,A
     // Move a value to memory from the accumulator
     lbu  a1, apu_accum
     jal  apu_write8
     j    cpu_execute
 .endm
 
-apu_amvdir: DIR; AMV // MOV aa,A
-apu_amvdrx: DRX; AMV // MOV aa+X,A
-apu_amvbrx: BRX; AMV // MOV (X),A
-apu_amvbxp: BXP; AMV // MOV (X)+,A
-apu_amvabs: ABS; AMV // MOV aaaa,A
-apu_amvabx: ABX; AMV // MOV aaaa+X,A
-apu_amvaby: ABY; AMV // MOV aaaa+Y,A
-apu_amvidx: IDX; AMV // MOV [aa+X],A
-apu_amvidy: IDY; AMV // MOV [aa]+Y,A
+apu_amvdir: DIR; AMOV // MOV aa,A
+apu_amvdrx: DRX; AMOV // MOV aa+X,A
+apu_amvbrx: BRX; AMOV // MOV (X),A
+apu_amvbxp: BXP; AMOV // MOV (X)+,A
+apu_amvabs: ABS; AMOV // MOV aaaa,A
+apu_amvabx: ABX; AMOV // MOV aaaa+X,A
+apu_amvaby: ABY; AMOV // MOV aaaa+Y,A
+apu_amvidx: IDX; AMOV // MOV [aa+X],A
+apu_amvidy: IDY; AMOV // MOV [aa]+Y,A
 
 
-.macro XMV // MOV op,X
+.macro XMOV // MOV op,X
     // Move a value to memory from register X
     lbu  a1, apu_reg_x
     jal  apu_write8
     j    cpu_execute
 .endm
 
-apu_xmvdir: DIR; XMV // MOV aa,X
-apu_xmvdry: DRY; XMV // MOV aa+Y,X
-apu_xmvabs: ABS; XMV // MOV aaaa,X
+apu_xmvdir: DIR; XMOV // MOV aa,X
+apu_xmvdry: DRY; XMOV // MOV aa+Y,X
+apu_xmvabs: ABS; XMOV // MOV aaaa,X
 
 
-.macro YMV // MOV op,Y
+.macro YMOV // MOV op,Y
     // Move a value to memory from register Y
     lbu  a1, apu_reg_y
     jal  apu_write8
     j    cpu_execute
 .endm
 
-apu_ymvdir: DIR; YMV // MOV aa,Y
-apu_ymvdrx: DRX; YMV // MOV aa+X,Y
-apu_ymvabs: ABS; YMV // MOV aaaa,Y
+apu_ymvdir: DIR; YMOV // MOV aa,Y
+apu_ymvdrx: DRX; YMOV // MOV aa+X,Y
+apu_ymvabs: ABS; YMOV // MOV aaaa,Y
 
 
 apu_movway: // MOVW aa,YA
-    // Move a 16-bit value to memory from register Y and the accumulator
+    // Move a 16-bit value to memory from register YA
     DIR
     lhu  s1, apu_reg_y
     move s2, a0
@@ -310,7 +303,7 @@ apu_ppa: // POP A
     addi a0, a0, 1
     sb   a0, apu_stack + 1
     jal  apu_read8
-    lbu  v0, apu_accum
+    sb   v0, apu_accum
     j    cpu_execute
 
 
@@ -321,7 +314,7 @@ apu_ppx: // POP X
     addi a0, a0, 1
     sb   a0, apu_stack + 1
     jal  apu_read8
-    lbu  v0, apu_reg_x
+    sb   v0, apu_reg_x
     j    cpu_execute
 
 
@@ -332,7 +325,7 @@ apu_ppy: // POP Y
     addi a0, a0, 1
     sb   a0, apu_stack + 1
     jal  apu_read8
-    lbu  v0, apu_reg_y
+    sb   v0, apu_reg_y
     j    cpu_execute
 
 
@@ -343,5 +336,5 @@ apu_ppp: // POP PSW
     addi a0, a0, 1
     sb   a0, apu_stack + 1
     jal  apu_read8
-    lbu  v0, apu_flags
+    sb   v0, apu_flags
     j    cpu_execute

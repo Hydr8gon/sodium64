@@ -526,7 +526,7 @@ apu_setp: // SETP
     // Set the P flag
     NONE
     lbu  t0, apu_flags
-    ori t0, t0, 0x20
+    ori  t0, t0, 0x20
     sb   t0, apu_flags
     j    cpu_execute
 
@@ -544,6 +544,6 @@ apu_ei: // EI
     // Set the I flag
     NONE
     lbu  t0, apu_flags
-    ori t0, t0, 0x04
+    ori  t0, t0, 0x04
     sb   t0, apu_flags
     j    cpu_execute

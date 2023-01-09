@@ -68,38 +68,38 @@ apu_flags: .byte 0x00
 apu_count: .hword 0xFFC0
 
 apu_opcodes:
-    .word apu_unk,    apu_tcall0, apu_unk,    apu_bbs0,   apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x00-0x07
-    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_php,    apu_unk,    apu_brk    // 0x08-0x0F
-    .word apu_bpl,    apu_tcall1, apu_unk,    apu_bbc0,   apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x10-0x17
-    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_jmpabx // 0x18-0x1F
-    .word apu_clrp,   apu_tcall2, apu_unk,    apu_bbs1,   apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x20-0x27
-    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_pha,    apu_cbnea,  apu_bra    // 0x28-0x2F
-    .word apu_bmi,    apu_tcall3, apu_unk,    apu_bbc1,   apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x30-0x37
-    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_call   // 0x38-0x3F
-    .word apu_setp,   apu_tcall4, apu_unk,    apu_bbs2,   apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x40-0x47
-    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_phx,    apu_unk,    apu_pcall  // 0x48-0x4F
-    .word apu_bvc,    apu_tcall5, apu_unk,    apu_bbc2,   apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x50-0x57
-    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_movxa,  apu_unk,    apu_jmpabx // 0x58-0x5F
-    .word apu_unk,    apu_tcall6, apu_unk,    apu_bbs3,   apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x60-0x67
-    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_phy,    apu_dbnza,  apu_ret    // 0x68-0x6F
-    .word apu_bvs,    apu_tcall7, apu_unk,    apu_bbc3,   apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x70-0x77
-    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_movax,  apu_unk,    apu_ret1   // 0x78-0x7F
-    .word apu_unk,    apu_tcall8, apu_unk,    apu_bbs4,   apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x80-0x87
-    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_mvyimm, apu_ppp,    apu_movdri // 0x88-0x8F
-    .word apu_bcc,    apu_tcall9, apu_unk,    apu_bbc4,   apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0x90-0x97
-    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_movxs,  apu_unk,    apu_unk    // 0x98-0x9F
-    .word apu_ei,     apu_tcallA, apu_unk,    apu_bbs5,   apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0xA0-0xA7
-    .word apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_unk,    apu_ppa,    apu_amvbxp // 0xA8-0xAF
-    .word apu_bcs,    apu_tcallB, apu_unk,    apu_bbc5,   apu_unk,    apu_unk,    apu_unk,    apu_unk    // 0xB0-0xB7
-    .word apu_unk,    apu_unk,    apu_movwya, apu_unk,    apu_unk,    apu_movsx,  apu_unk,    apu_mvabxp // 0xB8-0xBF
+    .word apu_unk,    apu_tcall0, apu_unk,    apu_bbs0,   apu_ordir,  apu_orabs,  apu_orbrx,  apu_oridx  // 0x00-0x07
+    .word apu_orimm,  apu_ordr2,  apu_unk,    apu_unk,    apu_unk,    apu_php,    apu_unk,    apu_brk    // 0x08-0x0F
+    .word apu_bpl,    apu_tcall1, apu_unk,    apu_bbc0,   apu_ordrx,  apu_orabx,  apu_oraby,  apu_oridy  // 0x10-0x17
+    .word apu_ordri,  apu_orbxy,  apu_decw,   apu_unk,    apu_unk,    apu_decx,   apu_cpxabs, apu_jmpabx // 0x18-0x1F
+    .word apu_clrp,   apu_tcall2, apu_unk,    apu_bbs1,   apu_anddir, apu_andabs, apu_andbrx, apu_andidx // 0x20-0x27
+    .word apu_andimm, apu_anddr2, apu_unk,    apu_unk,    apu_unk,    apu_pha,    apu_cbnea,  apu_bra    // 0x28-0x2F
+    .word apu_bmi,    apu_tcall3, apu_unk,    apu_bbc1,   apu_anddrx, apu_andabx, apu_andaby, apu_andidy // 0x30-0x37
+    .word apu_anddri, apu_andbxy, apu_incw,   apu_unk,    apu_unk,    apu_incx,   apu_cpxdir, apu_call   // 0x38-0x3F
+    .word apu_setp,   apu_tcall4, apu_unk,    apu_bbs2,   apu_eordir, apu_eorabs, apu_eorbrx, apu_eoridx // 0x40-0x47
+    .word apu_eorimm, apu_eordr2, apu_unk,    apu_unk,    apu_unk,    apu_phx,    apu_unk,    apu_pcall  // 0x48-0x4F
+    .word apu_bvc,    apu_tcall5, apu_unk,    apu_bbc2,   apu_eordrx, apu_eorabx, apu_eoraby, apu_eoridy // 0x50-0x57
+    .word apu_eordri, apu_eorbxy, apu_cmpw,   apu_unk,    apu_unk,    apu_movxa,  apu_cpyabs, apu_jmpabs // 0x58-0x5F
+    .word apu_clrc,   apu_tcall6, apu_unk,    apu_bbs3,   apu_cmpdir, apu_cmpabs, apu_cmpbrx, apu_cmpidx // 0x60-0x67
+    .word apu_cmpimm, apu_cmpdr2, apu_unk,    apu_unk,    apu_unk,    apu_phy,    apu_dbnza,  apu_ret    // 0x68-0x6F
+    .word apu_bvs,    apu_tcall7, apu_unk,    apu_bbc3,   apu_cmpdrx, apu_cmpabx, apu_cmpaby, apu_cmpidy // 0x70-0x77
+    .word apu_cmpdri, apu_cmpbxy, apu_unk,    apu_unk,    apu_unk,    apu_movax,  apu_cpydir, apu_ret1   // 0x78-0x7F
+    .word apu_setc,   apu_tcall8, apu_unk,    apu_bbs4,   apu_adcdir, apu_adcabs, apu_adcbrx, apu_adcidx // 0x80-0x87
+    .word apu_adcimm, apu_adcdr2, apu_unk,    apu_decdir, apu_decabs, apu_mvyimm, apu_ppp,    apu_movdri // 0x88-0x8F
+    .word apu_bcc,    apu_tcall9, apu_unk,    apu_bbc4,   apu_adcdrx, apu_adcabx, apu_adcaby, apu_adcidy // 0x90-0x97
+    .word apu_adcdri, apu_adcbxy, apu_unk,    apu_decdrx, apu_deca,   apu_movxs,  apu_unk,    apu_unk    // 0x98-0x9F
+    .word apu_ei,     apu_tcallA, apu_unk,    apu_bbs5,   apu_sbcdir, apu_sbcabs, apu_sbcbrx, apu_sbcidx // 0xA0-0xA7
+    .word apu_sbcimm, apu_sbcdr2, apu_unk,    apu_incdir, apu_incabs, apu_cpyimm, apu_ppa,    apu_amvbxp // 0xA8-0xAF
+    .word apu_bcs,    apu_tcallB, apu_unk,    apu_bbc5,   apu_sbcdrx, apu_sbcabx, apu_sbcaby, apu_sbcidy // 0xB0-0xB7
+    .word apu_sbcdri, apu_sbcbxy, apu_movwya, apu_incdrx, apu_inca,   apu_movsx,  apu_unk,    apu_mvabxp // 0xB8-0xBF
     .word apu_di,     apu_tcallC, apu_unk,    apu_bbs6,   apu_amvdir, apu_amvabs, apu_amvbrx, apu_amvidx // 0xC0-0xC7
-    .word apu_unk,    apu_xmvabs, apu_unk,    apu_ymvdir, apu_ymvabs, apu_mvximm, apu_ppx,    apu_unk    // 0xC8-0xCF
+    .word apu_cpximm, apu_xmvabs, apu_unk,    apu_ymvdir, apu_ymvabs, apu_mvximm, apu_ppx,    apu_mul    // 0xC8-0xCF
     .word apu_bne,    apu_tcallD, apu_unk,    apu_bbc6,   apu_amvdrx, apu_amvabx, apu_amvaby, apu_amvidy // 0xD0-0xD7
-    .word apu_xmvdir, apu_xmvdry, apu_movway, apu_ymvdrx, apu_unk,    apu_movay,  apu_cbnex,  apu_unk    // 0xD8-0xDF
-    .word apu_unk,    apu_tcallE, apu_unk,    apu_bbs7,   apu_mvadir, apu_mvaabs, apu_mvabrx, apu_mvaidx // 0xE0-0xE7
-    .word apu_mvaimm, apu_unk,    apu_mvxabs, apu_mvydir, apu_mvyabs, apu_unk,    apu_ppy,    apu_unk    // 0xE8-0xEF
+    .word apu_xmvdir, apu_xmvdry, apu_movway, apu_ymvdrx, apu_decy,   apu_movay,  apu_cbnex,  apu_unk    // 0xD8-0xDF
+    .word apu_clrv,   apu_tcallE, apu_unk,    apu_bbs7,   apu_mvadir, apu_mvaabs, apu_mvabrx, apu_mvaidx // 0xE0-0xE7
+    .word apu_mvaimm, apu_unk,    apu_mvxabs, apu_mvydir, apu_mvyabs, apu_notc,   apu_ppy,    apu_unk    // 0xE8-0xEF
     .word apu_beq,    apu_tcallF, apu_unk,    apu_bbc7,   apu_mvadrx, apu_mvaabx, apu_mvaaby, apu_mvaidy // 0xF0-0xF7
-    .word apu_mvxdir, apu_mvxdry, apu_movdr2, apu_mvydrx, apu_unk,    apu_movya,  apu_dbnzy,  apu_unk    // 0xF8-0xFF
+    .word apu_mvxdir, apu_mvxdry, apu_movdr2, apu_mvydrx, apu_incy,   apu_movya,  apu_dbnzy,  apu_unk    // 0xF8-0xFF
 
 .text
 
@@ -118,6 +118,7 @@ apu_execute:
 apu_set_nz: // a0: value
     // Set the NZ flags and finish executing an APU opcode
     lbu  t0, apu_flags
+    andi a0, a0, 0xFF
     andi t0, t0, 0xFF & ~0x82
     seq  t1, a0, zero
     sll  t1, t1, 1    // Z
@@ -134,19 +135,21 @@ apu_unk:
 
 
 apu_read8: // a0: address - v0: value
-    // Check if the APU ROM is enabled
+    // Check if this is a ROM access
     lbu  t0, apu_control
-    andi t0, t0, 0x80
+    andi t0, t0, 0x80 // ROM enabled
+    beqz t0, read_ram
+    li   t0, 0xFFBF // Non-ROM area
+    slt  t0, t0, a0
     beqz t0, read_ram
 
-    // Add an offset to the top 0x40 bytes, redirecting to ROM
-    li   t0, 0xFFBF
-    slt  t0, t0, a0
-    sll  t0, t0, 6
-    add  a0, a0, t0
+    // Read a byte from ROM and decrease the APU cycle count
+    lbu  v0, 0x40 + apu_ram(a0)
+    addi s3, s3, -APU_CYCLE
+    jr   ra
 
 read_ram:
-    // Read a byte from memory and decrease the APU cycle count
+    // Read a byte from RAM and decrease the APU cycle count
     lbu  v0, apu_ram(a0)
     addi s3, s3, -APU_CYCLE
 
@@ -161,6 +164,9 @@ io_read8:
     beq  a0, 0x00F5, read_cpuio1
     beq  a0, 0x00F6, read_cpuio2
     beq  a0, 0x00F7, read_cpuio3
+    beq  a0, 0x00FD, read_timer
+    beq  a0, 0x00FE, read_timer
+    beq  a0, 0x00FF, read_timer
     jr   ra
 
 
@@ -205,6 +211,14 @@ read_cpuio2: // v0: value
 read_cpuio3: // v0: value
     // Read APU input communication value 3
     lbu  v0, apu_inputs + 3
+    jr   ra
+
+
+read_timer: // v0: value
+    // Use the cycle count as a random stub value
+    // TODO: actually implement timers
+    srl  v0, s5, 1
+    andi v0, v0, 0xFF
     jr   ra
 
 

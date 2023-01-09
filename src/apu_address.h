@@ -257,6 +257,7 @@
     // Get the second 8-bit immediate value as an address
     addi a0, s0, 2
     jal  apu_read8
+    move a1, s1
 
     // Offset the zero page based on the P flag
     lbu  t0, apu_flags
@@ -284,9 +285,34 @@
     sll  t0, t0, 3
     andi t0, t0, 0x100
     or   s2, v0, t0
+    or   a0, s1, t0
 
     // Return aa as an address and bb as a read value
-    or   a0, s1, t0
     jal  apu_read8
     move a0, s2
+    move a1, v0
+.endm
+
+.macro BXY inc=1 // (X),(Y)
+    // Increment the program counter
+    addi t0, s0, \inc
+    sh   t0, apu_count
+
+    // Get the value of register Y, offset based on the P flag, as an address
+    lbu  a0, apu_reg_y
+    lbu  t0, apu_flags
+    sll  t0, t0, 3
+    andi t0, t0, 0x100
+    or   a0, a0, t0
+
+    // Save the 8-bit value at the address
+    jal  apu_read8
+    move a1, v0
+
+    // Get the value of register X, offset based on the P flag, as an address
+    lbu  a0, apu_reg_x
+    lbu  t0, apu_flags
+    sll  t0, t0, 3
+    andi t0, t0, 0x100
+    or   a0, a0, t0
 .endm
