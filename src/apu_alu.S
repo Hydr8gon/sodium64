@@ -97,6 +97,22 @@
 .globl apu_sbcdri
 .globl apu_sbcdr2
 .globl apu_sbcbxy
+.globl apu_asla
+.globl apu_asldir
+.globl apu_asldrx
+.globl apu_aslabs
+.globl apu_lsra
+.globl apu_lsrdir
+.globl apu_lsrdrx
+.globl apu_lsrabs
+.globl apu_rola
+.globl apu_roldir
+.globl apu_roldrx
+.globl apu_rolabs
+.globl apu_rora
+.globl apu_rordir
+.globl apu_rordrx
+.globl apu_rorabs
 .globl apu_deca
 .globl apu_decx
 .globl apu_decy
@@ -109,14 +125,36 @@
 .globl apu_incdir
 .globl apu_incdrx
 .globl apu_incabs
+.globl apu_addw
+.globl apu_subw
 .globl apu_cmpw
 .globl apu_decw
 .globl apu_incw
+.globl apu_div
 .globl apu_mul
+.globl apu_clr0
+.globl apu_clr1
+.globl apu_clr2
+.globl apu_clr3
+.globl apu_clr4
+.globl apu_clr5
+.globl apu_clr6
+.globl apu_clr7
+.globl apu_set0
+.globl apu_set1
+.globl apu_set2
+.globl apu_set3
+.globl apu_set4
+.globl apu_set5
+.globl apu_set6
+.globl apu_set7
 .globl apu_clrc
 .globl apu_setc
 .globl apu_notc
 .globl apu_clrv
+.globl apu_xcn
+.globl apu_tclr1
+.globl apu_tset1
 
 .text
 
@@ -320,6 +358,7 @@ apu_cpyabs: ABS; CMPY // CMP Y,aaaa
     srl  t1, t1, 1
     andi t1, t1, 0x40 // V
     or   t2, t2, t1
+    sb   t2, apu_flags
     j    apu_set_nz
 .endm
 
@@ -356,6 +395,7 @@ apu_adcidy: IDY; ADCA // ADC A,[aa]+Y
     srl  t1, t1, 1
     andi t1, t1, 0x40 // V
     or   t2, t2, t1
+    sb   t2, apu_flags
     j    apu_set_nz
 .endm
 
@@ -386,6 +426,7 @@ apu_adcbxy: BXY; ADCM // ADC (X),(Y)
     srl  t1, t1, 1
     andi t1, t1, 0x40 // V
     or   t2, t2, t1
+    sb   t2, apu_flags
     j    apu_set_nz
 .endm
 
@@ -422,12 +463,153 @@ apu_sbcidy: IDY; SBCA // SBC A,[aa]+Y
     srl  t1, t1, 1
     andi t1, t1, 0x40 // V
     or   t2, t2, t1
+    sb   t2, apu_flags
     j    apu_set_nz
 .endm
 
 apu_sbcdri: DRI; SBCM // SBC aa,#nn
 apu_sbcdr2: DR2; SBCM // SBC aa,bb
 apu_sbcbxy: BXY; SBCM // SBC (X),(Y)
+
+
+apu_asla: // ASL A
+    // Shift the accumulator left and set flags
+    NONE
+    lbu  t0, apu_accum
+    sll  a0, t0, 1
+    sb   a0, apu_accum
+    lbu  t1, apu_flags
+    srl  t0, t0, 7 // C
+    andi t1, t1, 0xFF & ~0x01
+    or   t1, t1, t0
+    sb   t1, apu_flags
+    j    apu_set_nz
+
+
+.macro ASL // ASL op
+    // Shift a memory value left and set flags
+    jal  apu_read8
+    sll  a1, v0, 1
+    lbu  t1, apu_flags
+    srl  t0, v0, 7 // C
+    andi t1, t1, 0xFF & ~0x01
+    or   t1, t1, t0
+    sb   t1, apu_flags
+    jal  apu_write8
+    move a0, a1
+    j    apu_set_nz
+.endm
+
+apu_asldir: DIR; ASL // ASL aa
+apu_asldrx: DRX; ASL // ASL aa+X
+apu_aslabs: ABS; ASL // ASL aaaa
+
+
+apu_lsra: // LSR A
+    // Shift the accumulator right and set flags
+    NONE
+    lbu  t0, apu_accum
+    srl  a0, t0, 1
+    sb   a0, apu_accum
+    lbu  t1, apu_flags
+    andi t0, t0, 0x01 // C
+    andi t1, t1, 0xFF & ~0x01
+    or   t1, t1, t0
+    sb   t1, apu_flags
+    j    apu_set_nz
+
+
+.macro LSR // LSR op
+    // Shift a memory value left and set flags
+    jal  apu_read8
+    srl  a1, v0, 1
+    lbu  t1, apu_flags
+    andi t0, v0, 0x01 // C
+    andi t1, t1, 0xFF & ~0x01
+    or   t1, t1, t0
+    sb   t1, apu_flags
+    jal  apu_write8
+    move a0, a1
+    j    apu_set_nz
+.endm
+
+apu_lsrdir: DIR; LSR // LSR aa
+apu_lsrdrx: DRX; LSR // LSR aa+X
+apu_lsrabs: ABS; LSR // LSR aaaa
+
+
+apu_rola: // ROL A
+    // Rotate the accumulator left and set flags
+    NONE
+    lbu  t0, apu_accum
+    lbu  t1, apu_flags
+    sll  a0, t0, 1
+    andi t2, t1, 0x01
+    or   a0, a0, t2
+    sb   a0, apu_accum
+    andi t1, t1, 0xFF & ~0x01
+    srl  t0, t0, 7 // C
+    or   t1, t1, t0
+    sb   t1, apu_flags
+    j    apu_set_nz
+
+
+.macro ROL // ROL op
+    // Rotate a memory value left and set flags
+    jal  apu_read8
+    lbu  t1, apu_flags
+    sll  a1, v0, 1
+    andi t2, t1, 0x01
+    or   a1, a1, t2
+    andi t1, t1, 0xFF & ~0x01
+    srl  t0, v0, 7 // C
+    or   t1, t1, t0
+    sb   t1, apu_flags
+    jal  apu_write8
+    move a0, a1
+    j    apu_set_nz
+.endm
+
+apu_roldir: DIR; ROL // ROL aa
+apu_roldrx: DRX; ROL // ROL aa+X
+apu_rolabs: ABS; ROL // ROL aaaa
+
+
+apu_rora: // ROR A
+    // Rotate the accumulator right and set flags
+    NONE
+    lbu  t0, apu_accum
+    lbu  t1, apu_flags
+    srl  a0, t0, 1
+    sll  t2, t1, 7
+    or   a0, a0, t2
+    sb   a0, apu_accum
+    andi t1, t1, 0xFF & ~0x01
+    andi t0, t0, 0x01 // C
+    or   t1, t1, t0
+    sb   t1, apu_flags
+    j    apu_set_nz
+
+
+.macro ROR // ROR op
+    // Rotate a memory value right and set flags
+    jal  apu_read8
+    lbu  t1, apu_flags
+    srl  a1, v0, 1
+    sll  t2, t1, 7
+    or   a1, a1, t2
+    andi t1, t1, 0xFF & ~0x01
+    andi t0, v0, 0x01 // C
+    or   t1, t1, t0
+    sb   t1, apu_flags
+    jal  apu_write8
+    move a0, a1
+    j    apu_set_nz
+.endm
+
+apu_rordir: DIR; ROR // ROL aa
+apu_rordrx: DRX; ROR // ROL aa+X
+apu_rorabs: ABS; ROR // ROL aaaa
 
 
 apu_deca: // DEC A
@@ -512,6 +694,74 @@ apu_incdrx: DRX; INC // INC aa+X
 apu_incabs: ABS; INC // INC aaaa
 
 
+apu_addw: // ADDW YA,aa
+    // Load a 16-bit value from memory
+    DIR
+    addi a0, a0, 1
+    jal  apu_read8
+    sll  s1, v0, 8
+    addi a0, a0, -1
+    jal  apu_read8
+    or   a1, v0, s1
+
+    // Add the value from register YA and set flags
+    // TODO: set the H flag
+    lhu  t0, apu_reg_y
+    add  a0, t0, a1
+    sh   a0, apu_reg_y
+    lbu  t1, apu_flags
+    andi t1, t1, 0xFF & ~0x49
+    sgt  t2, a0, 0xFFFF // C
+    or   t1, t1, t2
+    xor  t2, a0, t0
+    xor  t3, a0, a1
+    and  t2, t2, t3
+    srl  t2, t2, 9
+    andi t2, t2, 0x40 // V
+    or   t1, t1, t2
+    sb   t1, apu_flags
+
+    // Adjust the 16-bit value for 8-bit flag logic and set flags
+    sne  t0, a0, zero
+    srl  t1, a0, 8
+    or   a0, t0, t1
+    j    apu_set_nz
+
+
+apu_subw: // SUBW YA,aa
+    // Load a 16-bit value from memory
+    DIR
+    addi a0, a0, 1
+    jal  apu_read8
+    sll  s1, v0, 8
+    addi a0, a0, -1
+    jal  apu_read8
+    or   a1, v0, s1
+
+    // Subtract the value from register YA and set flags
+    // TODO: set the H flag
+    lhu  t0, apu_reg_y
+    sub  a0, t0, a1
+    sh   a0, apu_reg_y
+    lbu  t1, apu_flags
+    andi t1, t1, 0xFF & ~0x49
+    sleu t2, a0, t0 // C
+    or   t1, t1, t2
+    xor  t2, t0, a1
+    xor  t3, t0, a0
+    and  t2, t2, t3
+    srl  t2, t2, 9
+    andi t2, t2, 0x40 // V
+    or   t1, t1, t2
+    sb   t1, apu_flags
+
+    // Adjust the 16-bit value for 8-bit flag logic and set flags
+    sne  t0, a0, zero
+    srl  t1, a0, 8
+    or   a0, t0, t1
+    j    apu_set_nz
+
+
 apu_cmpw: // CMPW YA,aa
     // Load a 16-bit value from memory
     DIR
@@ -586,6 +836,28 @@ apu_incw: // INCW aa
     j    apu_set_nz
 
 
+apu_div: // DIV YA,X
+    // Divide register YA with X
+    NONE
+    lhu  t0, apu_reg_y
+    lbu  t1, apu_reg_x
+    div  t0, t1
+    mflo a0 // Quotient
+    mfhi t0 // Remainder
+    sb   a0, apu_accum
+    sb   t0, apu_reg_y
+
+    // Set flags for the quotient
+    // TODO: set the H flag
+    lbu  t1, apu_flags
+    sgt  t0, a0, 0xFF
+    sll  t0, t0, 6 // V
+    andi t1, t1, 0xFF & ~0x48
+    or   t1, t1, t0
+    sb   t1, apu_flags
+    j    apu_set_nz
+
+
 apu_mul: // MUL YA
     // Multiply register Y with the accumulator
     NONE
@@ -598,6 +870,44 @@ apu_mul: // MUL YA
     sh   t0, apu_reg_y
     srl  a0, t0, 8
     j    apu_set_nz
+
+
+.macro CLR1 mask // CLR1 aa.b
+    // Clear a bit in a memory value
+    DIR
+    jal  apu_read8
+    andi a1, v0, 0xFF & ~\mask
+    jal  apu_write8
+    j    cpu_execute
+.endm
+
+apu_clr0: CLR1 0x01 // CLR1 aa.0
+apu_clr1: CLR1 0x02 // CLR1 aa.1
+apu_clr2: CLR1 0x04 // CLR1 aa.2
+apu_clr3: CLR1 0x08 // CLR1 aa.3
+apu_clr4: CLR1 0x10 // CLR1 aa.4
+apu_clr5: CLR1 0x20 // CLR1 aa.5
+apu_clr6: CLR1 0x40 // CLR1 aa.6
+apu_clr7: CLR1 0x80 // CLR1 aa.7
+
+
+.macro SET1 mask // SET1 aa.b
+    // Set a bit in a memory value
+    DIR
+    jal  apu_read8
+    ori  a1, v0, \mask
+    jal  apu_write8
+    j    cpu_execute
+.endm
+
+apu_set0: SET1 0x01 // SET1 aa.0
+apu_set1: SET1 0x02 // SET1 aa.1
+apu_set2: SET1 0x04 // SET1 aa.2
+apu_set3: SET1 0x08 // SET1 aa.3
+apu_set4: SET1 0x10 // SET1 aa.4
+apu_set5: SET1 0x20 // SET1 aa.5
+apu_set6: SET1 0x40 // SET1 aa.6
+apu_set7: SET1 0x80 // SET1 aa.7
 
 
 apu_clrc: // CLRC
@@ -634,3 +944,37 @@ apu_clrv: // CLRV
     andi t0, t0, 0xFF & ~0x48
     sb   t0, apu_flags
     j    cpu_execute
+
+
+apu_xcn: // XCN A
+    // Reverse the accumulator's high and low nibbles
+    NONE
+    lbu  t0, apu_accum
+    srl  t1, t0, 4
+    sll  t0, t0, 4
+    or   a0, t0, t1
+    sb   a0, apu_accum
+    j    apu_set_nz
+
+
+apu_tclr1: // TCLR1 aaaa
+    // Clear bits in a memory value and set flags
+    ABS
+    jal  apu_read8
+    lbu  s1, apu_accum
+    xori t0, s1, 0xFF
+    and  a1, v0, t0
+    jal  apu_write8
+    sub  a0, s1, v0 // CMP
+    j    apu_set_nz
+
+
+apu_tset1: // TSET1 aaaa
+    // Set bits in a memory value and set flags
+    ABS
+    jal  apu_read8
+    lbu  s1, apu_accum
+    or   a1, v0, s1
+    jal  apu_write8
+    sub  a0, s1, v0 // CMP
+    j    apu_set_nz
