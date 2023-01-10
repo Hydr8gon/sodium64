@@ -43,8 +43,9 @@ vec_data:
     .hword 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010 // Shift 5
     .hword 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000 // Zero
 
-.space 0x7CC
+.space 0x7C8
 
+fb_border:   .word 0x1000     // 0xF88-0xF8B
 obj_enable:  .word 0x00       // 0xF8C-0xF8F
 bg_order:    .word 0x1B       // 0xF90-0xF93
 bg_type:     .word 0x00       // 0xF94-0xF97
@@ -77,10 +78,18 @@ framebuffer: .word 0xA03B0000 // 0xFFC-0xFFF
 draw_frame:
     // Set initial values for the frame
     li   s0, 0   // Current X coordinate (x2)
-    li   s1, 0   // Current Y coordinate
     li   s2, 512 // Maximum X coordinate (x2)
-    li   s3, 224 // Maximum Y coordinate
     li   a3, 0   // Current BG shift
+
+    // Set the Y bounds based on 224 or 239-line mode
+    lw   t0, fb_border
+    beqz t0, mode_239
+    li   s1, 0   // Current Y coordinate
+    li   s3, 224 // Maximum Y coordinate
+    b    draw_line
+mode_239:
+    li   s1, 1   // Current Y coordinate
+    li   s3, 240 // Maximum Y coordinate
 
 draw_line:
     // Clear the scanline with palette index 0
@@ -542,7 +551,8 @@ pal_loop:
     // DMA the scanline to the framebuffer
     la   a0, scanline + 0x10
     lw   a1, framebuffer
-    addi a1, 0x1000 // 8-pixel border
+    lw   t0, fb_border // 8-pixel border
+    add  a1, a1, t0
     sll  t0, s1, 9 // Scanline offset
     add  a1, a1, t0
     li   a2, 0x01FF

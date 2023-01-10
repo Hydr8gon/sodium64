@@ -352,6 +352,7 @@ io_write8: // a0: address, a1: value
     beq  a0, 0x2122, write_cgdata
     beq  a0, 0x212C, write_tm
     beq  a0, 0x212D, write_ts
+    beq  a0, 0x2133, write_setini
     beq  a0, 0x2140, write_apuio0
     beq  a0, 0x2141, write_apuio1
     beq  a0, 0x2142, write_apuio2

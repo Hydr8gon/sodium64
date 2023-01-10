@@ -58,6 +58,7 @@
 .globl write_cgdata
 .globl write_tm
 .globl write_ts
+.globl write_setini
 .globl write_nmitimen
 
 .data
@@ -740,6 +741,16 @@ write_ts: // a1: value
     // Update the masked BG type and OBJ enable in DMEM
     sw   t0, 0xA4000F94
     sw   t4, 0xA4000F8C
+    jr   ra
+
+
+write_setini: // a1: value
+    // Set an 8-pixel border if 224-line mode is set
+    // TODO: use the rest of the bits
+    andi t0, a1, 0x04
+    sll  t0, t0, 10
+    xori t0, t0, 0x1000
+    sw   t0, 0xA4000F88
     jr   ra
 
 
