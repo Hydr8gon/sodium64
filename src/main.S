@@ -56,7 +56,7 @@ main:
     sw   t1, 0x002C(t0) // VI_V_BURST_REG
     li   t1, 0x019A     // Horizontal scale (10-bit fraction, 256/640)
     sw   t1, 0x0030(t0) // VI_X_SCALE_REG
-    li   t1, 0x03BC     // Vertical scale (10-bit fraction, 224/240)
+    li   t1, 0x0400     // Vertical scale (10-bit fraction, 240/240)
     sw   t1, 0x0034(t0) // VI_Y_SCALE_REG
 
     // Initialize the stack below the framebuffer data
@@ -72,8 +72,8 @@ read_sram:
     addi t0, t0, 4
     bne  t0, t1, read_sram
 
-    // Clear VRAM on boot (hardcoded for easy RSP access)
-    li   t0, 0xA03F0000
+    // Clear the framebuffers and VRAM on boot (hardcoded for RSP access)
+    li   t0, 0xA0390000
     li   t1, 0xA0400000
 clear_vram:
     sw   zero, (t0)

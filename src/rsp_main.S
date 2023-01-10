@@ -542,6 +542,7 @@ pal_loop:
     // DMA the scanline to the framebuffer
     la   a0, scanline + 0x10
     lw   a1, framebuffer
+    addi a1, 0x1000 // 8-pixel border
     sll  t0, s1, 9 // Scanline offset
     add  a1, a1, t0
     li   a2, 0x01FF
