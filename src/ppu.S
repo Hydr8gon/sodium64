@@ -64,6 +64,7 @@
 .data
 
 cgram: .hword 0:0x100
+vram:  .byte  0:0x10000
 
 frame_count: .byte 0x00
 brightness:  .byte 0x00
@@ -77,17 +78,30 @@ bg_old:     .byte  0x00
 m7_old:     .byte  0x00
 cg_lsb:     .byte  0x00
 
+mpy:      .word  0x000000
 oamadd:   .hword 0x0000
 vmadd:    .hword 0x0000
+cgadd:    .hword 0x0000
 m7a:      .hword 0x0000
 m7b:      .byte  0x00
-cgadd:    .hword 0x0000
 tm:       .byte  0x00
 ts:       .byte  0x00
 nmitimen: .byte  0x00
-mpy:      .word  0x000000
 rdnmi:    .byte  0x00
 hvbjoy:   .byte  0x00
+
+// Mirrors of RSP values
+fb_border:   .word 0x1000   // 0xF88-0xF8B
+obj_enable:  .word 0x00     // 0xF8C-0xF8F
+bg_order:    .word 0x1B     // 0xF90-0xF93
+bg_type2:    .word 0x00     // 0xF94-0xF97
+objcharbase: .word 0x0000   // 0xF98-0xF9B
+bgscrnbase:  .word 0x0000:4 // 0xF9C-0xFAB
+bgbaseofsh:  .word 0x0000:4 // 0xFAC-0xFBB
+bgbaseofsv:  .word 0x0000:4 // 0xFBC-0xFCB
+bgcharbase:  .word 0x0000:4 // 0xFCC-0xFDB
+bghofs:      .word 0x0000:4 // 0xFDC-0xFEB
+bgvofs:      .word 0x0000:4 // 0xFEC-0xFFB
 
 // 2 bits per BG; the order they should be drawn in
 bg_orders: .byte 0x1B, 0x87
@@ -117,17 +131,10 @@ ppu_event:
     bge  t0, 0x80, vblank_end
 
 vblank_start:
-    // Set the V-blank and NMI flags
-    or   t0, t0, 0x80
-    sb   t0, hvbjoy
-    li   t0, 0x80
-    sb   t0, rdnmi
-
-rsp_wait:
     // Wait until the RSP is finished rendering
     lw   t0, 0xA4040010 // SP_STATUS_REG
     andi t0, t0, 0x0001 // Halt
-    beqz t0, rsp_wait
+    beqz t0, vblank_start
 
     // Increment the frame counter with VI interrupts disabled
     li   t0, 1 << 6     // Clear VI mask
@@ -137,20 +144,6 @@ rsp_wait:
     sb   t0, frame_count
     li   t0, 1 << 7     // Set VI mask
     sw   t0, 0xA430000C // MI_INTR_MASK_REG
-
-    // Schedule the V-blank end and trigger an NMI if enabled
-    li   t0, 341 * 37 * 4 // V-blank period
-    add  s5, s5, t0
-    add  s3, s3, t0
-    lbu  t0, nmitimen
-    blt  t0, 0x80, no_nmi
-    j    trigger_nmi
-
-vblank_end:
-    // Clear the V-blank and NMI flags
-    andi t0, t0, ~0x80 & 0xFF
-    sb   t0, hvbjoy
-    sb   zero, rdnmi
 
     // Prepare to update the RSP's palette in DMEM
     lbu  t0, brightness
@@ -201,7 +194,7 @@ update_dpal:
     or   t3, t3, t7
     sw   t3, (t8)
     bnez t9, update_dpal
-    b    frame_wait
+    b    update_vram
 
 dpal_high:
     // Change the high half-word and loop until the palette is finished
@@ -212,6 +205,29 @@ dpal_high:
     sw   t3, (t8)
     bnez t9, update_dpal
 
+update_vram:
+    // Update the RSP's copy of VRAM
+    la   t0, vram
+    la   t1, vram + 0x10000
+    la   t2, 0xA03F0000
+vram_loop:
+    lw   t3, (t0)
+    addi t0, t0, 4
+    sw   t3, (t2)
+    addi t2, t2, 4
+    bne  t0, t1, vram_loop
+
+    // Update the RSP's register values in DMEM
+    la   t0, fb_border
+    la   t1, bg_orders
+    la   t2, 0xA4000F88
+reg_loop:
+    lw   t3, (t0)
+    addi t0, t0, 4
+    sw   t3, (t2)
+    addi t2, t2, 4
+    bne  t0, t1, reg_loop
+
 frame_wait:
     // Wait for a framebuffer to be available
     lbu  t0, frame_count
@@ -220,6 +236,26 @@ frame_wait:
     // Unhalt the RSP so it can render the next frame
     li   t0, 0x0001     // Clear halt
     sw   t0, 0xA4040010 // SP_STATUS_REG
+
+    // Set the V-blank and NMI flags
+    or   t0, t0, 0x80
+    sb   t0, hvbjoy
+    li   t0, 0x80
+    sb   t0, rdnmi
+
+    // Schedule the V-blank end and trigger an NMI if enabled
+    li   t0, 341 * 37 * 4 // V-blank period
+    add  s5, s5, t0
+    add  s3, s3, t0
+    lbu  t0, nmitimen
+    blt  t0, 0x80, no_nmi
+    j    trigger_nmi
+
+vblank_end:
+    // Clear the V-blank and NMI flags
+    andi t0, t0, ~0x80 & 0xFF
+    sb   t0, hvbjoy
+    sb   zero, rdnmi
 
     // Schedule the V-blank start or skip to it if halted
     bge  s4, 0x200, vblank_start
@@ -284,7 +320,7 @@ write_obsel: // a1: value
     // TODO: OBJ size, gap
     andi t0, a1, 0x3
     sll  t0, t0, 14
-    sw   t0, 0xA4000F98
+    sw   t0, objcharbase
     jr   ra
 
 
@@ -392,13 +428,13 @@ write_bgmode: // a1: value
     andi t1, t1, 0x0F
     lbu  t1, bg_masks(t1)
     and  t0, t0, t1
-    sw   t0, 0xA4000F94
+    sw   t0, bg_type2
 
     // Update the BG order in DMEM (BG3 is top priority if bit 3 is set in mode 1)
     andi t0, a1, 0x0F
     seq  t0, t0, 0x09
     lbu  t0, bg_orders(t0)
-    sw   t0, 0xA4000F90
+    sw   t0, bg_order
     jr   ra
 
 
@@ -406,17 +442,17 @@ write_bg1sc: // a1: value
     // Update BG1's screen base address in DMEM
     andi t0, a1, 0x7C
     sll  t0, t0, 9
-    sw   t0, 0xA4000F9C
+    sw   t0, bgscrnbase + 0
 
     // Update BG1's horizontal base offset in DMEM
     andi t1, a1, 0x03
     sll  t1, t1, 1
     lhu  t0, scrn_ofsh(t1)
-    sw   t0, 0xA4000FAC
+    sw   t0, bgbaseofsh + 0
 
     // Update BG1's vertical base offset in DMEM
     lhu  t0, scrn_ofsv(t1)
-    sw   t0, 0xA4000FBC
+    sw   t0, bgbaseofsv + 0
     jr   ra
 
 
@@ -424,17 +460,17 @@ write_bg2sc: // a1: value
     // Update BG2's screen base address in DMEM
     andi t0, a1, 0x7C
     sll  t0, t0, 9
-    sw   t0, 0xA4000FA0
+    sw   t0, bgscrnbase + 4
 
     // Update BG2's horizontal base offset in DMEM
     andi t1, a1, 0x03
     sll  t1, t1, 1
     lhu  t0, scrn_ofsh(t1)
-    sw   t0, 0xA4000FB0
+    sw   t0, bgbaseofsh + 4
 
     // Update BG2's vertical base offset in DMEM
     lhu  t0, scrn_ofsv(t1)
-    sw   t0, 0xA4000FC0
+    sw   t0, bgbaseofsv + 4
     jr   ra
 
 
@@ -442,17 +478,17 @@ write_bg3sc: // a1: value
     // Update BG3's screen base address in DMEM
     andi t0, a1, 0x7C
     sll  t0, t0, 9
-    sw   t0, 0xA4000FA4
+    sw   t0, bgscrnbase + 8
 
     // Update BG3's horizontal base offset in DMEM
     andi t1, a1, 0x03
     sll  t1, t1, 1
     lhu  t0, scrn_ofsh(t1)
-    sw   t0, 0xA4000FB4
+    sw   t0, bgbaseofsh + 8
 
     // Update BG3's vertical base offset in DMEM
     lhu  t0, scrn_ofsv(t1)
-    sw   t0, 0xA4000FC4
+    sw   t0, bgbaseofsv + 8
     jr   ra
 
 
@@ -460,17 +496,17 @@ write_bg4sc: // a1: value
     // Update BG4's screen base address in DMEM
     andi t0, a1, 0x7C
     sll  t0, t0, 9
-    sw   t0, 0xA4000FA8
+    sw   t0, bgscrnbase + 12
 
     // Update BG4's horizontal base offset in DMEM
     andi t1, a1, 0x03
     sll  t1, t1, 1
     lhu  t0, scrn_ofsh(t1)
-    sw   t0, 0xA4000FB8
+    sw   t0, bgbaseofsh + 12
 
     // Update BG4's vertical base offset in DMEM
     lhu  t0, scrn_ofsv(t1)
-    sw   t0, 0xA4000FC8
+    sw   t0, bgbaseofsv + 12
     jr   ra
 
 
@@ -478,12 +514,12 @@ write_bg12nba: // a1: value
     // Update BG1's character base address in DMEM
     andi t0, a1, 0x07
     sll  t0, t0, 13
-    sw   t0, 0xA4000FCC
+    sw   t0, bgcharbase + 0
 
     // Update BG2's character base address in DMEM
     andi t0, a1, 0x70
     sll  t0, t0, 9
-    sw   t0, 0xA4000FD0
+    sw   t0, bgcharbase + 4
     jr   ra
 
 
@@ -491,12 +527,12 @@ write_bg34nba: // a1: value
     // Update BG3's character base address in DMEM
     andi t0, a1, 0x07
     sll  t0, t0, 13
-    sw   t0, 0xA4000FD4
+    sw   t0, bgcharbase + 8
 
     // Update BG4's character base address in DMEM
     andi t0, a1, 0x70
     sll  t0, t0, 9
-    sw   t0, 0xA4000FD8
+    sw   t0, bgcharbase + 12
     jr   ra
 
 
@@ -507,7 +543,7 @@ write_bg1hofs: // a1: value
     sll  t1, t1, 8
     or   t0, t0, t1
     sb   a1, bg_old
-    sw   t0, 0xA4000FDC
+    sw   t0, bghofs + 0
     jr   ra
 
 
@@ -518,7 +554,7 @@ write_bg1vofs: // a1: value
     sll  t1, t1, 8
     or   t0, t0, t1
     sb   a1, bg_old
-    sw   t0, 0xA4000FEC
+    sw   t0, bgvofs + 0
     jr   ra
 
 
@@ -529,7 +565,7 @@ write_bg2hofs: // a1: value
     sll  t1, t1, 8
     or   t0, t0, t1
     sb   a1, bg_old
-    sw   t0, 0xA4000FE0
+    sw   t0, bghofs + 4
     jr   ra
 
 
@@ -540,7 +576,7 @@ write_bg2vofs: // a1: value
     sll  t1, t1, 8
     or   t0, t0, t1
     sb   a1, bg_old
-    sw   t0, 0xA4000FF0
+    sw   t0, bgvofs + 4
     jr   ra
 
 
@@ -551,7 +587,7 @@ write_bg3hofs: // a1: value
     sll  t1, t1, 8
     or   t0, t0, t1
     sb   a1, bg_old
-    sw   t0, 0xA4000FE4
+    sw   t0, bghofs + 8
     jr   ra
 
 
@@ -562,7 +598,7 @@ write_bg3vofs: // a1: value
     sll  t1, t1, 8
     or   t0, t0, t1
     sb   a1, bg_old
-    sw   t0, 0xA4000FF4
+    sw   t0, bgvofs + 8
     jr   ra
 
 
@@ -573,7 +609,7 @@ write_bg4hofs: // a1: value
     sll  t1, t1, 8
     or   t0, t0, t1
     sb   a1, bg_old
-    sw   t0, 0xA4000FE8
+    sw   t0, bghofs + 12
     jr   ra
 
 
@@ -584,7 +620,7 @@ write_bg4vofs: // a1: value
     sll  t1, t1, 8
     or   t0, t0, t1
     sb   a1, bg_old
-    sw   t0, 0xA4000FF8
+    sw   t0, bgvofs + 12
     jr   ra
 
 
@@ -625,7 +661,7 @@ write_vmdatal: // a1: value
     // Write to the low VRAM byte at the current address
     lhu  t0, vmadd
     sll  t1, t0, 1
-    sb   a1, 0xA03F0001(t1)
+    sb   a1, 1 + vram(t1)
 
     // Increment the VRAM address
     lbu  t1, vram_incl
@@ -639,7 +675,7 @@ write_vmdatah: // a1: value
     // Write to the high VRAM byte at the current address
     lhu  t0, vmadd
     sll  t1, t0, 1
-    sb   a1, 0xA03F0000(t1)
+    sb   a1, vram(t1)
 
     // Increment the VRAM address
     lbu  t1, vram_inch
@@ -721,8 +757,8 @@ write_tm: // a1: value
     and  t0, t0, t1
 
     // Update the masked BG type and OBJ enable in DMEM
-    sw   t0, 0xA4000F94
-    sw   t4, 0xA4000F8C
+    sw   t0, bg_type2
+    sw   t4, obj_enable
     jr   ra
 
 
@@ -739,8 +775,8 @@ write_ts: // a1: value
     and  t0, t0, t1
 
     // Update the masked BG type and OBJ enable in DMEM
-    sw   t0, 0xA4000F94
-    sw   t4, 0xA4000F8C
+    sw   t0, bg_type2
+    sw   t4, obj_enable
     jr   ra
 
 
@@ -750,7 +786,7 @@ write_setini: // a1: value
     andi t0, a1, 0x04
     sll  t0, t0, 10
     xori t0, t0, 0x1000
-    sw   t0, 0xA4000F88
+    sw   t0, fb_border
     jr   ra
 
 
