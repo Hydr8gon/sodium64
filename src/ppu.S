@@ -64,6 +64,7 @@
 .data
 
 cgram: .hword 0:0x100
+oam:   .byte  0:0x220
 vram:  .byte  0:0x10000
 
 frame_count: .byte 0x00
@@ -194,7 +195,7 @@ update_dpal:
     or   t3, t3, t7
     sw   t3, (t8)
     bnez t9, update_dpal
-    b    update_vram
+    b    update_oam
 
 dpal_high:
     // Change the high half-word and loop until the palette is finished
@@ -204,6 +205,18 @@ dpal_high:
     or   t3, t3, t7
     sw   t3, (t8)
     bnez t9, update_dpal
+
+update_oam:
+    // Update the RSP's copy of OAM in DMEM
+    la   t0, oam
+    la   t1, oam + 0x220
+    la   t2, 0xA4000420
+oam_loop:
+    lw   t3, (t0)
+    addi t0, t0, 4
+    sw   t3, (t2)
+    addi t2, t2, 4
+    bne  t0, t1, oam_loop
 
 update_vram:
     // Update the RSP's copy of VRAM
@@ -363,54 +376,17 @@ no_wrap:
     jr   ra
 
 oam_high:
-    // Form a 16-bit value with the low byte
+    // Form a 16-bit value with the low byte and store it in OAM
     andi t0, t0, 0x3FF & ~1
     lbu  t1, oam_lsb
     sll  t2, a1, 8
     or   t3, t1, t2
-
-    // Update the OAM data in DMEM
-    // DMEM access from the main CPU is 32-bit, so check if this is a low or high half-word
-    andi t1, t0, 0x3FF & ~3
-    la   t2, 0xA4000420 // OAM in DMEM
-    add  t2, t2, t1
-    bne  t1, t0, doam_high
-
-    // Change the low half-word and write the value back
-    lw   t0, (t2)
-    andi t0, t0, 0xFFFF
-    sll  t3, t3, 16
-    or   t3, t3, t0
-    sw   t3, (t2)
-    jr   ra
-
-doam_high:
-    // Change the high half-word and write the value back
-    lw   t0, (t2)
-    lui  t1, 0xFFFF
-    and  t0, t0, t1
-    or   t3, t3, t0
-    sw   t3, (t2)
+    sh   t3, oam(t0)
     jr   ra
 
 oam_end:
-    // Create a mask and shift the value based on which byte is being written
-    andi t1, t0, 0x3
-    xori t1, t1, 0x3
-    sll  t1, t1, 3
-    li   t2, 0xFF
-    sll  t2, t2, t1
-    not  t2, t2
-    sll  t3, a1, t1
-
-    // Update the DMEM word containing the byte
-    andi t0, t0, 0x3FF & ~3
-    la   t4, 0xA4000420 // OAM in DMEM
-    add  t0, t0, t4
-    lw   t4, (t0)
-    and  t4, t4, t2
-    or   t4, t4, t3
-    sw   t4, (t0)
+    // Store an 8-bit value in the last 32 bytes of OAM
+    sb   a1, oam(t0)
     jr   ra
 
 
