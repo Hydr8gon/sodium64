@@ -132,10 +132,17 @@ ppu_event:
     bge  t0, 0x80, vblank_end
 
 vblank_start:
+    // Set the V-blank and NMI flags
+    or   t0, t0, 0x80
+    sb   t0, hvbjoy
+    li   t0, 0x80
+    sb   t0, rdnmi
+
+rsp_wait:
     // Wait until the RSP is finished rendering
     lw   t0, 0xA4040010 // SP_STATUS_REG
     andi t0, t0, 0x0001 // Halt
-    beqz t0, vblank_start
+    beqz t0, rsp_wait
 
     // Increment the frame counter with VI interrupts disabled
     li   t0, 1 << 6     // Clear VI mask
@@ -250,18 +257,12 @@ frame_wait:
     li   t0, 0x0001     // Clear halt
     sw   t0, 0xA4040010 // SP_STATUS_REG
 
-    // Set the V-blank and NMI flags
-    or   t0, t0, 0x80
-    sb   t0, hvbjoy
-    li   t0, 0x80
-    sb   t0, rdnmi
-
     // Schedule the V-blank end and trigger an NMI if enabled
     li   t0, 341 * 37 * 4 // V-blank period
     add  s5, s5, t0
     add  s3, s3, t0
     lbu  t0, nmitimen
-    blt  t0, 0x80, no_nmi
+    blt  t0, 0x80, cpu_execute
     j    trigger_nmi
 
 vblank_end:
@@ -275,7 +276,6 @@ vblank_end:
     li   t0, 341 * 225 * 4
     add  s5, s5, t0
     add  s3, s3, t0
-no_nmi:
     j    cpu_execute
 
 
