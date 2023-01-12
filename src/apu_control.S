@@ -71,6 +71,7 @@
 .globl apu_ret
 .globl apu_ret1
 .globl apu_brk
+.globl apu_nop
 .globl apu_clrp
 .globl apu_setp
 .globl apu_ei
@@ -464,7 +465,7 @@ apu_ret1: // RET1
     lhu  s1, apu_stack
     addi a0, s1, 1
     jal  apu_read8
-    lbu  v0, apu_flags
+    sb   v0, apu_flags
 
     // Pop the program counter from the stack
     addi a0, s1, 3

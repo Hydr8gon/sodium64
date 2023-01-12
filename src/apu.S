@@ -70,7 +70,7 @@ apu_flags: .byte 0x00
 apu_count: .hword 0xFFC0
 
 apu_opcodes:
-    .word apu_unk,    apu_tcall0, apu_set0,   apu_bbs0,   apu_ordir,  apu_orabs,  apu_orbrx,  apu_oridx  // 0x00-0x07
+    .word apu_nop,    apu_tcall0, apu_set0,   apu_bbs0,   apu_ordir,  apu_orabs,  apu_orbrx,  apu_oridx  // 0x00-0x07
     .word apu_orimm,  apu_ordr2,  apu_unk,    apu_asldir, apu_aslabs, apu_php,    apu_tset1,  apu_brk    // 0x08-0x0F
     .word apu_bpl,    apu_tcall1, apu_clr0,   apu_bbc0,   apu_ordrx,  apu_orabx,  apu_oraby,  apu_oridy  // 0x10-0x17
     .word apu_ordri,  apu_orbxy,  apu_decw,   apu_asldrx, apu_asla,   apu_decx,   apu_cpxabs, apu_jmpabx // 0x18-0x1F
