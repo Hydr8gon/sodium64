@@ -53,45 +53,55 @@ rom_loop:
     addi t1, t1, 4
     bne  t1, t2, rom_loop
 
+    // Detect HiROM headers with a rudimentary checksum check
+    // TODO: improve this?
+    lhu  t0, 0x8009FFDC
+    lhu  t1, 0x8009FFDE
+    xor  t0, t0, t1
+    xori t0, t0, 0xFFFF
+    beqz t0, map_hirom
+    b    map_lorom
+
+
+map_lorom:
     // Set initial values for building the memory map
     li   t0, 0x000000 // Current address
     li   t1, 0xFFFFFF // Maximum address
     li   t2, 0x002000 // Block size (8KB)
 
-build_map:
-    // Determine the memory area from the address bank
-    // TODO: currently hardcoded to LoROM
+build_lomap:
+    // Determine the LoROM memory area from the address bank
     li   t3, 0x400000
-    blt  t0, t3, system_area // 0x00-0x3F: System, WS1 LoROM
+    blt  t0, t3, losys_area  // 0x00-0x3F: System, WS1 LoROM
     li   t3, 0x700000
     blt  t0, t3, lorom_area  // 0x40-0x6F: WS1 LoROM
     li   t3, 0x7E0000
-    blt  t0, t3, sram_area   // 0x70-0x7D: 8KB SRAM, WS1 LoROM
+    blt  t0, t3, losram_area // 0x70-0x7D: 8KB SRAM, WS1 LoROM
     li   t3, 0x800000
     li   t4, 0x1FFFF         // WRAM mask
-    blt  t0, t3, wram_area   // 0x7E-0x7F: 128KB WRAM
+    blt  t0, t3, lowram_area // 0x7E-0x7F: 128KB WRAM
     li   t3, 0xC00000
-    blt  t0, t3, system_area // 0x80-0xBF: System, WS2 LoROM
+    blt  t0, t3, losys_area  // 0x80-0xBF: System, WS2 LoROM
     li   t3, 0xF00000
     blt  t0, t3, lorom_area  // 0xC0-0xEF: WS2 LoROM
-    b    sram_area           // 0xF0-0xFF: 8KB SRAM, WS2 LoROM
+    b    losram_area         // 0xF0-0xFF: 8KB SRAM, WS2 LoROM
 
-system_area:
+losys_area:
     // Further break down the 16-bit system area address
     andi t3, t0, 0xFFFF
-    li   t4, 0x1FFF         // WRAM mask
-    blt  t3, t2, wram_area  // 0x0000-0x1FFF: 8KB WRAM mirror
+    li   t4, 0x1FFF          // WRAM mask
+    blt  t3, t2, lowram_area // 0x0000-0x1FFF: 8KB WRAM mirror
     li   t4, 0x8000
-    bge  t3, t4, lorom_area // 0x8000-0xFFFF: WS1/WS2 LoROM
-    b    io_area            // 0x2000-0x7FFF: I/O registers
+    bge  t3, t4, lorom_area  // 0x8000-0xFFFF: WS1/WS2 LoROM
+    b    loio_area           // 0x2000-0x7FFF: I/O registers
 
-wram_area:
+lowram_area:
     // Get a pointer to a WRAM block, with bit 0 set to indicate writability
     la   t3, wram
     and  t4, t4, t0 // Apply mask
     add  t3, t3, t4 
     ori  t3, t3, 1  // Write bit
-    b    map_block
+    b    map_loblock
 
 lorom_area:
     // Get a pointer to a ROM block mapped as LoROM
@@ -104,10 +114,10 @@ lorom_area:
     and  t4, t4, t0     // Offset within 32KB
     add  t3, t3, t4
     la   t4, 0x80390000 // ROM bounds
-    bge  t3, t4, empty_area
-    b    map_block
+    bge  t3, t4, loempty_area
+    b    map_loblock
 
-sram_area:
+losram_area:
     // Get a pointer to a SRAM block mapped as LoROM
     andi t4, t0, 0xFFFF
     li   t5, 0x8000
@@ -116,18 +126,18 @@ sram_area:
     la   t3, sram
     add  t3, t3, t4         // 0x0000-0x7FFF: 8KB SRAM
     ori  t3, t3, 1          // Write bit
-    b    map_block
+    b    map_loblock
 
-io_area:
+loio_area:
     // Set no pointer; this will fall back to I/O registers
     li   t3, 0
-    b    map_block
+    b    map_loblock
 
-empty_area:
+loempty_area:
     // Get a pointer to the empty placeholder block
     la   t3, empty
 
-map_block:
+map_loblock:
     // Store the pointer to the block in the memory map
     la   t4, memory_map
     srl  t5, t0, 11 // Pointer offset
@@ -136,7 +146,85 @@ map_block:
 
     // Move to the next address until the map is complete
     add  t0, t0, t2
-    ble  t0, t1, build_map
+    ble  t0, t1, build_lomap
+    jr   ra
+
+
+map_hirom:
+    // Set initial values for building the memory map
+    li   t0, 0x000000 // Current address
+    li   t1, 0xFFFFFF // Maximum address
+    li   t2, 0x002000 // Block size (8KB)
+
+build_himap:
+    // Determine the HiROM memory area from the address bank
+    li   t3, 0x400000
+    blt  t0, t3, hisys_area  // 0x00-0x3F: System, WS1 HiROM
+    li   t3, 0x7E0000
+    blt  t0, t3, hirom_area  // 0x40-0x7D: WS1 HiROM
+    li   t3, 0x800000
+    li   t4, 0x1FFFF         // WRAM mask
+    blt  t0, t3, hiwram_area // 0x7E-0x7F: 128KB WRAM
+    li   t3, 0xC00000
+    blt  t0, t3, hisys_area  // 0x80-0xBF: System, WS2 HiROM
+    b    hirom_area          // 0xC0-0xFF: WS2 HiROM
+
+hisys_area:
+    // Further break down the 16-bit system area address
+    andi t3, t0, 0xFFFF
+    li   t4, 0x1FFF          // WRAM mask
+    blt  t3, t2, hiwram_area // 0x0000-0x1FFF: 8KB WRAM mirror
+    li   t4, 0x8000
+    bge  t3, t4, hirom_area  // 0x8000-0xFFFF: WS1/WS2 HiROM
+    li   t4, 0x6000
+    bge  t3, t4, hisram_area // 0x6000-0x7FFF: 8KB SRAM
+    b    hiio_area           // 0x2000-0x5FFF: I/O registers
+
+hiwram_area:
+    // Get a pointer to a WRAM block, with bit 0 set to indicate writability
+    la   t3, wram
+    and  t4, t4, t0 // Apply mask
+    add  t3, t3, t4
+    ori  t3, t3, 1  // Write bit
+    b    map_hiblock
+
+hirom_area:
+    // Get a pointer to a ROM block mapped as HiROM
+    la   t3, 0x80090000 // ROM buffer
+    li   t4, 0x3FFFFF   // ROM mask
+    and  t4, t4, t0
+    add  t3, t3, t4
+    la   t4, 0x80390000 // ROM bounds
+    bge  t3, t4, hiempty_area
+    b    map_hiblock
+
+hisram_area:
+    // Get a pointer to a SRAM block mapped as HiROM
+    andi t4, t0, 0x1FFF
+    la   t3, sram
+    add  t3, t3, t4 // 8KB SRAM
+    ori  t3, t3, 1  // Write bit
+    b    map_hiblock
+
+hiio_area:
+    // Set no pointer; this will fall back to I/O registers
+    li   t3, 0
+    b    map_hiblock
+
+hiempty_area:
+    // Get a pointer to the empty placeholder block
+    la   t3, empty
+
+map_hiblock:
+    // Store the pointer to the block in the memory map
+    la   t4, memory_map
+    srl  t5, t0, 11 // Pointer offset
+    add  t4, t4, t5
+    sw   t3, (t4)
+
+    // Move to the next address until the map is complete
+    add  t0, t0, t2
+    ble  t0, t1, build_himap
     jr   ra
 
 
