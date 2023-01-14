@@ -15,3 +15,7 @@ Although sodium64 is written in assembly, it relies on [libdragon](https://githu
 
 ### References
 * [Fullsnes](https://problemkaputt.de/fullsnes.htm) by Martin Korth
+
+### Other Links
+* [Hydra's Lair](https://hydr8gon.github.io) - Blog where I may or may not write about things
+* [Discord Server](https://discord.gg/JbNz7y4) - Place to chat about my projects and stuff
