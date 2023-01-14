@@ -258,9 +258,8 @@ frame_wait:
     sw   t0, 0xA4040010 // SP_STATUS_REG
 
     // Schedule the V-blank end and trigger an NMI if enabled
-    li   t0, 341 * 37 * 4 // V-blank period
-    add  s5, s5, t0
-    add  s3, s3, t0
+    li   a0, 341 * 37 * 4 // V-blank period
+    jal  sched_next
     lbu  t0, nmitimen
     blt  t0, 0x80, cpu_execute
     j    trigger_nmi
@@ -273,10 +272,26 @@ vblank_end:
 
     // Schedule the V-blank start or skip to it if halted
     bge  s4, 0x200, vblank_start
-    li   t0, 341 * 225 * 4
-    add  s5, s5, t0
-    add  s3, s3, t0
+    li   a0, 341 * 225 * 4
+    jal  sched_next
     j    cpu_execute
+
+
+sched_next: // a0: cycles
+    // Update timers before cycles are adjusted
+    move s0, ra
+    jal  update_timers
+
+    // Offset all cycle counts for the next event
+    lw   t0, apu_cycle1
+    lw   t1, apu_cycle2
+    add  s5, s5, a0 // CPU
+    add  s3, s3, a0 // APU
+    add  t0, t0, a0 // Timer 0/1
+    add  t1, t1, a0 // Timer 2
+    sw   t0, apu_cycle1
+    sw   t1, apu_cycle2
+    jr   s0
 
 
 read_mpyl: // v0: value

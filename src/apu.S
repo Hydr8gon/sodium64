@@ -19,9 +19,13 @@
 
 #include <regdef.h>
 
-// Approximate master cycle count for each APU cycle
-#define APU_CYCLE 21 // 21477000Hz / 1024000Hz = 20.973632812
+// Approximate master cycle counts for APU components
+#define APU_CYCLE    21 // 21477000Hz / 1024000Hz = 20.973632812
+#define APU_TIMER1 2688 // 21477000Hz / 8000Hz = 2684.625
+#define APU_TIMER2  336 // 21477000Hz / 64000Hz = 335.578125
 
+.globl apu_cycle1
+.globl apu_cycle2
 .globl apu_reg_x
 .globl apu_reg_y
 .globl apu_accum
@@ -33,6 +37,7 @@
 .globl apu_set_nz
 .globl apu_read8
 .globl apu_write8
+.globl update_timers
 .globl read_apuio0
 .globl read_apuio1
 .globl read_apuio2
@@ -56,16 +61,22 @@ apu_rom:
     .byte 0xF6, 0xDA, 0x00, 0xBA, 0xF4, 0xC4, 0xF4, 0xDD // 0xFFF0-0xFFF7
     .byte 0x5D, 0xD0, 0xDB, 0x1F, 0x00, 0x00, 0xC0, 0xFF // 0xFFF8-0xFFFF
 
+apu_cycle1: .word 341 * 225 * 4
+apu_cycle2: .word 341 * 225 * 4
+apu_timers: .byte 0x00:3
+apu_tmdivs: .byte 0x00:3
+apu_tmouts: .byte 0x00:3
+
 apu_control: .byte 0xB0
 .align 2
-apu_inputs:  .byte 0:4
-apu_outputs: .byte 0:4
+apu_inputs:  .byte 0x00:4
+apu_outputs: .byte 0x00:4
 
 apu_reg_x: .byte 0x00
 .align 2
 apu_reg_y: .byte 0x00
 apu_accum: .byte 0x00
-apu_stack: .hword 0x01FF
+apu_stack: .hword 0x1FF
 apu_flags: .byte 0x00
 apu_count: .hword 0xFFC0
 
@@ -166,9 +177,9 @@ io_read8:
     beq  a0, 0x00F5, read_cpuio1
     beq  a0, 0x00F6, read_cpuio2
     beq  a0, 0x00F7, read_cpuio3
-    beq  a0, 0x00FD, read_timer
-    beq  a0, 0x00FE, read_timer
-    beq  a0, 0x00FF, read_timer
+    beq  a0, 0x00FD, read_t0out
+    beq  a0, 0x00FE, read_t1out
+    beq  a0, 0x00FF, read_t2out
     jr   ra
 
 
@@ -189,6 +200,123 @@ io_write8:
     beq  a0, 0x00F5, write_cpuio1
     beq  a0, 0x00F6, write_cpuio2
     beq  a0, 0x00F7, write_cpuio3
+    beq  a0, 0x00FA, write_t0div
+    beq  a0, 0x00FB, write_t1div
+    beq  a0, 0x00FC, write_t2div
+    jr   ra
+
+
+update_timers:
+    // Get how many timer 2 ticks passed since the last update
+    lw   t0, apu_cycle2
+    sub  t0, t0, s3     // Cycles since last update
+    li   t1, APU_TIMER2 // Cycles per timer tick
+    div  t0, t1
+    mflo t1             // Ticks passed
+    beqz t1, early_exit
+    mfhi t2             // Cycles since latest tick
+    add  t2, t2, s3
+    sw   t2, apu_cycle2
+
+    // Check if timer 2 is enabled
+    lbu  t6, apu_control
+    andi t7, t6, 0x04
+    beqz t7, update_timer0
+
+    // Check if timer 2 will overflow
+    lbu  t2, apu_timers + 2
+    lbu  t3, apu_tmdivs + 2
+loop_timer2:
+    addi t4, t2, 1
+    sub  t4, t3, t4
+    andi t4, t4, 0xFF
+    addi t4, t4, 1 // Ticks until overflow
+    blt  t1, t4, inc_timer2
+
+    // Overflow timer 2 and check again
+    lbu  t5, apu_tmouts + 2
+    addi t5, t5, 1
+    andi t5, t5, 0xF
+    sb   t5, apu_tmouts + 2
+    sub  t1, t1, t4
+    li   t2, 0
+    b    loop_timer2
+
+inc_timer2:
+    // Increment timer 2 without overflow
+    add  t2, t2, t1
+    sb   t2, apu_timers + 2
+
+update_timer0:
+    // Get how many timer 0/1 ticks passed since the last update
+    lw   t0, apu_cycle1
+    sub  t0, t0, s3     // Cycles since last update
+    li   t1, APU_TIMER1 // Cycles per timer tick
+    div  t0, t1
+    mflo t1             // Ticks passed
+    beqz t1, early_exit
+    mfhi t2             // Cycles since latest tick
+    add  t2, t2, s3
+    sw   t2, apu_cycle1
+
+    // Check if timer 0 is enabled
+    andi t7, t6, 0x01
+    beqz t7, update_timer1
+
+    // Check if timer 0 will overflow
+    lbu  t2, apu_timers + 0
+    lbu  t3, apu_tmdivs + 0
+loop_timer0:
+    addi t4, t2, 1
+    sub  t4, t3, t4
+    andi t4, t4, 0xFF
+    addi t4, t4, 1 // Ticks until overflow
+    blt  t1, t4, inc_timer0
+
+    // Overflow timer 0 and check again
+    lbu  t5, apu_tmouts + 0
+    addi t5, t5, 1
+    andi t5, t5, 0xF
+    sb   t5, apu_tmouts + 0
+    sub  t1, t1, t4
+    li   t2, 0
+    b    loop_timer0
+
+inc_timer0:
+    // Increment timer 0 without overflow
+    add  t2, t2, t1
+    sb   t2, apu_timers + 0
+
+update_timer1:
+    // Check if timer 1 is enabled
+    andi t7, t6, 0x02
+    beqz t7, early_exit
+
+    // Check if timer 1 will overflow
+    mflo t1
+    lbu  t2, apu_timers + 1
+    lbu  t3, apu_tmdivs + 1
+loop_timer1:
+    addi t4, t2, 1
+    sub  t4, t3, t4
+    andi t4, t4, 0xFF
+    addi t4, t4, 1 // Ticks until overflow
+    blt  t1, t4, inc_timer1
+
+    // Overflow timer 1 and check again
+    lbu  t5, apu_tmouts + 1
+    addi t5, t5, 1
+    andi t5, t5, 0xF
+    sb   t5, apu_tmouts + 1
+    sub  t1, t1, t4
+    li   t2, 0
+    b    loop_timer1
+
+inc_timer1:
+    // Increment timer 1 without overflow
+    add  t2, t2, t1
+    sb   t2, apu_timers + 1
+early_exit:
     jr   ra
 
 
@@ -216,32 +344,69 @@ read_cpuio3: // v0: value
     jr   ra
 
 
-read_timer: // v0: value
-    // Use the cycle count as a random stub value
-    // TODO: actually implement timers
-    srl  v0, s5, 1
-    andi v0, v0, 0xFF
-    jr   ra
+read_t0out: // v0: value
+    // Update timers, read timer 0's overflow count and reset it
+    move t9, ra
+    jal  update_timers
+    lbu  v0, apu_tmouts + 0
+    sb   zero, apu_tmouts + 0
+    jr   t9
+
+
+read_t1out: // v0: value
+    // Update timers, read timer 1's overflow count and reset it
+    move t9, ra
+    jal  update_timers
+    lbu  v0, apu_tmouts + 1
+    sb   zero, apu_tmouts + 1
+    jr   t9
+
+
+read_t2out: // v0: value
+    // Update timers, read timer 2's overflow count and reset it
+    move t9, ra
+    jal  update_timers
+    lbu  v0, apu_tmouts + 2
+    sb   zero, apu_tmouts + 2
+    jr   t9
 
 
 write_control: // a1: value
-    // Write to the APU control register
-    // TODO: implement bits 0-2
+    // Update timers and write to the APU control register
+    move t9, ra
+    jal  update_timers
+    lbu  t0, apu_control
     sb   a1, apu_control
 
-    // Clear the first 2 input latches if bit 4 is set
+    // Reset timers 0-2 if bit 0-2 turns from 0 to 1
+    xor  t1, t0, a1
+    and  t1, t1, a1
+    andi t0, t1, 0x01
+    beqz t0, timer1
+    sb   zero, apu_timers + 0
+    sb   zero, apu_tmouts + 0
+timer1:
+    andi t0, t1, 0x02
+    beqz t0, timer2
+    sb   zero, apu_timers + 1
+    sb   zero, apu_tmouts + 1
+timer2:
+    andi t0, t1, 0x04
+    beqz t0, reset0
+    sb   zero, apu_timers + 2
+    sb   zero, apu_tmouts + 2
+
+reset0:
+    // Clear the first/last 2 input latches if bit 4/5 is set
     andi t0, a1, 0x10
     beqz t0, reset1
     sh   zero, apu_inputs + 0
-
 reset1:
-    // Clear the last 2 input latches if bit 5 is set
     andi t0, a1, 0x20
     beqz t0, reset2
     sh   zero, apu_inputs + 2
-
 reset2:
-    jr   ra
+    jr   t9
 
 
 write_cpuio0: // a1: value
@@ -266,6 +431,30 @@ write_cpuio3: // a1: value
     // Write APU output communication value 3
     sb   a1, apu_outputs + 3
     jr   ra
+
+
+write_t0div: // a1: value
+    // Update timers and write timer 0's divider value
+    move t9, ra
+    jal  update_timers
+    sb   a1, apu_tmdivs + 0
+    jr   t9
+
+
+write_t1div: // a1: value
+    // Update timers and write timer 1's divider value
+    move t9, ra
+    jal  update_timers
+    sb   a1, apu_tmdivs + 1
+    jr   t9
+
+
+write_t2div: // a1: value
+    // Update timers and write timer 2's divider value
+    move t9, ra
+    jal  update_timers
+    sb   a1, apu_tmdivs + 2
+    jr   t9
 
 
 read_apuio0: // v0: value
