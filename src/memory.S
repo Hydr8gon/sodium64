@@ -38,19 +38,7 @@ memory_map: .word 0:0x800
 wmadd:      .word 0x00000
 
 read_iomap:
-    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2100-0x2103
-    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2104-0x2107
-    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2108-0x210B
-    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x210C-0x210F
-    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2110-0x2113
-    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2114-0x2117
-    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2118-0x211B
-    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x211C-0x211F
-    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2120-0x2123
-    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2124-0x2127
-    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2128-0x212B
-    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x212C-0x212F
-    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2130-0x2133
+    .word read_unk:(0x2133 - 0x20FF)                          // 0x2100-0x2133
     .word read_mpyl,   read_mpym,   read_mpyh,   read_unk     // 0x2134-0x2137
     .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2138-0x213B
     .word rand,        rand,        read_unk,    read_unk     // 0x213C-0x213F
@@ -70,40 +58,73 @@ read_iomap:
     .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x2174-0x2177
     .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x2178-0x217B
     .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x217C-0x217F
+    .word read_unk:(0x420F - 0x217F)                          // 0x2180-0x420F
+    .word read_rdnmi,  read_unk,    read_hvbjoy, read_unk     // 0x4210-0x4213
+    .word read_rddivl, read_rddivh, read_rdmpyl, read_rdmpyh  // 0x4214-0x4217
+    .word read_joyxl,  read_joyxh,  read_joyxl,  read_joyxh   // 0x4218-0x421B
+    .word read_joyxl,  read_joyxh,  read_joyxl,  read_joyxh   // 0x421C-0x421F
+    .word read_unk:(0x437F - 0x421F)                          // 0x4220-0x437F
 
 write_iomap:
-    .word write_inidisp, write_obsel,   write_oamaddl, write_oamaddh // 0x2100-0x2103
-    .word write_oamdata, write_bgmode,  write_unk,     write_bg1sc   // 0x2104-0x2107
-    .word write_bg2sc,   write_bg3sc,   write_bg4sc,   write_bg12nba // 0x2108-0x210B
-    .word write_bg34nba, write_bg1hofs, write_bg1vofs, write_bg2hofs // 0x210C-0x210F
-    .word write_bg2vofs, write_bg3hofs, write_bg3vofs, write_bg4hofs // 0x2110-0x2113
-    .word write_bg4vofs, write_vmain,   write_vmaddl,  write_vmaddh  // 0x2114-0x2117
-    .word write_vmdatal, write_vmdatah, write_unk,     write_m7a     // 0x2118-0x211B
-    .word write_m7b,     write_unk,     write_unk,     write_unk     // 0x211C-0x211F
-    .word write_unk,     write_cgadd,   write_cgdata,  write_unk     // 0x2120-0x2123
-    .word write_unk,     write_unk,     write_unk,     write_unk     // 0x2124-0x2127
-    .word write_unk,     write_unk,     write_unk,     write_unk     // 0x2128-0x212B
-    .word write_tm,      write_ts,      write_unk,     write_unk     // 0x212C-0x212F
-    .word write_unk,     write_unk,     write_unk,     write_setini  // 0x2130-0x2133
-    .word write_unk,     write_unk,     write_unk,     write_unk     // 0x2134-0x2137
-    .word write_unk,     write_unk,     write_unk,     write_unk     // 0x2138-0x213B
-    .word write_unk,     write_unk,     write_unk,     write_unk     // 0x213C-0x213F
-    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2140-0x2143
-    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2144-0x2147
-    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2148-0x214B
-    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x214C-0x214F
-    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2150-0x2153
-    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2154-0x2157
-    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2158-0x215B
-    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x215C-0x215F
-    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2160-0x2163
-    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2164-0x2167
-    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2168-0x216B
-    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x216C-0x216F
-    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2170-0x2173
-    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2174-0x2177
-    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2178-0x217B
-    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x217C-0x217F
+    .word write_inidisp,  write_obsel,   write_oamaddl, write_oamaddh // 0x2100-0x2103
+    .word write_oamdata,  write_bgmode,  write_unk,     write_bg1sc   // 0x2104-0x2107
+    .word write_bg2sc,    write_bg3sc,   write_bg4sc,   write_bg12nba // 0x2108-0x210B
+    .word write_bg34nba,  write_bg1hofs, write_bg1vofs, write_bg2hofs // 0x210C-0x210F
+    .word write_bg2vofs,  write_bg3hofs, write_bg3vofs, write_bg4hofs // 0x2110-0x2113
+    .word write_bg4vofs,  write_vmain,   write_vmaddl,  write_vmaddh  // 0x2114-0x2117
+    .word write_vmdatal,  write_vmdatah, write_unk,     write_m7a     // 0x2118-0x211B
+    .word write_m7b,      write_unk,     write_unk,     write_unk     // 0x211C-0x211F
+    .word write_unk,      write_cgadd,   write_cgdata,  write_unk     // 0x2120-0x2123
+    .word write_unk:(0x212B - 0x2123)                                 // 0x2124-0x212B
+    .word write_tm,       write_ts,      write_unk,     write_unk     // 0x212C-0x212F
+    .word write_unk,      write_unk,     write_unk,     write_setini  // 0x2130-0x2133
+    .word write_unk:(0x213F - 0x2133)                                 // 0x2134-0x213F
+    .word write_apuio0,   write_apuio1,  write_apuio2,  write_apuio3  // 0x2140-0x2143
+    .word write_apuio0,   write_apuio1,  write_apuio2,  write_apuio3  // 0x2144-0x2147
+    .word write_apuio0,   write_apuio1,  write_apuio2,  write_apuio3  // 0x2148-0x214B
+    .word write_apuio0,   write_apuio1,  write_apuio2,  write_apuio3  // 0x214C-0x214F
+    .word write_apuio0,   write_apuio1,  write_apuio2,  write_apuio3  // 0x2150-0x2153
+    .word write_apuio0,   write_apuio1,  write_apuio2,  write_apuio3  // 0x2154-0x2157
+    .word write_apuio0,   write_apuio1,  write_apuio2,  write_apuio3  // 0x2158-0x215B
+    .word write_apuio0,   write_apuio1,  write_apuio2,  write_apuio3  // 0x215C-0x215F
+    .word write_apuio0,   write_apuio1,  write_apuio2,  write_apuio3  // 0x2160-0x2163
+    .word write_apuio0,   write_apuio1,  write_apuio2,  write_apuio3  // 0x2164-0x2167
+    .word write_apuio0,   write_apuio1,  write_apuio2,  write_apuio3  // 0x2168-0x216B
+    .word write_apuio0,   write_apuio1,  write_apuio2,  write_apuio3  // 0x216C-0x216F
+    .word write_apuio0,   write_apuio1,  write_apuio2,  write_apuio3  // 0x2170-0x2173
+    .word write_apuio0,   write_apuio1,  write_apuio2,  write_apuio3  // 0x2174-0x2177
+    .word write_apuio0,   write_apuio1,  write_apuio2,  write_apuio3  // 0x2178-0x217B
+    .word write_apuio0,   write_apuio1,  write_apuio2,  write_apuio3  // 0x217C-0x217F
+    .word write_wmdata,   write_wmaddl,  write_wmaddm,  write_wmaddh  // 0x2180-0x2183
+    .word write_unk:(0x41FF - 0x2183)                                 // 0x2184-0x41FF
+    .word write_nmitimen, write_unk,     write_wrmpya,  write_wrmpyb  // 0x4200-0x4203
+    .word write_wrdivl,   write_wrdivh,  write_wrdivb,  write_unk     // 0x4204-0x4207
+    .word write_unk,      write_unk,     write_unk,     write_mdmaen  // 0x4208-0x420B
+    .word write_unk:(0x42FF - 0x420B)                                 // 0x420C-0x42FF
+    .word write_dmapx,    write_bbadx,   write_a1txl,   write_a1txh   // 0x4300-0x4303
+    .word write_a1bx,     write_dasxl,   write_dasxh,   write_unk     // 0x4304-0x4307
+    .word write_unk:(0x430F - 0x4307)                                 // 0x4308-0x430F
+    .word write_dmapx,    write_bbadx,   write_a1txl,   write_a1txh   // 0x4310-0x4313
+    .word write_a1bx,     write_dasxl,   write_dasxh,   write_unk     // 0x4314-0x4317
+    .word write_unk:(0x431F - 0x4317)                                 // 0x4318-0x431F
+    .word write_dmapx,    write_bbadx,   write_a1txl,   write_a1txh   // 0x4320-0x4323
+    .word write_a1bx,     write_dasxl,   write_dasxh,   write_unk     // 0x4324-0x4327
+    .word write_unk:(0x432F - 0x4327)                                 // 0x4328-0x432F
+    .word write_dmapx,    write_bbadx,   write_a1txl,   write_a1txh   // 0x4330-0x4333
+    .word write_a1bx,     write_dasxl,   write_dasxh,   write_unk     // 0x4334-0x4337
+    .word write_unk:(0x433F - 0x4337)                                 // 0x4338-0x433F
+    .word write_dmapx,    write_bbadx,   write_a1txl,   write_a1txh   // 0x4340-0x4343
+    .word write_a1bx,     write_dasxl,   write_dasxh,   write_unk     // 0x4344-0x4347
+    .word write_unk:(0x434F - 0x4347)                                 // 0x4348-0x434F
+    .word write_dmapx,    write_bbadx,   write_a1txl,   write_a1txh   // 0x4350-0x4353
+    .word write_a1bx,     write_dasxl,   write_dasxh,   write_unk     // 0x4354-0x4357
+    .word write_unk:(0x435F - 0x4357)                                 // 0x4358-0x435F
+    .word write_dmapx,    write_bbadx,   write_a1txl,   write_a1txh   // 0x4360-0x4363
+    .word write_a1bx,     write_dasxl,   write_dasxh,   write_unk     // 0x4364-0x4367
+    .word write_unk:(0x436F - 0x4367)                                 // 0x4368-0x436F
+    .word write_dmapx,    write_bbadx,   write_a1txl,   write_a1txh   // 0x4370-0x4373
+    .word write_a1bx,     write_dasxl,   write_dasxh,   write_unk     // 0x4374-0x4377
+    .word write_unk:(0x437F - 0x4377)                                 // 0x4378-0x437F
 
 .text
 
@@ -448,26 +469,11 @@ io_write16:
 
 io_read8: // a0: address - v0: value
     // Read from an I/O register in the lookup table
-    andi t0, a0, 0xFF80
-    bne  t0, 0x2100, read_fallback
-    andi t0, a0, 0x7F
+    addi t0, a0, -0x2100
+    bgeu t0, 0x4380 - 0x2100, read_unk
     sll  t0, t0, 2 // Word offset
     lw   t0, read_iomap(t0)
     jr   t0
-
-read_fallback:
-    // Read from an I/O register not in the lookup table
-    // TODO: put these in a lookup table too?
-    andi a0, a0, 0xFFFF
-    beq  a0, 0x4210, read_rdnmi
-    beq  a0, 0x4212, read_hvbjoy
-    beq  a0, 0x4214, read_rddivl
-    beq  a0, 0x4215, read_rddivh
-    beq  a0, 0x4216, read_rdmpyl
-    beq  a0, 0x4217, read_rdmpyh
-    andi t0, a0, 0xFFF9
-    beq  t0, 0x4218, read_joyxl
-    beq  t0, 0x4219, read_joyxh
 
 read_unk:
     // Unknown I/O register read; do nothing
@@ -477,36 +483,11 @@ read_unk:
 
 io_write8: // a0: address, a1: value
     // Write to an I/O register in the lookup table
-    andi t0, a0, 0xFF80
-    bne  t0, 0x2100, write_fallback
-    andi t0, a0, 0x7F
+    addi t0, a0, -0x2100
+    bgeu t0, 0x4380 - 0x2100, write_unk
     sll  t0, t0, 2 // Word offset
     lw   t0, write_iomap(t0)
     jr   t0
-
-write_fallback:
-    // Write to an I/O register not in the lookup table
-    // TODO: put these in a lookup table too?
-    andi a0, a0, 0xFFFF
-    beq  a0, 0x2180, write_wmdata
-    beq  a0, 0x2181, write_wmaddl
-    beq  a0, 0x2182, write_wmaddm
-    beq  a0, 0x2183, write_wmaddh
-    beq  a0, 0x4200, write_nmitimen
-    beq  a0, 0x4202, write_wrmpya
-    beq  a0, 0x4203, write_wrmpyb
-    beq  a0, 0x4204, write_wrdivl
-    beq  a0, 0x4205, write_wrdivh
-    beq  a0, 0x4206, write_wrdivb
-    beq  a0, 0x420B, write_mdmaen
-    andi t0, a0, 0xFF8F
-    beq  t0, 0x4300, write_dmapx
-    beq  t0, 0x4301, write_bbadx
-    beq  t0, 0x4302, write_a1txl
-    beq  t0, 0x4303, write_a1txh
-    beq  t0, 0x4304, write_a1bx
-    beq  t0, 0x4305, write_dasxl
-    beq  t0, 0x4306, write_dasxh
 
 write_unk:
     // Unknown I/O register write; do nothing
