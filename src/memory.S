@@ -469,6 +469,7 @@ io_write16:
 
 io_read8: // a0: address - v0: value
     // Read from an I/O register in the lookup table
+    andi a0, a0, 0xFFFF
     addi t0, a0, -0x2100
     bgeu t0, 0x4380 - 0x2100, read_unk
     sll  t0, t0, 2 // Word offset
@@ -483,6 +484,7 @@ read_unk:
 
 io_write8: // a0: address, a1: value
     // Write to an I/O register in the lookup table
+    andi a0, a0, 0xFFFF
     addi t0, a0, -0x2100
     bgeu t0, 0x4380 - 0x2100, write_unk
     sll  t0, t0, 2 // Word offset
