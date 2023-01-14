@@ -35,8 +35,75 @@ sram:       .byte 0:0x2000
 wram:       .byte 0:0x20000
 empty:      .byte 0:0x2000
 memory_map: .word 0:0x800
+wmadd:      .word 0x00000
 
-wmadd: .word 0x00000
+read_iomap:
+    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2100-0x2103
+    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2104-0x2107
+    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2108-0x210B
+    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x210C-0x210F
+    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2110-0x2113
+    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2114-0x2117
+    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2118-0x211B
+    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x211C-0x211F
+    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2120-0x2123
+    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2124-0x2127
+    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2128-0x212B
+    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x212C-0x212F
+    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2130-0x2133
+    .word read_mpyl,   read_mpym,   read_mpyh,   read_unk     // 0x2134-0x2137
+    .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2138-0x213B
+    .word rand,        rand,        read_unk,    read_unk     // 0x213C-0x213F
+    .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x2140-0x2143
+    .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x2144-0x2147
+    .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x2148-0x214B
+    .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x214C-0x214F
+    .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x2150-0x2153
+    .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x2154-0x2157
+    .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x2158-0x215B
+    .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x215C-0x215F
+    .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x2160-0x2163
+    .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x2164-0x2167
+    .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x2168-0x216B
+    .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x216C-0x216F
+    .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x2170-0x2173
+    .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x2174-0x2177
+    .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x2178-0x217B
+    .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x217C-0x217F
+
+write_iomap:
+    .word write_inidisp, write_obsel,   write_oamaddl, write_oamaddh // 0x2100-0x2103
+    .word write_oamdata, write_bgmode,  write_unk,     write_bg1sc   // 0x2104-0x2107
+    .word write_bg2sc,   write_bg3sc,   write_bg4sc,   write_bg12nba // 0x2108-0x210B
+    .word write_bg34nba, write_bg1hofs, write_bg1vofs, write_bg2hofs // 0x210C-0x210F
+    .word write_bg2vofs, write_bg3hofs, write_bg3vofs, write_bg4hofs // 0x2110-0x2113
+    .word write_bg4vofs, write_vmain,   write_vmaddl,  write_vmaddh  // 0x2114-0x2117
+    .word write_vmdatal, write_vmdatah, write_unk,     write_m7a     // 0x2118-0x211B
+    .word write_m7b,     write_unk,     write_unk,     write_unk     // 0x211C-0x211F
+    .word write_unk,     write_cgadd,   write_cgdata,  write_unk     // 0x2120-0x2123
+    .word write_unk,     write_unk,     write_unk,     write_unk     // 0x2124-0x2127
+    .word write_unk,     write_unk,     write_unk,     write_unk     // 0x2128-0x212B
+    .word write_tm,      write_ts,      write_unk,     write_unk     // 0x212C-0x212F
+    .word write_unk,     write_unk,     write_unk,     write_setini  // 0x2130-0x2133
+    .word write_unk,     write_unk,     write_unk,     write_unk     // 0x2134-0x2137
+    .word write_unk,     write_unk,     write_unk,     write_unk     // 0x2138-0x213B
+    .word write_unk,     write_unk,     write_unk,     write_unk     // 0x213C-0x213F
+    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2140-0x2143
+    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2144-0x2147
+    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2148-0x214B
+    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x214C-0x214F
+    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2150-0x2153
+    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2154-0x2157
+    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2158-0x215B
+    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x215C-0x215F
+    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2160-0x2163
+    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2164-0x2167
+    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2168-0x216B
+    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x216C-0x216F
+    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2170-0x2173
+    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2174-0x2177
+    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x2178-0x217B
+    .word write_apuio0,  write_apuio1,  write_apuio2,  write_apuio3  // 0x217C-0x217F
 
 .text
 
@@ -380,18 +447,18 @@ io_write16:
 
 
 io_read8: // a0: address - v0: value
-    // Read from an I/O register if it exists
-    // TODO: convert to lookup table
+    // Read from an I/O register in the lookup table
+    andi t0, a0, 0xFF80
+    bne  t0, 0x2100, read_fallback
+    andi t0, a0, 0x7F
+    sll  t0, t0, 2 // Word offset
+    lw   t0, read_iomap(t0)
+    jr   t0
+
+read_fallback:
+    // Read from an I/O register not in the lookup table
+    // TODO: put these in a lookup table too?
     andi a0, a0, 0xFFFF
-    beq  a0, 0x2134, read_mpyl
-    beq  a0, 0x2135, read_mpym
-    beq  a0, 0x2136, read_mpyh
-    beq  a0, 0x213C, rand // OPHCT "stub"
-    beq  a0, 0x213D, rand // OPVCT "stub"
-    beq  a0, 0x2140, read_apuio0
-    beq  a0, 0x2141, read_apuio1
-    beq  a0, 0x2142, read_apuio2
-    beq  a0, 0x2143, read_apuio3
     beq  a0, 0x4210, read_rdnmi
     beq  a0, 0x4212, read_hvbjoy
     beq  a0, 0x4214, read_rddivl
@@ -401,50 +468,26 @@ io_read8: // a0: address - v0: value
     andi t0, a0, 0xFFF9
     beq  t0, 0x4218, read_joyxl
     beq  t0, 0x4219, read_joyxh
+
+read_unk:
+    // Unknown I/O register read; do nothing
     li   v0, 0
     jr   ra
 
 
 io_write8: // a0: address, a1: value
-    // Write to an I/O register if it exists
-    // TODO: convert to lookup table
+    // Write to an I/O register in the lookup table
+    andi t0, a0, 0xFF80
+    bne  t0, 0x2100, write_fallback
+    andi t0, a0, 0x7F
+    sll  t0, t0, 2 // Word offset
+    lw   t0, write_iomap(t0)
+    jr   t0
+
+write_fallback:
+    // Write to an I/O register not in the lookup table
+    // TODO: put these in a lookup table too?
     andi a0, a0, 0xFFFF
-    beq  a0, 0x2100, write_inidisp
-    beq  a0, 0x2101, write_obsel
-    beq  a0, 0x2102, write_oamaddl
-    beq  a0, 0x2103, write_oamaddh
-    beq  a0, 0x2104, write_oamdata
-    beq  a0, 0x2105, write_bgmode
-    beq  a0, 0x2107, write_bg1sc
-    beq  a0, 0x2108, write_bg2sc
-    beq  a0, 0x2109, write_bg3sc
-    beq  a0, 0x210A, write_bg4sc
-    beq  a0, 0x210B, write_bg12nba
-    beq  a0, 0x210C, write_bg34nba
-    beq  a0, 0x210D, write_bg1hofs
-    beq  a0, 0x210E, write_bg1vofs
-    beq  a0, 0x210F, write_bg2hofs
-    beq  a0, 0x2110, write_bg2vofs
-    beq  a0, 0x2111, write_bg3hofs
-    beq  a0, 0x2112, write_bg3vofs
-    beq  a0, 0x2113, write_bg4hofs
-    beq  a0, 0x2114, write_bg4vofs
-    beq  a0, 0x2115, write_vmain
-    beq  a0, 0x2116, write_vmaddl
-    beq  a0, 0x2117, write_vmaddh
-    beq  a0, 0x2118, write_vmdatal
-    beq  a0, 0x2119, write_vmdatah
-    beq  a0, 0x211B, write_m7a
-    beq  a0, 0x211C, write_m7b
-    beq  a0, 0x2121, write_cgadd
-    beq  a0, 0x2122, write_cgdata
-    beq  a0, 0x212C, write_tm
-    beq  a0, 0x212D, write_ts
-    beq  a0, 0x2133, write_setini
-    beq  a0, 0x2140, write_apuio0
-    beq  a0, 0x2141, write_apuio1
-    beq  a0, 0x2142, write_apuio2
-    beq  a0, 0x2143, write_apuio3
     beq  a0, 0x2180, write_wmdata
     beq  a0, 0x2181, write_wmaddl
     beq  a0, 0x2182, write_wmaddm
@@ -464,6 +507,9 @@ io_write8: // a0: address, a1: value
     beq  t0, 0x4304, write_a1bx
     beq  t0, 0x4305, write_dasxl
     beq  t0, 0x4306, write_dasxh
+
+write_unk:
+    // Unknown I/O register write; do nothing
     jr   ra
 
 
