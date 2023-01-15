@@ -320,15 +320,13 @@ memory_read8: // a0: address - v0: value
     // Get the pointer to the block from the memory map
     srl  t0, a0, 13
     sll  t0, t0, 2
-    la   t1, memory_map
-    add  t0, t0, t1
-    lw   t0, (t0)
+    lw   t0, memory_map(t0)
     addi s5, s5, -6   // Base cycle decrement
     beqz t0, io_read8 // I/O register fallback
 
     // Clear the write bit before using the pointer
-    li   t1, ~1
-    and  t0, t0, t1
+    andi t1, t0, 1
+    sub  t0, t0, t1
 
     // Apply the offset within the 8KB block
     andi t1, a0, 0x1FFF
@@ -344,15 +342,13 @@ memory_read16: // a0: address - v0: value
     // Get the pointer to the block from the memory map
     srl  t0, a0, 13
     sll  t0, t0, 2
-    la   t1, memory_map
-    add  t0, t0, t1
-    lw   t0, (t0)
+    lw   t0, memory_map(t0)
     addi s5, s5, -6 * 2 // Base cycle decrement
     beqz t0, io_read16  // I/O register fallback
 
     // Clear the write bit before using the pointer
-    li   t1, ~1
-    and  t0, t0, t1
+    andi t1, t0, 1
+    sub  t0, t0, t1
 
     // Apply the offset within the 8KB block
     andi t1, a0, 0x1FFF
@@ -390,9 +386,7 @@ memory_write8: // a0: address, a1: value
     // Get the pointer to the block from the memory map
     srl  t0, a0, 13
     sll  t0, t0, 2
-    la   t1, memory_map
-    add  t0, t0, t1
-    lw   t0, (t0)
+    lw   t0, memory_map(t0)
     addi s5, s5, -6    // Base cycle decrement
     beqz t0, io_write8 // I/O register fallback
 
@@ -403,8 +397,8 @@ memory_write8: // a0: address, a1: value
 
 can_write8:
     // Clear the write bit before using the pointer
-    li   t1, ~1
-    and  t0, t0, t1
+    andi t1, t0, 1
+    sub  t0, t0, t1
 
     // Apply the offset within the 8KB block
     andi t1, a0, 0x1FFF
@@ -420,9 +414,7 @@ memory_write16: // a0: address, a1: value
     // Get the pointer to the block from the memory map
     srl  t0, a0, 13
     sll  t0, t0, 2
-    la   t1, memory_map
-    add  t0, t0, t1
-    lw   t0, (t0)
+    lw   t0, memory_map(t0)
     addi s5, s5, -6 * 2 // Base cycle decrement
     beqz t0, io_write16 // I/O register fallback
 
@@ -433,8 +425,8 @@ memory_write16: // a0: address, a1: value
 
 can_write16:
     // Clear the write bit before using the pointer
-    li   t1, ~1
-    and  t0, t0, t1
+    andi t1, t0, 1
+    sub  t0, t0, t1
 
     // Apply the offset within the 8KB block
     andi t1, a0, 0x1FFF

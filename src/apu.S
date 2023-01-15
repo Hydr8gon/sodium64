@@ -345,30 +345,108 @@ read_cpuio3: // v0: value
 
 
 read_t0out: // v0: value
-    // Update timers, read timer 0's overflow count and reset it
+    // Get how many timer 0 ticks passed since the last update
+    lw   t0, apu_cycle1
+    sub  t0, t0, s3     // Cycles since last update
+    li   t1, APU_TIMER1 // Cycles per timer tick
+    div  t0, t1
+    mflo t1             // Ticks passed
+    beqz t1, end_t0out
+
+    // Check if timer 0 is enabled
+    lbu  t0, apu_control
+    andi t0, t0, 0x01
+    beqz t0, end_t0out
+
+    // Check if timer 0 will overflow
+    lbu  t2, apu_timers + 0
+    lbu  t3, apu_tmdivs + 0
+    addi t4, t2, 1
+    sub  t4, t3, t4
+    andi t4, t4, 0xFF
+    addi t4, t4, 1 // Ticks until overflow
+    blt  t1, t4, end_t0out
+
+    // Update timers if timer 0 is going to overflow
     move t9, ra
     jal  update_timers
+    move ra, t9
+
+end_t0out:
+    // Read timer 0's overflow count and reset it
     lbu  v0, apu_tmouts + 0
     sb   zero, apu_tmouts + 0
-    jr   t9
+    jr   ra
 
 
 read_t1out: // v0: value
-    // Update timers, read timer 1's overflow count and reset it
+    // Get how many timer 1 ticks passed since the last update
+    lw   t0, apu_cycle1
+    sub  t0, t0, s3     // Cycles since last update
+    li   t1, APU_TIMER1 // Cycles per timer tick
+    div  t0, t1
+    mflo t1             // Ticks passed
+    beqz t1, end_t1out
+
+    // Check if timer 1 is enabled
+    lbu  t0, apu_control
+    andi t0, t0, 0x02
+    beqz t0, end_t1out
+
+    // Check if timer 1 will overflow
+    lbu  t2, apu_timers + 1
+    lbu  t3, apu_tmdivs + 1
+    addi t4, t2, 1
+    sub  t4, t3, t4
+    andi t4, t4, 0xFF
+    addi t4, t4, 1 // Ticks until overflow
+    blt  t1, t4, end_t1out
+
+    // Update timers if timer 1 is going to overflow
     move t9, ra
     jal  update_timers
+    move ra, t9
+
+end_t1out:
+    // Read timer 1's overflow count and reset it
     lbu  v0, apu_tmouts + 1
     sb   zero, apu_tmouts + 1
-    jr   t9
+    jr   ra
 
 
 read_t2out: // v0: value
-    // Update timers, read timer 2's overflow count and reset it
+    // Get how many timer 2 ticks passed since the last update
+    lw   t0, apu_cycle2
+    sub  t0, t0, s3     // Cycles since last update
+    li   t1, APU_TIMER2 // Cycles per timer tick
+    div  t0, t1
+    mflo t1             // Ticks passed
+    beqz t1, end_t2out
+
+    // Check if timer 2 is enabled
+    lbu  t0, apu_control
+    andi t0, t0, 0x04
+    beqz t0, end_t2out
+
+    // Check if timer 2 will overflow
+    lbu  t2, apu_timers + 2
+    lbu  t3, apu_tmdivs + 2
+    addi t4, t2, 1
+    sub  t4, t3, t4
+    andi t4, t4, 0xFF
+    addi t4, t4, 1 // Ticks until overflow
+    blt  t1, t4, end_t2out
+
+    // Update timers if timer 2 is going to overflow
     move t9, ra
     jal  update_timers
+    move ra, t9
+
+end_t2out:
+    // Read timer 2's overflow count and reset it
     lbu  v0, apu_tmouts + 2
     sb   zero, apu_tmouts + 2
-    jr   t9
+    jr   ra
 
 
 write_control: // a1: value
