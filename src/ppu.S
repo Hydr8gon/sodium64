@@ -291,7 +291,10 @@ sched_next: // a0: cycles
     add  t1, t1, a0 // Timer 2
     sw   t0, apu_cycle1
     sw   t1, apu_cycle2
-    jr   s0
+
+    // Update timer overflows after cycles are adjusted
+    move ra, s0
+    j    update_overflows
 
 
 read_mpyl: // v0: value
