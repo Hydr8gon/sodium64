@@ -104,8 +104,8 @@ clear_vram:
     sw   t0, 0xA430000C // MI_INTR_MASK_REG
 
     // Override the exception handler using libdragon
-    la   a0, exception_handler
-    jal  register_exception_handler
+    la   a0, reset_handler
+    jal  register_reset_handler
 
     // Start execution
     j    cpu_execute
@@ -150,11 +150,7 @@ set_buffer:
     j    input_update
 
 
-exception_handler:
-    // Fall back to the default handler for non-reset exceptions
-    lw   t0, (a0)
-    bne  t0, 1, exception_default_handler
-
+reset_handler:
     // Write SRAM from memory to the cart
     li   t0, 0x0000
     li   t1, 0x2000
