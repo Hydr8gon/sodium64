@@ -43,7 +43,9 @@ vec_data:
     .hword 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010 // Shift 5
     .hword 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000 // Zero
 
-.space 0x7C8
+tile_jumps: .word prepare_data4, prepare_data16, prepare_data256
+
+.space 0x7BC
 
 fb_border:   .word 0x1000     // 0xF88-0xF8B
 obj_enable:  .word 0x00       // 0xF8C-0xF8F
@@ -107,12 +109,14 @@ draw_bg:
     andi t1, t1, 0x3
     sll  t1, t1, 1
 
-    // Get the character data shift from the BG type
+    // Prepare to draw the BG based on tile bitwidth
     lw   s4, bg_type
     srl  s4, s4, t1
     andi s4, s4, 0x3
     beqz s4, next_bg
-    addi s4, s4, 3
+    sll  t0, s4, 2
+    lw   k1, tile_jumps - 4(t0) // Code path
+    addi s4, s4, 3              // Character shift
 
     // Get the vertical and horizontal offsets within the BG
     sll  t1, t1, 1
@@ -155,6 +159,13 @@ load_screen:
     lw   t0, bgcharbase(t1)
     add  s5, s5, t0
 
+    // Set the initial tile bound based on fine X offset
+    li   v1, 8
+    andi t9, s6, 0x7
+    sub  v1, v1, t9
+    sll  v1, v1, 1
+    add  v1, v1, s0
+
     // Calculate the amount of character data to load per tile
     li   a2, 1
     sll  a2, a2, s4
@@ -174,6 +185,7 @@ draw_tile:
 skip_tile:
     // Move to the next tile
     move s0, v1
+    addi v1, v1, 0x10
 
 load_tile:
     // Move to the next BG once the scanline is complete
@@ -186,13 +198,6 @@ load_tile:
     andi t6, t4, 0x1FF & ~7
     srl  t6, t6, 2
     lhu  t6, scrn_data(t6)
-
-    // Set the tile bounds based on fine X offset
-    li   v1, 8
-    andi t9, t4, 0x7
-    sub  v1, v1, t9
-    sll  v1, v1, 1
-    add  v1, v1, s0
 
 check_tile:
     // Skip loading if the tile is the same as the previous one
@@ -209,17 +214,10 @@ check_tile:
 mirror_noty:
     jal  dma_read
 
-    // Set horizontal mirroring
-    andi s7, t6, 0x4000
-
-    // DMA aligns to 64-bit words, so adjust the data offset accordingly
-    andi t5, a1, 7
-
-prepare_data:
-    // Branch based on the tile type
-    beq  s4, 5, prepare_data16
-    beq  s4, 4, prepare_data4
-    b    prepare_data256
+    // Jump to prepare tile data based on bitwidth
+    andi s7, t6, 0x4000 // Horizontal mirroring
+    andi t5, a1, 0x0007 // DMA offset
+    jr   k1
 
 same_tile:
     // Take the fast path for equal tiles
