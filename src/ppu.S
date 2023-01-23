@@ -287,6 +287,7 @@ sched_next: // a0: cycles
     lw   t1, apu_cycle2
     add  s5, s5, a0 // CPU
     add  s3, s3, a0 // APU
+    add  a3, a3, a0 // DSP
     add  t0, t0, a0 // Timer 0/1
     add  t1, t1, a0 // Timer 2
     sw   t0, apu_cycle1

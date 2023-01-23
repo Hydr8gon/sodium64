@@ -59,8 +59,17 @@ main:
     li   t1, 0x0400     // Vertical scale (10-bit fraction, 240/240)
     sw   t1, 0x0034(t0) // VI_Y_SCALE_REG
 
-    // Initialize the stack below the framebuffer data
-    la   sp, 0x80390000
+    // Initialize the AI to output 16-bit samples at 32000Hz
+    lui  t0, 0xA450     // AI register upper address
+    li   t1, 0x0001     // DMA enable
+    sw   t1, 0x0008(t0) // AI_CONTROL
+    li   t1, 0x05F1     // 48681812 / 32000Hz
+    sw   t1, 0x0010(t0) // AI_DAC_RATE
+    li   t1, 0x000F     // 16-bit - 1
+    sw   t1, 0x0014(t0) // AI_BIT_RATE
+
+    // Initialize the stack below the ROM buffer
+    la   sp, 0x80090000
 
     // Read SRAM from the cart to memory
     li   t0, 0x0000

@@ -25,6 +25,7 @@
 #define APU_TIMER1 2688 // 21477000Hz / 8000Hz = 2684.625
 #define APU_TIMER2  336 // 21477000Hz / 64000Hz = 335.578125
 
+.globl apu_ram
 .globl apu_cycle1
 .globl apu_cycle2
 .globl apu_reg_x
@@ -120,6 +121,9 @@ apu_opcodes:
 .text
 
 apu_execute:
+    // Generate a DSP sample once enough cycles have passed
+    ble  s3, a3, dsp_sample
+
     // Fetch the current opcode
     lhu  a0, apu_count
     move s0, a0 // Save PC
@@ -176,6 +180,8 @@ read_ram:
 
 io_read8:
     // Read from an APU I/O register
+    beq  a0, 0x00F2, read_dspaddr
+    beq  a0, 0x00F3, read_dspdata
     beq  a0, 0x00F4, read_cpuio0
     beq  a0, 0x00F5, read_cpuio1
     beq  a0, 0x00F6, read_cpuio2
@@ -199,6 +205,8 @@ apu_write8: // a0: address, a1: value
 io_write8:
     // Write to an APU I/O register
     beq  a0, 0x00F1, write_control
+    beq  a0, 0x00F2, write_dspaddr
+    beq  a0, 0x00F3, write_dspdata
     beq  a0, 0x00F4, write_cpuio0
     beq  a0, 0x00F5, write_cpuio1
     beq  a0, 0x00F6, write_cpuio2
