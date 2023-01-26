@@ -135,7 +135,7 @@ submit_buffer: // a0: buffer end
     la   t1, dsp_buffer - 0x800
     add  t1, t1, a0     // Buffer address
     sw   t1, 0x0000(t0) // AI_DRAM_ADDR
-    li   t1, 0x200      // Buffer length
+    li   t1, 0x800      // Buffer length
     sw   t1, 0x0004(t0) // AI_LENGTH
     j    apu_execute
 
