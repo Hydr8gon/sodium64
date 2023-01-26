@@ -47,7 +47,8 @@ dsp_sample:
     // Set initial values for the sample
     lbu  t7, enabled
     li   t6, -1 // Voice count
-    li   t5,  0 // Sample
+    li   t5,  0 // Left sample
+    li   t4,  0 // Right sample
 
 next_voice:
     // Check if a voice is enabled
@@ -58,9 +59,8 @@ next_voice:
     beqz t0, next_voice
 
     // Get the pitch scaler for the current voice
-    sll  t0, t6, 4
-    addi t0, t0, 2
-    lhu  t0, dsp_regs(t0) // VxPITCH(L/H)
+    sll  t8, t6, 4
+    lhu  t0, 0x2 + dsp_regs(t8) // VxPITCH(L/H)
     sll  t1, t0, 8
     srl  t0, t0, 8
     or   t0, t0, t1
@@ -97,7 +97,7 @@ decode_sample:
     add  t0, t0, t3
     lbu  t0, apu_ram(t0) // Sample byte
 
-    // Get the appropriate nibble, sign-extend it, and mix it
+    // Get the appropriate nibble, sign-extend it, and shift it
     srl  t2, t2, 10
     andi t2, t2, 0x4
     xori t2, t2, 0x4
@@ -106,14 +106,27 @@ decode_sample:
     sra  t0, t0, 28
     sll  t0, t0, t1
     sra  t0, t0, 1
-    addu t5, t5, t0
+
+    // Mix the sample on the left channel
+    lb   t1, 0x0 + dsp_regs(t8) // VxVOLL
+    mult t0, t1
+    mflo t1
+    sra  t1, t1, 7
+    addu t5, t5, t1
+
+    // Mix the sample on the right channel
+    lb   t1, 0x1 + dsp_regs(t8) // VxVOLR
+    mult t0, t1
+    mflo t1
+    sra  t1, t1, 7
+    addu t4, t4, t1
     b    next_voice
 
 write_sample:
     // Write a sample to the buffer
     andi t5, t5, 0xFFFF
-    sll  t0, t5, 16
-    or   t0, t0, t5
+    sll  t4, t4, 16
+    or   t0, t5, t4
     lhu  t1, dsp_pointer
     sw   t0, 0x20000000 + dsp_buffer(t1) // Uncached
 
