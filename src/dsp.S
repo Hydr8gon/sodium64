@@ -77,14 +77,22 @@ next_voice:
     srl  t3, t2, 16
     beqz t3, decode_sample
 
-    // Move to the next BRR block when the counter overflows
-    lbu  t3, apu_ram(t0) // Header
-    andi t3, t3, 0x1     // End
-    beqz t3, not_end
+    // Move to the next 9-byte BRR block when the counter overflows
+    lbu  t9, apu_ram(t0) // Header
+    andi t3, t9, 0x1     // End
+    addi t0, t0, 9
+    beqz t3, decode_sample
+    andi t3, t9, 0x2     // Loop
     lhu  t0, loop_addrs(t1)
-    b    decode_sample
-not_end:
-    addi t0, t0, 9       // Block size
+    bnez t3, decode_sample
+
+    // Disable the voice if it ends without loop
+    li   t0, 1
+    sll  t0, t0, t6
+    xori t0, t0, 0xFF
+    and  t7, t7, t0
+    sb   t7, enabled
+    b    next_voice
 
 decode_sample:
     // Read the BRR block header and current sample byte
