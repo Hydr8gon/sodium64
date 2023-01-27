@@ -657,7 +657,7 @@ apu_inca: // INC A
     // Increment the accumulator and set flags
     NONE
     lbu  a0, apu_accum
-    addi a0, a0, -1
+    addi a0, a0, 1
     sb   a0, apu_accum
     j    apu_set_nz
 
