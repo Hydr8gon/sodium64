@@ -26,7 +26,7 @@
 scanline:  .byte 0:0x220
 palette:   .byte 0:0x200
 oam:       .byte 0:0x220
-scrn_data: .byte 0:0x80
+scrn_data: .byte 0:0x80 * 4
 char_data: .byte 0:0x40
 
 vec_data:
@@ -45,7 +45,7 @@ vec_data:
 
 tile_jumps: .word prepare_data4, prepare_data16, prepare_data256
 
-.space 0x7BC
+.space 0x63C
 
 fb_border:   .word 0x1000     // 0xF88-0xF8B
 obj_enable:  .word 0x00       // 0xF8C-0xF8F
@@ -85,13 +85,11 @@ draw_frame:
 
     // Set the Y bounds based on 224 or 239-line mode
     lw   t0, fb_border
-    beqz t0, mode_239
-    li   s1, 0   // Current Y coordinate
-    li   s3, 224 // Maximum Y coordinate
-    b    draw_line
-mode_239:
-    li   s1, 1   // Current Y coordinate
-    li   s3, 240 // Maximum Y coordinate
+    li   s1, 0      // Current Y coordinate
+    li   s3, 224
+    srl  t0, t0, 8
+    xori t0, t0, 0x10
+    add  s3, s3, t0 // Maximum Y coordinate
 
 draw_line:
     // Clear the scanline with palette index 0
@@ -124,8 +122,17 @@ draw_bg:
     add  s5, s5, s1
     lw   s6, bghofs(t1)
 
+    // Only reload screen data when starting a new row of tiles
+    sll  a3, a3, 6 // BG screen offset
+    sltu t0, zero, s1
+    sub  t0, zero, t0
+    andi t0, t0, 0x7
+    and  t0, t0, s5
+    bnez t0, skip_screen
+
     // Get the base screen address for the BG
     la   a0, scrn_data
+    add  a0, a0, a3
     la   a1, 0xA03F0000 // VRAM
     lw   t0, bgscrnbase(t1)
     add  a1, a1, t0
@@ -150,6 +157,7 @@ load_screen:
     add  a1, a1, t0
     jal  dma_read
 
+skip_screen:
     // Calculate the character offset for the current line
     la   a0, char_data
     andi s5, s5, 7
@@ -189,7 +197,7 @@ skip_tile:
 
 load_tile:
     // Move to the next BG once the scanline is complete
-    bge  s0, s2, next_bg
+    bge  s0, s2, finish_bg
 
     // Get the BG entry for the current tile
     // TODO: priority
@@ -197,6 +205,7 @@ load_tile:
     add  t4, t4, s6
     andi t6, t4, 0x1FF & ~7
     srl  t6, t6, 2
+    add  t6, t6, a3
     lhu  t6, scrn_data(t6)
 
 check_tile:
@@ -374,6 +383,10 @@ mirror_x256:
     vmudn $v07, $v07, $v30, 0 // Shift upper indices left
     vor   $v00, $v06, $v07, 0 // Combine indices
     b     draw_tile
+
+finish_bg:
+    // Convert the screen offset back to BG shift
+    srl  a3, a3, 6
 
 next_bg:
     // Move to the next BG until all have been drawn

@@ -824,10 +824,10 @@ apu_incw: // INCW aa
 
     // Increment the value and store it back in memory
     addi a1, a1, 1
-    move s1, a1
+    andi s1, a1, 0xFFFF
     jal  apu_write8
     addi a0, a0, 1
-    srl  a1, a1, 8
+    srl  a1, s1, 8
     jal  apu_write8
 
     // Adjust the 16-bit value for 8-bit flag logic and set flags
