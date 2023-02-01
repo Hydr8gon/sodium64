@@ -91,18 +91,18 @@ nmitimen: .byte  0x00
 rdnmi:    .byte  0x00
 hvbjoy:   .byte  0x00
 
-// Mirrors of RSP values
-fb_border:   .word 0x1000   // 0xF88-0xF8B
-obj_enable:  .word 0x00     // 0xF8C-0xF8F
-bg_order:    .word 0x1B     // 0xF90-0xF93
-bg_type2:    .word 0x00     // 0xF94-0xF97
-objcharbase: .word 0x0000   // 0xF98-0xF9B
-bgscrnbase:  .word 0x0000:4 // 0xF9C-0xFAB
-bgbaseofsh:  .word 0x0000:4 // 0xFAC-0xFBB
-bgbaseofsv:  .word 0x0000:4 // 0xFBC-0xFCB
-bgcharbase:  .word 0x0000:4 // 0xFCC-0xFDB
-bghofs:      .word 0x0000:4 // 0xFDC-0xFEB
-bgvofs:      .word 0x0000:4 // 0xFEC-0xFFB
+// Mirrors of RSP values; addresses 0xF8C-0xFFF
+fb_border:   .word 0x1000
+obj_enable:  .word 0x00
+bg_order:    .word 0x1B
+bg_type2:    .word 0x00
+objcharbase: .word 0x0000
+bgscrnbase:  .word 0x0000:4
+bgbaseofsh:  .word 0x0000:4
+bgbaseofsv:  .word 0x0000:4
+bgcharbase:  .word 0x0000:4
+bghofs:      .word 0x0000:4
+bgvofs:      .word 0x0000:4
 
 // 2 bits per BG; the order they should be drawn in
 bg_orders: .byte 0x1B, 0x87
@@ -153,7 +153,7 @@ rsp_wait:
     li   t0, 1 << 7     // Set VI mask
     sw   t0, 0xA430000C // MI_INTR_MASK_REG
 
-    // Prepare to update the RSP's palette in DMEM
+    // Prepare to update the RDP's palette
     lbu  t0, brightness
     li   t9, 0x200
 
@@ -189,35 +189,15 @@ update_dpal:
     sll  t2, t2, 1
     or   t3, t3, t2
 
-    // DMEM access from the main CPU is 32-bit, so check if this is a low or high half-word
-    andi t7, t9, 0x1FF & ~3
-    la   t8, 0xA4000220 // Palette in DMEM
-    add  t8, t8, t7
-    bne  t7, t9, dpal_high
-
-    // Change the low half-word and loop until the palette is finished
-    lw   t7, (t8)
-    andi t7, t7, 0xFFFF
-    sll  t3, t3, 16
-    or   t3, t3, t7
-    sw   t3, (t8)
-    bnez t9, update_dpal
-    b    update_oam
-
-dpal_high:
-    // Change the high half-word and loop until the palette is finished
-    lw   t7, (t8)
-    lui  t6, 0xFFFF
-    and  t7, t7, t6
-    or   t3, t3, t7
-    sw   t3, (t8)
+    // Update a value in the RDP's palette and loop until finished
+    sll  t1, t9, 2
+    sh   t3, 0xA03EF000(t1)
     bnez t9, update_dpal
 
-update_oam:
     // Update the RSP's copy of OAM in DMEM
     la   t0, oam
     la   t1, oam + 0x220
-    la   t2, 0xA4000420
+    la   t2, 0xA4000220
 oam_loop:
     lw   t3, (t0)
     addi t0, t0, 4
@@ -240,7 +220,7 @@ vram_loop:
     // Update the RSP's register values in DMEM
     la   t0, fb_border
     la   t1, bg_orders
-    la   t2, 0xA4000F88
+    la   t2, 0xA4000F8C
 reg_loop:
     lw   t3, (t0)
     addi t0, t0, 4

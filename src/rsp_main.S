@@ -24,41 +24,72 @@
 .data
 
 scanline:  .byte 0:0x220
-palette:   .byte 0:0x200
 oam:       .byte 0:0x220
 scrn_data: .byte 0:0x80 * 4
 char_data: .byte 0:0x40
 
 vec_data:
     .hword 0x8000, 0x4000, 0x2000, 0x1000, 0x0800, 0x0400, 0x0200, 0x0100 // Mask
-    .hword 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080, 0x0100, 0x0200 // Shift 1
-    .hword 0x0008, 0x0010, 0x0020, 0x0040, 0x0080, 0x0100, 0x0200, 0x0400 // Shift 2
-    .hword 0x0010, 0x0020, 0x0040, 0x0080, 0x0100, 0x0200, 0x0400, 0x0800 // Shift 3
-    .hword 0x0020, 0x0040, 0x0080, 0x0100, 0x0200, 0x0400, 0x0800, 0x1000 // Shift 4
+    .hword 0x0002, 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080, 0x0100 // Shift 1
+    .hword 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080, 0x0100, 0x0200 // Shift 2
+    .hword 0x0008, 0x0010, 0x0020, 0x0040, 0x0080, 0x0100, 0x0200, 0x0400 // Shift 3
+    .hword 0x0010, 0x0020, 0x0040, 0x0080, 0x0100, 0x0200, 0x0400, 0x0800 // Shift 4
     .hword 0x0100, 0x0200, 0x0400, 0x0800, 0x1000, 0x2000, 0x4000, 0x8000 // Mask (Mirror)
-    .hword 0x0200, 0x0100, 0x0080, 0x0040, 0x0020, 0x0010, 0x0008, 0x0004 // Shift 1 (Mirror)
-    .hword 0x0400, 0x0200, 0x0100, 0x0080, 0x0040, 0x0020, 0x0010, 0x0008 // Shift 2 (Mirror)
-    .hword 0x0800, 0x0400, 0x0200, 0x0100, 0x0080, 0x0040, 0x0020, 0x0010 // Shift 3 (Mirror)
-    .hword 0x1000, 0x0800, 0x0400, 0x0200, 0x0100, 0x0080, 0x0040, 0x0020 // Shift 4 (Mirror)
+    .hword 0x0100, 0x0080, 0x0040, 0x0020, 0x0010, 0x0008, 0x0004, 0x0002 // Shift 1 (Mirror)
+    .hword 0x0200, 0x0100, 0x0080, 0x0040, 0x0020, 0x0010, 0x0008, 0x0004 // Shift 2 (Mirror)
+    .hword 0x0400, 0x0200, 0x0100, 0x0080, 0x0040, 0x0020, 0x0010, 0x0008 // Shift 3 (Mirror)
+    .hword 0x0800, 0x0400, 0x0200, 0x0100, 0x0080, 0x0040, 0x0020, 0x0010 // Shift 4 (Mirror)
     .hword 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010 // Shift 5
     .hword 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000 // Zero
 
+rdp_init:
+    // RDP commands that only need to run once
+    .dword 0x2D000000004003C0 // Set Scissor
+    .dword 0x2F0888FF00000000 // Set Other Modes
+    .dword 0x3C080E10001C8C46 // Set Combine
+    .dword 0x3510810000000000 // Set Tile (palette)
+    .dword 0x3548800001000090 // Set Tile (scanline)
+
+rdp_frame:
+    // RDP commands that run at the start of a frame
+    .dword 0x3F1000FFA03B0000 // Set Color Image
+    .dword 0x3D100000A03EF000 // Set Texture Image (palette)
+    .dword 0x3300000000400000 // Load Block (palette)
+    .dword 0x3D480000A03EF800 // Set Texture Image (scanline)
+
+rdp_draw:
+    // RDP commands that run at the end of each scanline
+    .dword 0x3100000000000000 // Sync Load
+    .dword 0x3300000001200000 // Load Block (scanline)
+    .dword 0x0A81000000000000 // Texture Triangle 1
+    .dword 0x0100000000000000 // Texture Triangle 2
+    .dword 0x0000000000000000 // Texture Triangle 3
+    .dword 0x0000000000000000 // Texture Triangle 4
+    .dword 0x0010000040000000 // Texture Triangle 5
+    .dword 0x0020000000000000 // Texture Triangle 6
+    .dword 0x0000000000000000 // Texture Triangle 7
+    .dword 0x0000000000000000 // Texture Triangle 8
+    .dword 0x0000000000000000 // Texture Triangle 9
+    .dword 0x0000000000000000 // Texture Triangle 10
+    .dword 0x0000000000000000 // Texture Triangle 11
+    .dword 0x0000000000000000 // Texture Triangle 12
+
 tile_jumps: .word prepare_data4, prepare_data16, prepare_data256
 
-.space 0x63C
+.space 0x788
 
-fb_border:   .word 0x1000     // 0xF88-0xF8B
-obj_enable:  .word 0x00       // 0xF8C-0xF8F
-bg_order:    .word 0x1B       // 0xF90-0xF93
-bg_type:     .word 0x00       // 0xF94-0xF97
-objcharbase: .word 0x0000     // 0xF98-0xF9B
-bgscrnbase:  .word 0x0000:4   // 0xF9C-0xFAB
-bgbaseofsh:  .word 0x0000:4   // 0xFAC-0xFBB
-bgbaseofsv:  .word 0x0000:4   // 0xFBC-0xFCB
-bgcharbase:  .word 0x0000:4   // 0xFCC-0xFDB
-bghofs:      .word 0x0000:4   // 0xFDC-0xFEB
-bgvofs:      .word 0x0000:4   // 0xFEC-0xFFB
-framebuffer: .word 0xA03B0000 // 0xFFC-0xFFF
+// Values updated by CPU; addresses 0xF8C-0xFFF
+fb_border:   .word 0x1000
+obj_enable:  .word 0x00
+bg_order:    .word 0x1B
+bg_type:     .word 0x00
+objcharbase: .word 0x0000
+bgscrnbase:  .word 0x0000:4
+bgbaseofsh:  .word 0x0000:4
+bgbaseofsv:  .word 0x0000:4
+bgcharbase:  .word 0x0000:4
+bghofs:      .word 0x0000:4
+bgvofs:      .word 0x0000:4
 
 .text
 
@@ -76,6 +107,14 @@ framebuffer: .word 0xA03B0000 // 0xFFC-0xFFF
     lqv  $v29, 0, 0x90, t0
     lqv  $v30, 0, 0xA0, t0
     lqv  $v31, 0, 0xB0, t0
+
+    // Run the RDP initialization commands
+    li   t0, 0x2 // Use DMEM
+    mtc0 t0, COP0_DP_STATUS
+    la   t0, rdp_init
+    mtc0 t0, COP0_DP_START
+    la   t0, rdp_draw
+    mtc0 t0, COP0_DP_END
 
 draw_frame:
     // Set initial values for the frame
@@ -237,8 +276,8 @@ prepare_data4:
     // Load data for a 4-color tile, and skip if it's empty
     lhu  k0, char_data + 0x00(t5)
     beqz k0, skip_tile
-    srl  t7, t6, 7
-    andi t7, t7, 0x7 << 3
+    srl  t7, t6, 8
+    andi t7, t7, 0x7 << 2
     mtc2 k0, $v03, 0 // Upper byte to lane 0, bits 8-15
     mtc2 k0, $v03, 1 // Lower byte to lane 1, bits 8-15
     mtc2 t7, $v05, 0 // Palette offset
@@ -247,8 +286,8 @@ prepare_data4:
     // Decode the palette indices
     vand  $v01, $v20, $v03, 9 // Mask out other lower bits
     vand  $v02, $v20, $v03, 8 // Mask out other upper bits
-    vmudl $v03, $v21, $v01, 0 // Shift lower bits to bit 1
-    vmudl $v04, $v22, $v02, 0 // Shift upper bits to bit 2
+    vmudl $v03, $v21, $v01, 0 // Shift lower bits to bit 0
+    vmudl $v04, $v22, $v02, 0 // Shift upper bits to bit 1
     vor   $v02, $v03, $v04, 0 // Combine bits to form indices
     vadd  $v00, $v02, $v05, 8 // Add palette offset
     b     draw_tile
@@ -257,8 +296,8 @@ mirror_x4:
     // Decode the palette indices, mirrored horizontally
     vand  $v01, $v25, $v03, 9 // Mask out other lower bits
     vand  $v02, $v25, $v03, 8 // Mask out other upper bits
-    vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 1
-    vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 2
+    vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 0
+    vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 1
     vor   $v02, $v03, $v04, 0 // Combine bits to form indices
     vadd  $v00, $v02, $v05, 8 // Add palette offset
     b     draw_tile
@@ -269,8 +308,8 @@ prepare_data16:
     lhu  t1, char_data + 0x10(t5)
     or   k0, t0, t1
     beqz k0, skip_tile
-    srl  t7, t6, 5
-    andi t7, t7, 0x7 << 5
+    srl  t7, t6, 6
+    andi t7, t7, 0x7 << 4
     mtc2 t0, $v03, 0 // Upper byte 1 to lane 0, bits 8-15
     mtc2 t0, $v03, 1 // Lower byte 1 to lane 1, bits 8-15
     mtc2 t1, $v13, 0 // Upper byte 2 to lane 0, bits 8-15
@@ -281,13 +320,13 @@ prepare_data16:
     // Decode the palette indices
     vand  $v01, $v20, $v03, 9 // Mask out other lower bits
     vand  $v02, $v20, $v03, 8 // Mask out other upper bis
-    vmudl $v03, $v21, $v01, 0 // Shift lower bits to bit 1
-    vmudl $v04, $v22, $v02, 0 // Shift upper bits to bit 2
+    vmudl $v03, $v21, $v01, 0 // Shift lower bits to bit 0
+    vmudl $v04, $v22, $v02, 0 // Shift upper bits to bit 1
     vor   $v02, $v03, $v04, 0 // Combine bits to form partial indices
     vand  $v11, $v20, $v13, 9 // Mask out other lower bits
     vand  $v12, $v20, $v13, 8 // Mask out other upper bits
-    vmudl $v13, $v23, $v11, 0 // Shift lower bits to bit 3
-    vmudl $v14, $v24, $v12, 0 // Shift upper bits to bit 4
+    vmudl $v13, $v23, $v11, 0 // Shift lower bits to bit 2
+    vmudl $v14, $v24, $v12, 0 // Shift upper bits to bit 3
     vor   $v12, $v13, $v14, 0 // Combine bits to form partial indices
     vor   $v01, $v12, $v02, 0 // Combine partial indices
     vadd  $v00, $v01, $v05, 8 // Add palette offset
@@ -297,13 +336,13 @@ mirror_x16:
     // Decode the palette indices, mirrored horizontally
     vand  $v01, $v25, $v03, 9 // Mask out other lower bits
     vand  $v02, $v25, $v03, 8 // Mask out other upper bis
-    vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 1
-    vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 2
+    vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 0
+    vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 1
     vor   $v02, $v03, $v04, 0 // Combine bits to form partial indices
     vand  $v11, $v25, $v13, 9 // Mask out other lower bits
     vand  $v12, $v25, $v13, 8 // Mask out other upper bits
-    vmudl $v13, $v28, $v11, 0 // Shift lower bits to bit 3
-    vmudl $v14, $v29, $v12, 0 // Shift upper bits to bit 4
+    vmudl $v13, $v28, $v11, 0 // Shift lower bits to bit 2
+    vmudl $v14, $v29, $v12, 0 // Shift upper bits to bit 3
     vor   $v12, $v13, $v14, 0 // Combine bits to form partial indices
     vor   $v01, $v12, $v02, 0 // Combine partial indices
     vadd  $v00, $v01, $v05, 8 // Add palette offset
@@ -332,24 +371,24 @@ prepare_data256:
     // Decode the palette indices
     vand  $v01, $v20, $v03, 9 // Mask out other lower bits
     vand  $v02, $v20, $v03, 8 // Mask out other upper bis
-    vmudl $v03, $v21, $v01, 0 // Shift lower bits to bit 1
-    vmudl $v04, $v22, $v02, 0 // Shift upper bits to bit 2
+    vmudl $v03, $v21, $v01, 0 // Shift lower bits to bit 0
+    vmudl $v04, $v22, $v02, 0 // Shift upper bits to bit 1
     vor   $v02, $v03, $v04, 0 // Combine bits to form partial indices
     vand  $v11, $v20, $v13, 9 // Mask out other lower bits
     vand  $v12, $v20, $v13, 8 // Mask out other upper bits
-    vmudl $v13, $v23, $v11, 0 // Shift lower bits to bit 3
-    vmudl $v14, $v24, $v12, 0 // Shift upper bits to bit 4
+    vmudl $v13, $v23, $v11, 0 // Shift lower bits to bit 2
+    vmudl $v14, $v24, $v12, 0 // Shift upper bits to bit 3
     vor   $v12, $v13, $v14, 0 // Combine bits to form partial indices
     vor   $v06, $v12, $v02, 0 // Combine partial indices
     vand  $v01, $v20, $v08, 9 // Mask out other lower bits
     vand  $v02, $v20, $v08, 8 // Mask out other upper bis
-    vmudl $v03, $v21, $v01, 0 // Shift lower bits to bit 1
-    vmudl $v04, $v22, $v02, 0 // Shift upper bits to bit 2
+    vmudl $v03, $v21, $v01, 0 // Shift lower bits to bit 0
+    vmudl $v04, $v22, $v02, 0 // Shift upper bits to bit 1
     vor   $v02, $v03, $v04, 0 // Combine bits to form partial indices
     vand  $v11, $v20, $v18, 9 // Mask out other lower bits
     vand  $v12, $v20, $v18, 8 // Mask out other upper bits
-    vmudl $v13, $v23, $v11, 0 // Shift lower bits to bit 3
-    vmudl $v14, $v24, $v12, 0 // Shift upper bits to bit 4
+    vmudl $v13, $v23, $v11, 0 // Shift lower bits to bit 2
+    vmudl $v14, $v24, $v12, 0 // Shift upper bits to bit 3
     vor   $v12, $v13, $v14, 0 // Combine bits to form partial indices
     vor   $v07, $v12, $v02, 0 // Combine partial indices
     vmudn $v07, $v07, $v30, 0 // Shift upper indices left
@@ -360,24 +399,24 @@ mirror_x256:
     // Decode the palette indices, mirrored horizontally
     vand  $v01, $v25, $v03, 9 // Mask out other lower bits
     vand  $v02, $v25, $v03, 8 // Mask out other upper bis
-    vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 1
-    vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 2
+    vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 0
+    vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 1
     vor   $v02, $v03, $v04, 0 // Combine bits to form partial indices
     vand  $v11, $v25, $v13, 9 // Mask out other lower bits
     vand  $v12, $v25, $v13, 8 // Mask out other upper bits
-    vmudl $v13, $v28, $v11, 0 // Shift lower bits to bit 3
-    vmudl $v14, $v29, $v12, 0 // Shift upper bits to bit 4
+    vmudl $v13, $v28, $v11, 0 // Shift lower bits to bit 2
+    vmudl $v14, $v29, $v12, 0 // Shift upper bits to bit 3
     vor   $v12, $v13, $v14, 0 // Combine bits to form partial indices
     vor   $v06, $v12, $v02, 0 // Combine partial indices
     vand  $v01, $v25, $v08, 9 // Mask out other lower bits
     vand  $v02, $v25, $v08, 8 // Mask out other upper bis
-    vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 1
-    vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 2
+    vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 0
+    vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 1
     vor   $v02, $v03, $v04, 0 // Combine bits to form partial indices
     vand  $v11, $v25, $v18, 9 // Mask out other lower bits
     vand  $v12, $v25, $v18, 8 // Mask out other upper bits
-    vmudl $v13, $v28, $v11, 0 // Shift lower bits to bit 3
-    vmudl $v14, $v29, $v12, 0 // Shift upper bits to bit 4
+    vmudl $v13, $v28, $v11, 0 // Shift lower bits to bit 2
+    vmudl $v14, $v29, $v12, 0 // Shift upper bits to bit 3
     vor   $v12, $v13, $v14, 0 // Combine bits to form partial indices
     vor   $v07, $v12, $v02, 0 // Combine partial indices
     vmudn $v07, $v07, $v30, 0 // Shift upper indices left
@@ -462,9 +501,9 @@ objmir_noty:
     jal  dma_read
 
     // Get the object's palette offset and scanline bounds
-    srl  t8, t9, 4
-    andi t8, t8, 0x7 << 5
-    addi t8, t8, 0x100
+    srl  t8, t9, 5
+    andi t8, t8, 0x7 << 4
+    addi t8, t8, 0x80
     sll  t1, t1, 1
     addi t2, t1, 8 << 1
 
@@ -488,13 +527,13 @@ load_objtile:
     // Decode the palette indices
     vand  $v01, $v20, $v03, 9 // Mask out other lower bits
     vand  $v02, $v20, $v03, 8 // Mask out other upper bis
-    vmudl $v03, $v21, $v01, 0 // Shift lower bits to bit 1
-    vmudl $v04, $v22, $v02, 0 // Shift upper bits to bit 2
+    vmudl $v03, $v21, $v01, 0 // Shift lower bits to bit 0
+    vmudl $v04, $v22, $v02, 0 // Shift upper bits to bit 1
     vor   $v02, $v03, $v04, 0 // Combine bits to form partial indices
     vand  $v11, $v20, $v13, 9 // Mask out other lower bits
     vand  $v12, $v20, $v13, 8 // Mask out other upper bits
-    vmudl $v13, $v23, $v11, 0 // Shift lower bits to bit 3
-    vmudl $v14, $v24, $v12, 0 // Shift upper bits to bit 4
+    vmudl $v13, $v23, $v11, 0 // Shift lower bits to bit 2
+    vmudl $v14, $v24, $v12, 0 // Shift upper bits to bit 3
     vor   $v12, $v13, $v14, 0 // Combine bits to form partial indices
     vor   $v01, $v12, $v02, 0 // Combine partial indices
     vadd  $v02, $v01, $v05, 8 // Add palette offset
@@ -504,13 +543,13 @@ objmir_x:
     // Decode the palette indices, mirrored horizontally
     vand  $v01, $v25, $v03, 9 // Mask out other lower bits
     vand  $v02, $v25, $v03, 8 // Mask out other upper bis
-    vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 1
-    vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 2
+    vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 0
+    vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 1
     vor   $v02, $v03, $v04, 0 // Combine bits to form partial indices
     vand  $v11, $v25, $v13, 9 // Mask out other lower bits
     vand  $v12, $v25, $v13, 8 // Mask out other upper bits
-    vmudl $v13, $v28, $v11, 0 // Shift lower bits to bit 3
-    vmudl $v14, $v29, $v12, 0 // Shift upper bits to bit 4
+    vmudl $v13, $v28, $v11, 0 // Shift lower bits to bit 2
+    vmudl $v14, $v29, $v12, 0 // Shift upper bits to bit 3
     vor   $v12, $v13, $v14, 0 // Combine bits to form partial indices
     vor   $v01, $v12, $v02, 0 // Combine partial indices
     vadd  $v02, $v01, $v05, 8 // Add palette offset
@@ -544,30 +583,28 @@ next_object:
     bnez t3, draw_object
 
 end_line:
-    // Replace palette indices with palette entries
-    la   t0, scanline + 0x10
-    addi t1, t0, 0x200
-pal_loop:
-    lw   t2, (t0)
-    srl  t3, t2, 16
-    lhu  t3, palette(t3)
-    andi t2, t2, 0xFFFF
-    lhu  t2, palette(t2)
-    sll  t3, t3, 16
-    or   t2, t2, t3
-    sw   t2, (t0)
-    addi t0, t0, 4
-    bne  t0, t1, pal_loop
-
-    // DMA the scanline to the framebuffer
-    la   a0, scanline + 0x10
-    lw   a1, framebuffer
-    lw   t0, fb_border // 8-pixel border
-    add  a1, a1, t0
-    sll  t0, s1, 9 // Scanline offset
-    add  a1, a1, t0
-    li   a2, 0x01FF
+    // DMA the scanline to RDRAM
+    la   a0, 0x10 + scanline
+    la   a1, 0xA03EF800
+    li   a2, 0x1FF
     jal  dma_write
+
+    // Update the RDP draw command for the current scanline
+    lw   t0, fb_border
+    srl  t0, t0, 9
+    add  t0, t0, s1
+    sll  t0, t0, 2
+    addi t1, t0, 4
+    sh   t1, rdp_draw + 18 // y3
+    sll  t1, t0, 16
+    or   t0, t0, t1
+    sw   t0, rdp_draw + 20 // y2, y1
+
+    // Run the RDP to draw a scanline
+    la   t0, rdp_draw
+    mtc0 t0, COP0_DP_START
+    la   t0, tile_jumps
+    mtc0 t0, COP0_DP_END
 
     // Move to the next line until the frame is complete
     addi s1, s1, 1
@@ -577,15 +614,21 @@ pal_loop:
     li   t0, 0x0002 // Set halt
     mtc0 t0, COP0_SP_STATUS
 
-    // Move to the next of three framebuffers
-    lw   t0, framebuffer
+    // Update the framebuffer address in the RDP command
+    lw   t0, rdp_frame + 4
     li   t1, 0x20000
     add  t0, t0, t1
     li   t1, 0xA03F0000
     bne  t0, t1, set_buffer
     li   t0, 0xA0390000
 set_buffer:
-    sw   t0, framebuffer
+    sw   t0, rdp_frame + 4
+
+    // Run the RDP to set the framebuffer
+    la   t0, rdp_frame
+    mtc0 t0, COP0_DP_START
+    la   t0, rdp_draw
+    mtc0 t0, COP0_DP_END
     j    draw_frame
 
 

@@ -160,6 +160,12 @@ set_buffer:
 
 
 reset_handler:
+    // Stop the RSP and prepare the RDP for reset
+    li   t0, 0x0002     // Set halt
+    sw   t0, 0xA4040010 // SP_STATUS
+    li   t0, 0x0001     // Use RDRAM
+    sw   t0, 0xA410000C // DP_STATUS
+
     // Write SRAM from memory to the cart
     li   t0, 0x0000
     li   t1, 0x2000
