@@ -58,6 +58,7 @@
 .globl write_cgdata
 .globl write_tm
 .globl write_ts
+.globl write_coldata
 .globl write_setini
 .globl write_nmitimen
 
@@ -80,6 +81,7 @@ m7_old:     .byte  0x00
 cg_lsb:     .byte  0x00
 
 mpy:      .word  0x000000
+coldata:  .hword 0x0000
 oamadd:   .hword 0x0000
 vmadd:    .hword 0x0000
 cgadd:    .hword 0x0000
@@ -153,9 +155,14 @@ rsp_wait:
     li   t0, 1 << 7     // Set VI mask
     sw   t0, 0xA430000C // MI_INTR_MASK_REG
 
-    // Prepare to update the RDP's palette
+    // Use the sub screen background color if it's set
+    // TODO: actually implement color math
     lbu  t0, brightness
+    lhu  t8, cgram
     li   t9, 0x200
+    lhu  t1, coldata
+    beqz t1, update_dpal
+    sh   t1, cgram
 
 update_dpal:
     // Move to the next palette color
@@ -193,6 +200,7 @@ update_dpal:
     sll  t1, t9, 2
     sh   t3, 0xA03EF000(t1)
     bnez t9, update_dpal
+    sh   t8, cgram
 
     // Update the RSP's copy of OAM in DMEM
     la   t0, oam
@@ -752,6 +760,32 @@ write_ts: // a1: value
     // Update the masked BG type and OBJ enable in DMEM
     sw   t0, bg_type2
     sw   t4, obj_enable
+    jr   ra
+
+
+write_coldata: // a1: value
+    // Prepare to update the sub screen background color
+    lhu  t0, coldata
+    andi t1, a1, 0x1F // Intensity
+    li   t2, 0x1F     // Mask
+    li   t3, 3        // Count
+
+next_channel:
+    // Update a channel's intensity if its bit is set
+    sll  t4, a1, t3
+    andi t4, t4, 0x100
+    beqz t4, skip_channel
+    not  t4, t2
+    and  t0, t0, t4
+    or   t0, t0, t1
+
+skip_channel:
+    // Move to the next of the RGB channels
+    sll  t1, t1, 5
+    sll  t2, t2, 5
+    addi t3, t3, -1
+    bnez t3, next_channel
+    sh   t0, coldata
     jr   ra
 
 
