@@ -94,7 +94,7 @@ rdnmi:    .byte  0x00
 hvbjoy:   .byte  0x00
 
 // Mirrors of RSP values; addresses 0xF8C-0xFFF
-fb_border:   .word 0x1000
+fb_border:   .word 0x08
 obj_enable:  .word 0x00
 bg_order:    .word 0x1B
 bg_type2:    .word 0x00
@@ -168,7 +168,7 @@ update_dpal:
     // Move to the next palette color
     addi t9, t9, -2
     lhu  t1, cgram(t9)
-    li   t3, 0x0001
+    sltu t3, zero, t9 // Set alpha unless index 0
 
     // Apply brightness to the red component and shift for N64 format
     andi t2, t1, 0x1F
@@ -792,9 +792,9 @@ skip_channel:
 write_setini: // a1: value
     // Set an 8-pixel border if 224-line mode is set
     // TODO: use the rest of the bits
-    andi t0, a1, 0x04
-    sll  t0, t0, 10
-    xori t0, t0, 0x1000
+    andi t0, a1, 0x4
+    sll  t0, t0, 1
+    xori t0, t0, 0x8
     sw   t0, fb_border
     jr   ra
 
