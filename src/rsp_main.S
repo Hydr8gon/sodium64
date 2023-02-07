@@ -140,10 +140,9 @@ bgvofs:      .word 0x0000:4
     // Run the RDP initialization commands
     li   t0, 0x2 // Use DMEM
     mtc0 t0, COP0_DP_STATUS
-    la   t0, rdp_init
-    mtc0 t0, COP0_DP_START
-    la   t0, rdp_line
-    mtc0 t0, COP0_DP_END
+    la   a0, rdp_init
+    la   a1, rdp_line
+    jal  rdp_send
 
 draw_frame:
     // Set initial values for the frame
@@ -480,10 +479,9 @@ next_bg:
     sw   t0, 28 + rdp_line // y2, y1
 
     // Run the RDP to draw a scanline
-    la   t0, rdp_line
-    mtc0 t0, COP0_DP_START
-    la   t0, rdp_tile
-    mtc0 t0, COP0_DP_END
+    la   a0, rdp_line
+    la   a1, rdp_tile
+    jal  rdp_send
 
     // Move to the next line until the frame is complete
     addi s1, s1, 1
@@ -642,10 +640,9 @@ draw_object:
     jal  dma_write
 
     // Run the RDP to draw an object
-    la   t0, rdp_tile
-    mtc0 t0, COP0_DP_START
-    la   t0, mirror_vals
-    mtc0 t0, COP0_DP_END
+    la   a0, rdp_tile
+    la   a1, mirror_vals
+    jal  rdp_send
 
 next_object:
     // Move to the next object until all are drawn
@@ -680,10 +677,9 @@ set_border:
     sh   t2, rdp_frame + 14
 
     // Run the RDP to prepare the next frame
-    la   t0, rdp_frame
-    mtc0 t0, COP0_DP_START
-    la   t0, rdp_line
-    mtc0 t0, COP0_DP_END
+    la   a0, rdp_frame
+    la   a1, rdp_line
+    jal  rdp_send
     j    draw_frame
 
 
@@ -704,4 +700,14 @@ dma_wait:
     // Wait for the DMA to complete
     mfc0 t0, COP0_DMA_BUSY
     bnez t0, dma_wait
+    jr   ra
+
+
+rdp_send: // a0: start address, a1: end address
+    // Wait for the RDP to be ready and then send commands
+    mfc0 t0, COP0_DP_STATUS
+    andi t0, t0, 0x40 // Command busy
+    bnez t0, rdp_send
+    mtc0 a0, COP0_DP_START
+    mtc0 a1, COP0_DP_END
     jr   ra
