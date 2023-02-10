@@ -51,18 +51,19 @@ input_init:
 
 input_update:
     // Read the output of the joybus command via DMA
-    lui  t0, 0xA480     // SI register upper address
-    la   t1, joybus_cmd // Output buffer
-    sw   t1, 0x0000(t0) // SI_DRAM_ADDR
-    li   t2, 0x0FC0     // PIF RAM
-    sw   t2, 0x0004(t0) // SI_PIF_AD_RD64B
+    lui  k0, 0xA480     // SI register upper address
+    la   k1, joybus_cmd // Output buffer
+    sw   k1, 0x0000(k0) // SI_DRAM_ADDR
+    li   k1, 0x0FC0     // PIF RAM
+    sw   k1, 0x0004(k0) // SI_PIF_AD_RD64B
 
     // Invalidate cache for the DMA buffer
-    cache 0x11, 0x00(t1)
-    cache 0x11, 0x10(t1)
-    cache 0x11, 0x20(t1)
-    cache 0x11, 0x30(t1)
-    jr   ra
+    la    k0, joybus_cmd
+    cache 0x11, 0x00(k0)
+    cache 0x11, 0x10(k0)
+    cache 0x11, 0x20(k0)
+    cache 0x11, 0x30(k0)
+    eret
 
 
 read_joyxl: // a0: address

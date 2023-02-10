@@ -106,15 +106,18 @@ clear_vram:
     li   t0, 0x0001     // Clear halt
     sw   t0, 0xA4040010 // SP_STATUS_REG
 
-    // Setup the VI interrupt handler using libdragon
-    la   a0, vi_interrupt
-    jal  register_VI_handler
-    li   t0, 1 << 7     // Set VI mask
-    sw   t0, 0xA430000C // MI_INTR_MASK_REG
+    // Overwrite the libdragon exception handler
+    la    t0, exception_vector
+    lw    t1, 0(t0)
+    lw    t2, 4(t0)
+    la    t0, 0xA0000180
+    sw    t1, 0(t0)
+    sw    t2, 4(t0)
+    cache 0x10, 0(t0)
 
-    // Override the exception handler using libdragon
-    la   a0, reset_handler
-    jal  register_reset_handler
+    // Enable VI interrupts and nothing else
+    li   t0, 0x0595     // Set VI mask
+    sw   t0, 0xA430000C // MI_MASK_REG
 
     // Start execution
     j    cpu_execute
@@ -135,31 +138,56 @@ dma_wait:
     jr   ra
 
 
+exception_vector:
+    // Jump to the custom exception handler (copied to the exception vector)
+    j    exception_handler
+
+
+exception_handler:
+    // Jump to the appropriate handler for supported interrupts
+    mfc0 k0, $13 // Cause
+    andi k1, k0, 0x1000
+    bnez k1, reset_interrupt
+    andi k1, k0, 0x400
+    bnez k1, vi_interrupt
+    eret
+
+
 vi_interrupt:
+    // Acknowledge the VI interrupt
+    lui  k0, 0xA440
+    sw   zero, 0x0010(k0) // VI_CURRENT
+
     // Continue if the next frame is ready, otherwise just update input
-    lbu  t2, frame_count
-    bnez t2, swap_buffers
+    la   k0, frame_count
+    lbu  k1, (k0)
+    bnez k1, swap_buffers
     j    input_update
 
 swap_buffers:
-    // Move to the next of three framebuffers
-    lw   t0, framebuffer
-    li   t1, 0x20000
-    add  t0, t0, t1
-    li   t1, 0xA03F0000
-    bne  t0, t1, set_buffer
-    li   t0, 0xA0390000
-set_buffer:
-    sw   t0, 0xA4400004 // VI_ORIGIN_REG
-    sw   t0, framebuffer
+    // Decrement the frame counter
+    addi k1, k1, -1
+    sb   k1, (k0)
 
-    // Decrement the frame counter and update input
-    addi t2, t2, -1
-    sb   t2, frame_count
+    // Get the address of the next of three framebuffers
+    la   k0, framebuffer
+    lw   k0, (k0)
+    li   k1, 0x20000
+    add  k0, k0, k1
+    li   k1, 0xA03F0000
+    bne  k0, k1, set_buffer
+    li   k0, 0xA0390000
+
+set_buffer:
+    // Set the framebuffer address and update input
+    lui  k1, 0xA440
+    sw   k0, 0x0004(k1) // VI_ORIGIN
+    la   k1, framebuffer
+    sw   k0, (k1)
     j    input_update
 
 
-reset_handler:
+reset_interrupt:
     // Stop the RSP and prepare the RDP for reset
     li   t0, 0x0002     // Set halt
     sw   t0, 0xA4040010 // SP_STATUS
