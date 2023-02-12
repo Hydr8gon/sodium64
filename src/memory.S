@@ -19,9 +19,16 @@
 
 #include <regdef.h>
 
+// Master cycle counts for CPU memory accesses
+#define RAM_CYCLE 8
+#define IO_CYCLE  6
+
 .globl sram
 
 .globl memory_init
+.globl tlbl_exception
+.globl tlbs_exception
+.globl tlbm_exception
 .globl memory_read8
 .globl memory_read16
 .globl memory_write8
@@ -31,9 +38,12 @@
 
 .data
 
-sram:       .byte 0:0x2000
-wram:       .byte 0:0x20000
-empty:      .byte 0:0x2000
+.byte 0:0x1000 // Alignment
+sram:  .byte 0:0x2000
+wram:  .byte 0:0x20000
+empty: .byte 0:0x2000
+.byte 0:0x1000 // Alignment
+
 memory_map: .word 0:0x800
 wmadd:      .word 0x00000
 
@@ -178,7 +188,7 @@ losys_area:
     // Further break down the 16-bit system area address
     andi t3, t0, 0xFFFF
     li   t4, 0x1FFF          // WRAM mask
-    blt  t3, t2, lowram_area // 0x0000-0x1FFF: 8KB WRAM mirror
+    blt  t3, t4, lowram_area // 0x0000-0x1FFF: 8KB WRAM mirror
     li   t4, 0x8000
     bge  t3, t4, lorom_area  // 0x8000-0xFFFF: WS1/WS2 LoROM
     b    loio_area           // 0x2000-0x7FFF: I/O registers
@@ -187,7 +197,7 @@ lowram_area:
     // Get a pointer to a WRAM block, with bit 0 set to indicate writability
     la   t3, wram
     and  t4, t4, t0 // Apply mask
-    add  t3, t3, t4 
+    add  t3, t3, t4
     ori  t3, t3, 1  // Write bit
     b    map_loblock
 
@@ -219,13 +229,25 @@ losram_area:
 loio_area:
     // Set no pointer; this will fall back to I/O registers
     li   t3, 0
-    b    map_loblock
+    b    map_lonone
 
 loempty_area:
     // Get a pointer to the empty placeholder block
     la   t3, empty
 
 map_loblock:
+    // Convert the pointer to a TLB EntryLo0 value
+    lui  t4, 0x8000    // Physical offset
+    sub  t3, t3, t4
+    andi t4, t3, 0xFFF // 4KB-aligned
+    sub  t3, t3, t4
+    srl  t3, t3, 6
+    andi t4, t4, 1
+    sll  t4, t4, 2     // Dirty
+    ori  t4, t4, 0x1B  // Cache, Valid, Global
+    or   t3, t3, t4
+
+map_lonone:
     // Store the pointer to the block in the memory map
     la   t4, memory_map
     srl  t5, t0, 11 // Pointer offset
@@ -261,7 +283,7 @@ hisys_area:
     // Further break down the 16-bit system area address
     andi t3, t0, 0xFFFF
     li   t4, 0x1FFF          // WRAM mask
-    blt  t3, t2, hiwram_area // 0x0000-0x1FFF: 8KB WRAM mirror
+    blt  t3, t4, hiwram_area // 0x0000-0x1FFF: 8KB WRAM mirror
     li   t4, 0x8000
     bge  t3, t4, hirom_area  // 0x8000-0xFFFF: WS1/WS2 HiROM
     li   t4, 0x6000
@@ -297,13 +319,25 @@ hisram_area:
 hiio_area:
     // Set no pointer; this will fall back to I/O registers
     li   t3, 0
-    b    map_hiblock
+    b    map_hinone
 
 hiempty_area:
     // Get a pointer to the empty placeholder block
     la   t3, empty
 
 map_hiblock:
+    // Convert the pointer to a TLB EntryLo0 value
+    lui  t4, 0x8000    // Physical offset
+    sub  t3, t3, t4
+    andi t4, t3, 0xFFF // 4KB-aligned
+    sub  t3, t3, t4
+    srl  t3, t3, 6
+    andi t4, t4, 1
+    sll  t4, t4, 2     // Dirty
+    ori  t4, t4, 0x1B  // Cache, Valid, Global
+    or   t3, t3, t4
+
+map_hinone:
     // Store the pointer to the block in the memory map
     la   t4, memory_map
     srl  t5, t0, 11 // Pointer offset
@@ -316,147 +350,118 @@ map_hiblock:
     jr   ra
 
 
+tlbl_exception:
+    // Look up the EntryLo0 value for the missed address
+    srl  k0, a0, 13
+    sll  k0, k0, 2
+    lw   k1, memory_map(k0)
+    beqz k1, tlbl_io
+
+    // Overwrite the oldest TLB entry
+    mtc0 k1, $2  // EntryLo0
+    addi k1, k1, 0x40
+    mtc0 k1, $3  // EntryLo1
+    sll  k0, k0, 11
+    mtc0 k0, $10 // EntryHi
+    nop
+    tlbwi
+
+    // Increment the TLB index
+    mfc0 k0, $0 // Index
+    addi k0, k0, 1
+    andi k0, k0, 0x1F
+    mtc0 k0, $0 // Index
+    eret
+
+tlbl_io:
+    // Fall back to the I/O read handler if nothing is mapped
+    la   k0, io_read8
+    mtc0 k0, $14 // EPC
+    addi s5, s5, RAM_CYCLE - IO_CYCLE
+    nop
+    eret
+
+
+tlbs_exception:
+    // Look up the EntryLo0 value for the missed address
+    srl  k0, a0, 13
+    sll  k0, k0, 2
+    lw   k1, memory_map(k0)
+    beqz k1, tlbs_io
+
+    // Overwrite the oldest TLB entry
+    mtc0 k1, $2  // EntryLo0
+    addi k1, k1, 0x40
+    mtc0 k1, $3  // EntryLo1
+    sll  k0, k0, 11
+    mtc0 k0, $10 // EntryHi
+    nop
+    tlbwi
+
+    // Increment the TLB index
+    mfc0 k0, $0 // Index
+    addi k0, k0, 1
+    andi k0, k0, 0x1F
+    mtc0 k0, $0 // Index
+    eret
+
+tlbs_io:
+    // Fall back to the I/O write handler if nothing is mapped
+    la   k0, io_write8
+    mtc0 k0, $14 // EPC
+    addi s5, s5, RAM_CYCLE - IO_CYCLE
+    nop
+    eret
+
+
+tlbm_exception:
+    // Skip writes to read-only memory
+    mfc0 k0, $14 // EPC
+    addi k0, k0, 4
+    mtc0 k0, $14 // EPC
+    nop
+    nop
+    eret
+
+
 memory_read8: // a0: address - v0: value
-    // Get the pointer to the block from the memory map
-    srl  t0, a0, 13
-    sll  t0, t0, 2
-    lw   t0, memory_map(t0)
-    addi s5, s5, -6   // Base cycle decrement
-    beqz t0, io_read8 // I/O register fallback
-
-    // Clear the write bit before using the pointer
-    andi t1, t0, 1
-    sub  t0, t0, t1
-
-    // Apply the offset within the 8KB block
-    andi t1, a0, 0x1FFF
-    add  t0, t0, t1
-
     // Read a byte from memory and decrease the cycle count
-    lbu  v0, 0(t0)
-    addi s5, s5, -2
+    addi s5, s5, -RAM_CYCLE
+    lbu  v0, (a0)
     jr   ra
 
 
 memory_read16: // a0: address - v0: value
-    // Get the pointer to the block from the memory map
-    srl  t0, a0, 13
-    sll  t0, t0, 2
-    lw   t0, memory_map(t0)
-    addi s5, s5, -6 * 2 // Base cycle decrement
-    beqz t0, io_read16  // I/O register fallback
-
-    // Clear the write bit before using the pointer
-    andi t1, t0, 1
-    sub  t0, t0, t1
-
-    // Apply the offset within the 8KB block
-    andi t1, a0, 0x1FFF
-    add  t0, t0, t1
-
-    // Read two bytes from memory and decrease the cycle count
-    lbu  v0, 0(t0)
-    lbu  t0, 1(t0)
-    addi s5, s5, -2 * 2
-    sll  t0, t0, 8
-    or   v0, v0, t0
-    jr   ra
-
-io_read16:
-    // Backup the return address
-    addi sp, sp, -8
-    sw   ra, (sp)
-
-    // Read two 8-bit values from the I/O registers
-    jal  io_read8
+    // Read 2 bytes from memory and form a 16-bit value
+    move a2, ra
+    jal  memory_read8
     move s1, v0
     addi a0, a0, 1
-    jal  io_read8
+    jal  memory_read8
     addi a0, a0, -1
     sll  v0, v0, 8
     or   v0, v0, s1
-
-    // Restore the return address
-    lw   ra, (sp)
-    addi sp, sp, 8
-    jr   ra
+    jr   a2
 
 
 memory_write8: // a0: address, a1: value
-    // Get the pointer to the block from the memory map
-    srl  t0, a0, 13
-    sll  t0, t0, 2
-    lw   t0, memory_map(t0)
-    addi s5, s5, -6    // Base cycle decrement
-    beqz t0, io_write8 // I/O register fallback
-
-    // Ensure the block is writable
-    andi t1, t0, 1
-    bnez t1, can_write8
-    jr   ra
-
-can_write8:
-    // Clear the write bit before using the pointer
-    andi t1, t0, 1
-    sub  t0, t0, t1
-
-    // Apply the offset within the 8KB block
-    andi t1, a0, 0x1FFF
-    add  t0, t0, t1
-
     // Write a byte to memory and decrease the cycle count
-    sb   a1, 0(t0)
-    addi s5, s5, -2
+    addi s5, s5, -RAM_CYCLE
+    sb   a1, (a0)
     jr   ra
 
 
 memory_write16: // a0: address, a1: value
-    // Get the pointer to the block from the memory map
-    srl  t0, a0, 13
-    sll  t0, t0, 2
-    lw   t0, memory_map(t0)
-    addi s5, s5, -6 * 2 // Base cycle decrement
-    beqz t0, io_write16 // I/O register fallback
-
-    // Ensure the block is writable
-    andi t1, t0, 1
-    bnez t1, can_write16
-    jr   ra
-
-can_write16:
-    // Clear the write bit before using the pointer
-    andi t1, t0, 1
-    sub  t0, t0, t1
-
-    // Apply the offset within the 8KB block
-    andi t1, a0, 0x1FFF
-    add  t0, t0, t1
-
-    // Write two bytes to memory and decrease the cycle count
-    sb   a1, 0(t0)
-    srl  t1, a1, 8
-    sb   t1, 1(t0)
-    addi s5, s5, -2 * 2
-    jr   ra
-
-io_write16:
-    // Backup the return address and value
-    addi sp, sp, -16
-    sw   ra, 8(sp)
-    sw   a1, 0(sp)
-
-    // Write two 8-bit values to the I/O registers
-    jal  io_write8
+    // Write a 16-bit value to memory as 2 bytes
+    move a2, ra
+    move s1, a1
+    jal  memory_write8
     addi a0, a0, 1
     srl  a1, a1, 8
-    jal  io_write8
+    jal  memory_write8
     addi a0, a0, -1
-
-    // Restore the return address and value
-    lw   a1, 0(sp)
-    lw   ra, 8(sp)
-    addi sp, sp, 16
-    jr   ra
+    move a1, s1
+    jr   a2
 
 
 io_read8: // a0: address - v0: value
@@ -497,7 +502,9 @@ write_wmdata: // a1: value
     sw   t1, wmadd
 
     // Write a byte to WRAM
-    sb   a1, wram(t0)
+    li   a0, 0x7E0000
+    add  a0, a0, t0
+    sb   a1, (a0)
     jr   ra
 
 

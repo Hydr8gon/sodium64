@@ -68,18 +68,40 @@ main:
     li   t1, 0x000F     // 16-bit - 1
     sw   t1, 0x0014(t0) // AI_BIT_RATE
 
+    // Overwrite the libdragon exception handlers
+    la    t0, exception_vector
+    lw    t1, 0x0000(t0)
+    lw    t2, 0x0004(t0)
+    lui   t0, 0xA000
+    sw    t1, 0x0000(t0)
+    sw    t2, 0x0004(t0)
+    sw    t1, 0x0080(t0)
+    sw    t2, 0x0084(t0)
+    sw    t1, 0x0100(t0)
+    sw    t2, 0x0104(t0)
+    sw    t1, 0x0180(t0)
+    sw    t2, 0x0184(t0)
+    cache 0x10, 0x0000(t0)
+    cache 0x10, 0x0080(t0)
+    cache 0x10, 0x0100(t0)
+    cache 0x10, 0x0180(t0)
+
     // Initialize the stack below the ROM buffer
     la   sp, 0x80090000
 
     // Read SRAM from the cart to memory
-    li   t0, 0x0000
-    li   t1, 0x2000
+    li   t0, 0xA8000000
+    la   t1, sram
+    andi t2, t1, 0xFFF  // 4KB-aligned
+    sub  t1, t1, t2
+    addi t2, t1, 0x2000 // 8KB size
 read_sram:
-    lw   t2, 0xA8000000(t0)
-    jal  sram_wait
-    sw   t2, sram(t0)
+    lw   t3, (t0)
     addi t0, t0, 4
-    bne  t0, t1, read_sram
+    jal  sram_wait
+    sw   t3, (t1)
+    addi t1, t1, 4
+    bne  t1, t2, read_sram
 
     // Clear the framebuffers and VRAM on boot (hardcoded for RSP access)
     li   t0, 0xA0390000
@@ -90,6 +112,7 @@ clear_vram:
     bne  t0, t1, clear_vram
 
     // Initialize the emulator
+    jal  reset_tlb
     jal  input_init
     jal  memory_init
     jal  cpu_init
@@ -105,15 +128,6 @@ clear_vram:
     // Start the RSP
     li   t0, 0x0001     // Clear halt
     sw   t0, 0xA4040010 // SP_STATUS_REG
-
-    // Overwrite the libdragon exception handler
-    la    t0, exception_vector
-    lw    t1, 0(t0)
-    lw    t2, 4(t0)
-    la    t0, 0xA0000180
-    sw    t1, 0(t0)
-    sw    t2, 4(t0)
-    cache 0x10, 0(t0)
 
     // Enable VI interrupts and nothing else
     li   t0, 0x0595     // Set VI mask
@@ -138,12 +152,37 @@ dma_wait:
     jr   ra
 
 
+reset_tlb:
+    // Map all TLB entries to inaccessible locations
+    mtc0 zero, $5 // PageMask
+    li   t0, 0x80000000
+    mtc0 t0, $10  // EntryHi
+    li   t0, 32
+next_tlb:
+    addi t0, t0, -1
+    mtc0 t0, $0   // Index
+    nop
+    tlbwi
+    bnez t0, next_tlb
+    jr   ra
+
+
 exception_vector:
     // Jump to the custom exception handler (copied to the exception vector)
     j    exception_handler
 
 
 exception_handler:
+    // Jump to the appropriate handler for supported exceptions
+    mfc0 k0, $13          // Cause
+    andi k0, k0, 0x7C
+    addi k1, k0, -0x8     // TLB load miss
+    beqz k1, tlbl_exception
+    addi k1, k0, -0xC     // TLB store miss
+    beqz k1, tlbs_exception
+    addi k1, k0, -0x4     // TLB modification
+    beqz k1, tlbm_exception
+
     // Jump to the appropriate handler for supported interrupts
     mfc0 k0, $13 // Cause
     andi k1, k0, 0x1000
@@ -194,15 +233,22 @@ reset_interrupt:
     li   t0, 0x0001     // Use RDRAM
     sw   t0, 0xA410000C // DP_STATUS
 
+    // Reset the TLB to ensure unmapped SRAM is updated
+    jal  reset_tlb
+
     // Write SRAM from memory to the cart
-    li   t0, 0x0000
-    li   t1, 0x2000
+    li   t0, 0xA8000000
+    la   t1, sram
+    andi t2, t1, 0xFFF  // 4KB-aligned
+    sub  t1, t1, t2
+    addi t2, t1, 0x2000 // 8KB size
 write_sram:
-    lw   t2, sram(t0)
+    lw   t3, (t1)
+    addi t1, t1, 4
     jal  sram_wait
-    sw   t2, 0xA8000000(t0)
+    sw   t3, (t0)
     addi t0, t0, 4
-    bne  t0, t1, write_sram
+    bne  t1, t2, write_sram
 
 loop:
     // Wait until the system resets
@@ -211,8 +257,8 @@ loop:
 
 sram_wait:
     // Wait a while between SRAM accesses
-    li   t3, 0x200
+    li   t4, 0x200
 sram_loop:
-    addi t3, t3, -1
-    bnez t3, sram_loop
+    addi t4, t4, -1
+    bnez t4, sram_loop
     jr   ra
