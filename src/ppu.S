@@ -93,7 +93,7 @@ nmitimen: .byte  0x00
 rdnmi:    .byte  0x00
 hvbjoy:   .byte  0x00
 
-// Mirrors of RSP values; addresses 0xF8C-0xFFF
+// Mirrors of RSP values; addresses 0xF88-0xFFF
 fb_border:   .word 0x08
 obj_enable:  .word 0x00
 bg_order:    .word 0x1B
@@ -105,6 +105,7 @@ bgbaseofsv:  .word 0x0000:4
 bgcharbase:  .word 0x0000:4
 bghofs:      .word 0x0000:4
 bgvofs:      .word 0x0000:4
+fill_color:  .word 0x0000
 
 // 2 bits per BG; the order they should be drawn in
 bg_orders: .byte 0x1B, 0x87
@@ -201,11 +202,12 @@ update_dpal:
     sh   t3, 0xA03EF000(t1)
     bnez t9, update_dpal
     sh   t8, cgram
+    sw   t3, fill_color
 
     // Update the RSP's copy of OAM in DMEM
     la   t0, oam
     la   t1, oam + 0x220
-    la   t2, 0xA4000220
+    la   t2, 0xA4000200
 oam_loop:
     lw   t3, (t0)
     addi t0, t0, 4
@@ -228,7 +230,7 @@ vram_loop:
     // Update the RSP's register values in DMEM
     la   t0, fb_border
     la   t1, bg_orders
-    la   t2, 0xA4000F8C
+    la   t2, 0xA4000F88
 reg_loop:
     lw   t3, (t0)
     addi t0, t0, 4
