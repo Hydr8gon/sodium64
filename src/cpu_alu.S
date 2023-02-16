@@ -302,7 +302,7 @@
 
 .macro ORA_8 // ORA op (8-bit)
     // Bitwise or a value with the accumulator and set flags (8-bit)
-    jal  memory_read8
+    MEM_READ8
     lbu  a0, accumulator + 1
     or   a0, a0, v0
     sb   a0, accumulator + 1
@@ -328,7 +328,7 @@ oraily_8: ILY; ORA_8 // ORA [nn],Y   (8-bit)
 
 .macro ORA_16 // ORA op (16-bit)
     // Bitwise or a value with the accumulator and set flags (16-bit)
-    jal  memory_read16
+    MEM_READ16
     lhu  a0, accumulator
     or   a0, a0, v0
     sh   a0, accumulator
@@ -354,7 +354,7 @@ oraily_16: ILY; ORA_16 // ORA [nn],Y   (16-bit)
 
 .macro AND_8 // AND op (8-bit)
     // Bitwise and a value with the accumulator and set flags (8-bit)
-    jal  memory_read8
+    MEM_READ8
     lbu  a0, accumulator + 1
     and  a0, a0, v0
     sb   a0, accumulator + 1
@@ -380,7 +380,7 @@ andily_8: ILY; AND_8 // AND [nn],Y   (8-bit)
 
 .macro AND_16 // AND op (16-bit)
     // Bitwise and a value with the accumulator and set flags (16-bit)
-    jal  memory_read16
+    MEM_READ16
     lhu  a0, accumulator
     and  a0, a0, v0
     sh   a0, accumulator
@@ -406,7 +406,7 @@ andily_16: ILY; AND_16 // AND [nn],Y   (16-bit)
 
 .macro EOR_8 // EOR op (8-bit)
     // Bitwise exclusive-or a value with the accumulator and set flags (8-bit)
-    jal  memory_read8
+    MEM_READ8
     lbu  a0, accumulator + 1
     xor  a0, a0, v0
     sb   a0, accumulator + 1
@@ -432,7 +432,7 @@ eorily_8: ILY; EOR_8 // EOR [nn],Y   (8-bit)
 
 .macro EOR_16 // EOR op (16-bit)
     // Bitwise exclusive-or a value with the accumulator and set flags (16-bit)
-    jal  memory_read16
+    MEM_READ16
     lhu  a0, accumulator
     xor  a0, a0, v0
     sh   a0, accumulator
@@ -458,7 +458,7 @@ eorily_16: ILY; EOR_16 // EOR [nn],Y   (16-bit)
 
 .macro ADC_8 // ADC op (8-bit) TODO: decimal mode
     // Add a value with carry to the accumulator (8-bit)
-    jal  memory_read8
+    MEM_READ8
     lbu  t0, accumulator + 1
     add  a0, t0, v0
     and  t1, s4, 0x01 // C
@@ -498,7 +498,7 @@ adcily_8: ILY; ADC_8 // ADC [nn],Y   (8-bit)
 
 .macro ADC_16 // ADC op (16-bit) TODO: decimal mode
     // Add a value with carry to the accumulator (16-bit)
-    jal  memory_read16
+    MEM_READ16
     lhu  t0, accumulator
     add  a0, t0, v0
     and  t1, s4, 0x01 // C
@@ -538,7 +538,7 @@ adcily_16: ILY; ADC_16 // ADC [nn],Y   (16-bit)
 
 .macro SBC_8 // SBC op (8-bit) TODO: decimal mode
     // Subtract a value with carry from the accumulator (8-bit)
-    jal  memory_read8
+    MEM_READ8
     lbu  t0, accumulator + 1
     sub  a0, t0, v0
     addi a0, a0, -1
@@ -579,7 +579,7 @@ sbcily_8: ILY; SBC_8 // SBC [nn],Y   (8-bit)
 
 .macro SBC_16 // SBC op (16-bit) TODO: decimal mode
     // Subtract a value with carry from the accumulator (16-bit)
-    jal  memory_read16
+    MEM_READ16
     lhu  t0, accumulator
     sub  a0, t0, v0
     addi a0, a0, -1
@@ -620,7 +620,7 @@ sbcily_16: ILY; SBC_16 // SBC [nn],Y   (16-bit)
 
 .macro CMP_8 // CMP op (8-bit)
     // Compare a value with the accumulator and set flags (8-bit)
-    jal  memory_read8
+    MEM_READ8
     lbu  t0, accumulator + 1
     sub  a0, t0, v0
     andi s4, s4, ~0x01 & 0xFFFF
@@ -649,7 +649,7 @@ cmpily_8: ILY; CMP_8 // CMP [nn],Y   (8-bit)
 
 .macro CMP_16 // CMP op (16-bit)
     // Compare a value with the accumulator and set flags (16-bit)
-    jal  memory_read16
+    MEM_READ16
     lhu  t0, accumulator
     sub  a0, t0, v0
     andi s4, s4, ~0x01 & 0xFFFF
@@ -678,7 +678,7 @@ cmpily_16: ILY; CMP_16 // CMP [nn],Y   (16-bit)
 
 .macro CPX_8 // CPX op (8-bit)
     // Compare a value with register X and set flags (8-bit)
-    jal  memory_read8
+    MEM_READ8
     lbu  t0, register_x + 1
     sub  a0, t0, v0
     andi s4, s4, ~0x01 & 0xFFFF
@@ -695,7 +695,7 @@ cpxabs_8: ABS; CPX_8 // CPX nnnn (8-bit)
 
 .macro CPX_16 // CPX op (16-bit)
     // Compare a value with register X and set flags (16-bit)
-    jal  memory_read16
+    MEM_READ16
     lhu  t0, register_x
     sub  a0, t0, v0
     andi s4, s4, ~0x01 & 0xFFFF
@@ -712,7 +712,7 @@ cpxabs_16: ABS; CPX_16 // CPX nnnn  (16-bit)
 
 .macro CPY_8 // CPY op (8-bit)
     // Compare a value with register Y and set flags (8-bit)
-    jal  memory_read8
+    MEM_READ8
     lbu  t0, register_y + 1
     sub  a0, t0, v0
     andi s4, s4, ~0x01 & 0xFFFF
@@ -729,7 +729,7 @@ cpyabs_8: ABS; CPY_8 // CPY nnnn (8-bit)
 
 .macro CPY_16 // CPY op (16-bit)
     // Compare a value with register Y and set flags (16-bit)
-    jal  memory_read16
+    MEM_READ16
     lhu  t0, register_y
     sub  a0, t0, v0
     andi s4, s4, ~0x01 & 0xFFFF
@@ -747,7 +747,7 @@ cpyabs_16: ABS; CPY_16 // CPY nnnn  (16-bit)
 bit_8: // BIT #nn (8-bit)
     // Test the accumulator bits against an immediate value (8-bit)
     add  a0, s7, 1
-    jal  memory_read8
+    MEM_READ8
     lbu  t0, accumulator + 1
     and  t0, t0, v0
 
@@ -763,7 +763,7 @@ bit_8: // BIT #nn (8-bit)
 bit_16: // BIT #nnnn (16-bit)
     // Test the accumulator bits against an immediate value (16-bit)
     add  a0, s7, 1
-    jal  memory_read16
+    MEM_READ16
     lhu  t0, accumulator
     and  t0, t0, v0
 
@@ -778,7 +778,7 @@ bit_16: // BIT #nnnn (16-bit)
 
 .macro BIT_8 // BIT op (8-bit)
     // Test the accumulator bits against a value (8-bit)
-    jal  memory_read8
+    MEM_READ8
     lbu  t0, accumulator + 1
     and  t0, t0, v0
 
@@ -800,7 +800,7 @@ bitabx_8: ABX; BIT_8 // BIT nnnn,X (8-bit)
 
 .macro BIT_16 // BIT op (16-bit)
     // Test the accumulator bits against a value (16-bit)
-    jal  memory_read16
+    MEM_READ16
     lhu  t0, accumulator
     and  t0, t0, v0
 
@@ -823,9 +823,9 @@ bitabx_16: ABX; BIT_16 // BIT nnnn,X (16-bit)
 
 .macro INC_8 // INC op (8-bit)
     // Increment a value in memory and set flags (8-bit)
-    jal  memory_read8
+    MEM_READ8
     addi a1, v0, 1
-    jal  memory_write8
+    MEM_WRITE8
     andi a0, a1, 0xFF
     j    set_nz8
 .endm
@@ -838,9 +838,9 @@ incabx_8: ABX; INC_8 // INC nnnn,X (8-bit)
 
 .macro INC_16 // INC op (16-bit)
     // Increment a value in memory and set flags (16-bit)
-    jal  memory_read16
+    MEM_READ16
     addi a1, v0, 1
-    jal  memory_write16
+    MEM_WRITE16
     andi a0, a1, 0xFFFF
     j    set_nz16
 .endm
@@ -913,9 +913,9 @@ ina_16: // INA (16-bit)
 
 .macro DEC_8 // DEC op (8-bit)
     // Decrement a value in memory and set flags (8-bit)
-    jal  memory_read8
+    MEM_READ8
     addi a1, v0, -1
-    jal  memory_write8
+    MEM_WRITE8
     andi a0, a1, 0xFF
     j    set_nz8
 .endm
@@ -928,9 +928,9 @@ decabx_8: ABX; DEC_8 // DEC nnnn,X (8-bit)
 
 .macro DEC_16 // DEC op (16-bit)
     // Decrement a value in memory and set flags (16-bit)
-    jal  memory_read16
+    MEM_READ16
     addi a1, v0, -1
-    jal  memory_write16
+    MEM_WRITE16
     andi a0, a1, 0xFFFF
     j    set_nz16
 .endm
@@ -1003,7 +1003,7 @@ dea_16: // DEA (16-bit)
 
 .macro TSB_8 // TSB op (8-bit)
     // Test the accumulator bits against a value (8-bit)
-    jal  memory_read8
+    MEM_READ8
     lbu  t0, accumulator + 1
     and  t1, t0, v0
 
@@ -1015,7 +1015,7 @@ dea_16: // DEA (16-bit)
 
     // Set bits of the value in memory
     or   a1, t0, v0
-    jal  memory_write8
+    MEM_WRITE8
     j    cpu_execute
 .endm
 
@@ -1025,7 +1025,7 @@ tsbabs_8: ABS; TSB_8 // TSB nnnn (8-bit)
 
 .macro TSB_16 // TSB op (16-bit)
     // Test the accumulator bits against a value (16-bit)
-    jal  memory_read16
+    MEM_READ16
     lhu  t0, accumulator
     and  t1, t0, v0
 
@@ -1037,7 +1037,7 @@ tsbabs_8: ABS; TSB_8 // TSB nnnn (8-bit)
 
     // Set bits of the value in memory
     or   a1, t0, v0
-    jal  memory_write16
+    MEM_WRITE16
     j    cpu_execute
 .endm
 
@@ -1047,7 +1047,7 @@ tsbabs_16: ABS; TSB_16 // TSB nnnn (16-bit)
 
 .macro TRB_8 // TRB op (8-bit)
     // Test the accumulator bits against a value (8-bit)
-    jal  memory_read8
+    MEM_READ8
     lbu  t0, accumulator + 1
     and  t1, t0, v0
 
@@ -1060,7 +1060,7 @@ tsbabs_16: ABS; TSB_16 // TSB nnnn (16-bit)
     // Clear bits of the value in memory
     not  a1, t0
     and  a1, a1, v0
-    jal  memory_write8
+    MEM_WRITE8
     j    cpu_execute
 .endm
 
@@ -1070,7 +1070,7 @@ trbabs_8: ABS; TRB_8 // TRB nnnn (8-bit)
 
 .macro TRB_16 // TRB op (16-bit)
     // Test the accumulator bits against a value (16-bit)
-    jal  memory_read16
+    MEM_READ16
     lhu  t0, accumulator
     and  t1, t0, v0
 
@@ -1083,7 +1083,7 @@ trbabs_8: ABS; TRB_8 // TRB nnnn (8-bit)
     // Clear bits of the value in memory
     not  a1, t0
     and  a1, a1, v0
-    jal  memory_write16
+    MEM_WRITE16
     j    cpu_execute
 .endm
 
@@ -1119,12 +1119,12 @@ asl_16: // ASL A (16-bit)
 
 .macro ASL_8 // ASL op (8-bit)
     // Shift a value in memory left and set flags (8-bit)
-    jal  memory_read8
+    MEM_READ8
     sll  a1, v0, 1
     andi s4, s4, ~0x01 & 0xFFFF
     srl  t0, v0, 7 // C
     or   s4, s4, t0
-    jal  memory_write8
+    MEM_WRITE8
     andi a0, a1, 0xFF
     j    set_nz8
 .endm
@@ -1137,12 +1137,12 @@ aslabx_8: ABX; ASL_8 // ASL nnnn,X (8-bit)
 
 .macro ASL_16 // ASL op (16-bit)
     // Shift a value in memory left and set flags (16-bit)
-    jal  memory_read16
+    MEM_READ16
     sll  a1, v0, 1
     andi s4, s4, ~0x01 & 0xFFFF
     srl  t0, v0, 15 // C
     or   s4, s4, t0
-    jal  memory_write16
+    MEM_WRITE16
     andi a0, a1, 0xFFFF
     j    set_nz16
 .endm
@@ -1179,12 +1179,12 @@ lsr_16: // LSR A (16-bit)
 
 .macro LSR_8 // LSR op (8-bit)
     // Shift a value in memory right and set flags (8-bit)
-    jal  memory_read8
+    MEM_READ8
     srl  a1, v0, 1
     andi s4, s4, ~0x01 & 0xFFFF
     andi t0, v0, 0x01 // C
     or   s4, s4, t0
-    jal  memory_write8
+    MEM_WRITE8
     move a0, a1
     j    set_nz8
 .endm
@@ -1197,12 +1197,12 @@ lsrabx_8: ABX; LSR_8 // LSR nnnn,X (8-bit)
 
 .macro LSR_16 // LSR op (16-bit)
     // Shift a value in memory right and set flags (16-bit)
-    jal  memory_read16
+    MEM_READ16
     srl  a1, v0, 1
     andi s4, s4, ~0x01 & 0xFFFF
     andi t0, v0, 0x0001 // C
     or   s4, s4, t0
-    jal  memory_write16
+    MEM_WRITE16
     move a0, a1
     j    set_nz16
 .endm
@@ -1245,14 +1245,14 @@ rol_16: // ROL A (16-bit)
 
 .macro ROL_8 // ROL op (8-bit)
     // Rotate a value in memory left and set flags (8-bit)
-    jal  memory_read8
+    MEM_READ8
     sll  a1, v0, 1
     andi t0, s4, 0x01
     or   a1, a1, t0
     andi s4, s4, ~0x01 & 0xFFFF
     srl  t0, v0, 7 // C
     or   s4, s4, t0
-    jal  memory_write8
+    MEM_WRITE8
     andi a0, a1, 0xFF
     j    set_nz8
 .endm
@@ -1265,14 +1265,14 @@ rolabx_8: ABX; ROL_8 // ROL nnnn,X (8-bit)
 
 .macro ROL_16 // ROL op (16-bit)
     // Rotate a value in memory left and set flags (16-bit)
-    jal  memory_read16
+    MEM_READ16
     sll  a1, v0, 1
     andi t0, s4, 0x01
     or   a1, a1, t0
     andi s4, s4, ~0x01 & 0xFFFF
     srl  t0, v0, 15 // C
     or   s4, s4, t0
-    jal  memory_write16
+    MEM_WRITE16
     andi a0, a1, 0xFFFF
     j    set_nz16
 .endm
@@ -1315,14 +1315,14 @@ ror_16: // ROR A (16-bit)
 
 .macro ROR_8 // ROR op (8-bit)
     // Rotate a value in memory right and set flags (8-bit)
-    jal  memory_read8
+    MEM_READ8
     srl  a1, v0, 1
     sll  t0, s4, 7
     or   a1, a1, t0
     andi s4, s4, ~0x01 & 0xFFFF
     andi t0, v0, 0x01 // C
     or   s4, s4, t0
-    jal  memory_write8
+    MEM_WRITE8
     andi a0, a1, 0xFF
     j    set_nz8
 .endm
@@ -1335,14 +1335,14 @@ rorabx_8: ABX; ROR_8 // ROR nnnn,X (8-bit)
 
 .macro ROR_16 // ROR op (16-bit)
     // Rotate a value in memory right and set flags (16-bit)
-    jal  memory_read16
+    MEM_READ16
     srl  a1, v0, 1
     sll  t0, s4, 15
     or   a1, a1, t0
     andi s4, s4, ~0x01 & 0xFFFF
     andi t0, v0, 0x0001 // C
     or   s4, s4, t0
-    jal  memory_write16
+    MEM_WRITE16
     andi a0, a1, 0xFFFF
     j    set_nz16
 .endm

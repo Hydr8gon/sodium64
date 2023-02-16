@@ -17,7 +17,7 @@
     along with sodium64. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <regdef.h>
+#include "cpu_address.h"
 
 .globl bra
 .globl brl
@@ -70,7 +70,7 @@
 bra: // BRA disp8
     // Fetch the 8-bit immediate value
     add  a0, s7, 1
-    jal  memory_read8
+    MEM_READ8
 
     // Sign-extend the value and add it to the PC
     sll  t0, v0, 24
@@ -83,7 +83,7 @@ bra: // BRA disp8
 brl: // BRL disp16
     // Fetch the 16-bit immediate value
     add  a0, s7, 1
-    jal  memory_read16
+    MEM_READ16
 
     // Sign-extend the value and add it to the PC
     sll  t0, v0, 16
@@ -96,7 +96,7 @@ brl: // BRL disp16
 jmp: // JMP nnnn
     // Set the PC to the 16-bit immediate value
     addi a0, s7, 1
-    jal  memory_read16
+    MEM_READ16
     li   t0, ~0xFFFF
     and  s7, s7, t0
     add  s7, s7, v0
@@ -106,7 +106,7 @@ jmp: // JMP nnnn
 jml_e: // JML nnnnnn (emulation mode)
     // Set the PC to the 16-bit immediate value
     addi a0, s7, 1
-    jal  memory_read16
+    MEM_READ16
     move s7, v0
     j    cpu_execute
 
@@ -114,12 +114,12 @@ jml_e: // JML nnnnnn (emulation mode)
 jml: // JML nnnnnn
     // Set the PC to the 16-bit immediate value
     addi a0, s7, 1
-    jal  memory_read16
+    MEM_READ16
     move s7, v0
 
     // Set the PC bank to the next 8-bit immediate value
     addi a0, a0, 2
-    jal  memory_read8
+    MEM_READ8
     sll  t0, v0, 16
     or   s7, s7, t0
     j    cpu_execute
@@ -128,11 +128,11 @@ jml: // JML nnnnnn
 jmpind: // JMP (nnnn)
     // Get the 16-bit immediate value as an address
     addi a0, s7, 1
-    jal  memory_read16
+    MEM_READ16
     move a0, v0
 
     // Set the PC to the memory value at the address
-    jal  memory_read16
+    MEM_READ16
     li   t0, ~0xFFFF
     and  s7, s7, t0
     add  s7, s7, v0
@@ -142,7 +142,7 @@ jmpind: // JMP (nnnn)
 jmpidx: // JMP (nnnn,X)
     // Get the 16-bit immediate value plus register X added to the program bank as an address
     addi a0, s7, 1
-    jal  memory_read16
+    MEM_READ16
     lhu  t0, register_x
     add  t0, t0, v0
     li   t1, ~0xFFFF
@@ -150,7 +150,7 @@ jmpidx: // JMP (nnnn,X)
     add  a0, t0, t1
 
     // Set the PC to the memory value at the address
-    jal  memory_read16
+    MEM_READ16
     li   t0, ~0xFFFF
     and  s7, s7, t0
     add  s7, s7, v0
@@ -160,11 +160,11 @@ jmpidx: // JMP (nnnn,X)
 jmlind_e: // JML [nnnn] (emulation mode)
     // Fetch the 16-bit immediate value
     addi a0, s7, 1
-    jal  memory_read16
+    MEM_READ16
 
     // Set the PC to the memory value at the address
     move a0, v0
-    jal  memory_read16
+    MEM_READ16
     move s7, v0
     j    cpu_execute
 
@@ -172,16 +172,16 @@ jmlind_e: // JML [nnnn] (emulation mode)
 jmlind: // JML [nnnn]
     // Fetch the 16-bit immediate value
     addi a0, s7, 1
-    jal  memory_read16
+    MEM_READ16
 
     // Set the PC to the memory value at the address
     move a0, v0
-    jal  memory_read16
+    MEM_READ16
     move s7, v0
 
     // Set the PC bank to the memory value at the offset+2
     addi a0, a0, 2
-    jal  memory_read8
+    MEM_READ8
     sll  t0, v0, 16
     or   s7, s7, t0
     j    cpu_execute
@@ -192,7 +192,7 @@ jsr: // JSR nnnn
     lhu  a0, stack_ptr
     addi a0, a0, -1
     addi a1, s7, 2
-    jal  memory_write16
+    MEM_WRITE16
 
     // Update the stack pointer
     addi t0, a0, -1
@@ -200,7 +200,7 @@ jsr: // JSR nnnn
 
     // Set the PC to the 16-bit immediate value
     addi a0, s7, 1
-    jal  memory_read16
+    MEM_READ16
     li   t0, ~0xFFFF
     and  s7, s7, t0
     add  s7, s7, v0
@@ -212,7 +212,7 @@ jsl_e: // JSL nnnnnn (emulation mode)
     lhu  a0, stack_ptr
     addi a0, a0, -1
     addi a1, s7, 3
-    jal  memory_write16
+    MEM_WRITE16
 
     // Update the stack pointer
     addi t0, a0, -1
@@ -220,7 +220,7 @@ jsl_e: // JSL nnnnnn (emulation mode)
 
     // Set the PC to the 16-bit immediate value
     addi a0, s7, 1
-    jal  memory_read16
+    MEM_READ16
     move s7, v0
     j    cpu_execute
 
@@ -229,12 +229,12 @@ jsl: // JSL nnnnnn
     // Push the PC bank to the stack
     lhu  a0, stack_ptr
     srl  a1, s7, 16
-    jal  memory_write8
+    MEM_WRITE8
 
     // Push the PC+3 to the stack
     addi a0, a0, -2
     addi a1, s7, 3
-    jal  memory_write16
+    MEM_WRITE16
 
     // Update the stack pointer
     addi t0, a0, -1
@@ -242,12 +242,12 @@ jsl: // JSL nnnnnn
 
     // Set the PC to the 16-bit immediate value
     addi a0, s7, 1
-    jal  memory_read16
+    MEM_READ16
     move s7, v0
 
     // Set the PC bank to the next 8-bit immediate value
     addi a0, a0, 2
-    jal  memory_read8
+    MEM_READ8
     sll  t0, v0, 16
     or   s7, s7, t0
     j    cpu_execute
@@ -258,7 +258,7 @@ jsridx: // JSR (nnnn,X)
     lhu  a0, stack_ptr
     addi a0, a0, -1
     addi a1, s7, 2
-    jal  memory_write16
+    MEM_WRITE16
 
     // Update the stack pointer
     addi t0, a0, -1
@@ -266,7 +266,7 @@ jsridx: // JSR (nnnn,X)
 
     // Get the 16-bit immediate value plus register X added to the program bank as an address
     addi a0, s7, 1
-    jal  memory_read16
+    MEM_READ16
     lhu  t0, register_x
     add  t0, t0, v0
     li   t1, ~0xFFFF
@@ -274,7 +274,7 @@ jsridx: // JSR (nnnn,X)
     add  a0, t0, t1
 
     // Set the PC to the memory value at the address
-    jal  memory_read16
+    MEM_READ16
     li   t0, ~0xFFFF
     and  s7, s7, t0
     add  s7, s7, v0
@@ -285,14 +285,14 @@ rti_e: // RTI (emulation mode)
     // Pop the flags from the stack
     lhu  a0, stack_ptr
     addi a0, a0, 1
-    jal  memory_read8
+    MEM_READ8
     andi t0, v0, ~0x10 & 0xFFFF // B
     andi s4, s4, 0xFF00
     or   s4, s4, t0
 
     // Pop the PC from the stack
     addi a0, a0, 1
-    jal  memory_read16
+    MEM_READ16
     move s7, v0
 
     // Update the stack pointer
@@ -305,18 +305,18 @@ rti: // RTI
     // Pop the flags from the stack
     lhu  a0, stack_ptr
     addi a0, a0, 1
-    jal  memory_read8
+    MEM_READ8
     andi s4, s4, 0xFF00
     or   s4, s4, v0
 
     // Pop the PC from the stack
     addi a0, a0, 1
-    jal  memory_read16
+    MEM_READ16
     move s7, v0
 
     // Pop the PC bank from the stack
     addi a0, a0, 2
-    jal  memory_read8
+    MEM_READ8
     sll  t0, v0, 16
     add  s7, s7, t0
 
@@ -329,7 +329,7 @@ rtl_e: // RTL (emulation mode)
     // Pop the PC+1 from the stack
     lhu  a0, stack_ptr
     addi a0, a0, 1
-    jal  memory_read16
+    MEM_READ16
     addi s7, v0, 1
 
     // Update the stack pointer
@@ -342,12 +342,12 @@ rtl: // RTL
     // Pop the PC+1 from the stack
     lhu  a0, stack_ptr
     addi a0, a0, 1
-    jal  memory_read16
+    MEM_READ16
     addi s7, v0, 1
 
     // Pop the PC bank from the stack
     addi a0, a0, 2
-    jal  memory_read8
+    MEM_READ8
     sll  t0, v0, 16
     add  s7, s7, t0
 
@@ -360,7 +360,7 @@ rts: // RTS
     // Pop the PC+1 from the stack
     lhu  a0, stack_ptr
     addi a0, a0, 1
-    jal  memory_read16
+    MEM_READ16
     addi t0, v0, 1
     li   t1, ~0xFFFF
     and  s7, s7, t1
@@ -379,7 +379,7 @@ bpl: // BPL disp8
 
     // Fetch the 8-bit immediate value
     add  a0, s7, 1
-    jal  memory_read8
+    MEM_READ8
 
     // Sign-extend the value and add it to the PC
     sll  t0, v0, 24
@@ -397,7 +397,7 @@ bmi: // BMI disp8
 
     // Fetch the 8-bit immediate value
     add  a0, s7, 1
-    jal  memory_read8
+    MEM_READ8
 
     // Sign-extend the value and add it to the PC
     sll  t0, v0, 24
@@ -415,7 +415,7 @@ bvc: // BVC disp8
 
     // Fetch the 8-bit immediate value
     add  a0, s7, 1
-    jal  memory_read8
+    MEM_READ8
 
     // Sign-extend the value and add it to the PC
     sll  t0, v0, 24
@@ -433,7 +433,7 @@ bvs: // BVS disp8
 
     // Fetch the 8-bit immediate value
     add  a0, s7, 1
-    jal  memory_read8
+    MEM_READ8
 
     // Sign-extend the value and add it to the PC
     sll  t0, v0, 24
@@ -451,7 +451,7 @@ bcc: // BCC disp8
 
     // Fetch the 8-bit immediate value
     add  a0, s7, 1
-    jal  memory_read8
+    MEM_READ8
 
     // Sign-extend the value and add it to the PC
     sll  t0, v0, 24
@@ -469,7 +469,7 @@ bcs: // BCS disp8
 
     // Fetch the 8-bit immediate value
     add  a0, s7, 1
-    jal  memory_read8
+    MEM_READ8
 
     // Sign-extend the value and add it to the PC
     sll  t0, v0, 24
@@ -487,7 +487,7 @@ bne: // BNE disp8
 
     // Fetch the 8-bit immediate value
     add  a0, s7, 1
-    jal  memory_read8
+    MEM_READ8
 
     // Sign-extend the value and add it to the PC
     sll  t0, v0, 24
@@ -505,7 +505,7 @@ beq: // BEQ disp8
 
     // Fetch the 8-bit immediate value
     add  a0, s7, 1
-    jal  memory_read8
+    MEM_READ8
 
     // Sign-extend the value and add it to the PC
     sll  t0, v0, 24
@@ -521,12 +521,12 @@ brk_e: // BRK (emulation mode)
     lhu  a0, stack_ptr
     addi a0, a0, -1
     addi a1, s7, 2
-    jal  memory_write16
+    MEM_WRITE16
 
     // Push the flags to the stack
     addi a0, a0, -1
     ori  a1, s4, 0x10 // B
-    jal  memory_write8
+    MEM_WRITE8
 
     // Update the stack pointer
     addi a0, a0, -1
@@ -538,7 +538,7 @@ brk_e: // BRK (emulation mode)
 
     // Jump to the BRK vector (emulation mode)
     li   a0, 0xFFFE
-    jal  memory_read16
+    MEM_READ16
     move s7, v0
     j    cpu_execute
 
@@ -547,17 +547,17 @@ brk: // BRK
     // Push the PC bank to the stack
     lhu  a0, stack_ptr
     srl  a1, s7, 16
-    jal  memory_write8
+    MEM_WRITE8
 
     // Push the PC+2 to the stack
     addi a0, a0, -2
     addi a1, s7, 2
-    jal  memory_write16
+    MEM_WRITE16
 
     // Push the flags to the stack
     addi a0, a0, -1
     move a1, s4
-    jal  memory_write8
+    MEM_WRITE8
 
     // Update the stack pointer
     addi a0, a0, -1
@@ -569,7 +569,7 @@ brk: // BRK
 
     // Jump to the BRK vector
     li   a0, 0xFFE6
-    jal  memory_read16
+    MEM_READ16
     move s7, v0
     j    cpu_execute
 
@@ -579,12 +579,12 @@ cop_e: // COP (emulation mode)
     lhu  a0, stack_ptr
     addi a0, a0, -1
     addi a1, s7, 2
-    jal  memory_write16
+    MEM_WRITE16
 
     // Push the flags to the stack
     addi a0, a0, -1
     ori  a1, s4, 0x10 // B
-    jal  memory_write8
+    MEM_WRITE8
 
     // Update the stack pointer
     addi a0, a0, -1
@@ -596,7 +596,7 @@ cop_e: // COP (emulation mode)
 
     // Jump to the COP vector (emulation mode)
     li   a0, 0xFFF4
-    jal  memory_read16
+    MEM_READ16
     move s7, v0
     j    cpu_execute
 
@@ -605,17 +605,17 @@ cop: // COP
     // Push the PC bank to the stack
     lhu  a0, stack_ptr
     srl  a1, s7, 16
-    jal  memory_write8
+    MEM_WRITE8
 
     // Push the PC+2 to the stack
     addi a0, a0, -2
     addi a1, s7, 2
-    jal  memory_write16
+    MEM_WRITE16
 
     // Push the flags to the stack
     addi a0, a0, -1
     move a1, s4
-    jal  memory_write8
+    MEM_WRITE8
 
     // Update the stack pointer
     addi a0, a0, -1
@@ -627,7 +627,7 @@ cop: // COP
 
     // Jump to the COP vector
     li   a0, 0xFFE4
-    jal  memory_read16
+    MEM_READ16
     move s7, v0
     j    cpu_execute
 
@@ -684,7 +684,7 @@ sed: // SED
 rep: // REP #nn
     // Clear flags from the 8-bit immediate value
     add  a0, s7, 1
-    jal  memory_read8
+    MEM_READ8
     not  v0, v0
     and  s4, s4, v0
     addi s7, s7, 2
@@ -694,7 +694,7 @@ rep: // REP #nn
 sep: // SEP #nn
     // Set flags from the 8-bit immediate value
     add  a0, s7, 1
-    jal  memory_read8
+    MEM_READ8
     or   s4, s4, v0
     addi s7, s7, 2
     j    update_mode

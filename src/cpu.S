@@ -17,7 +17,7 @@
     along with sodium64. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <regdef.h>
+#include "cpu_address.h"
 
 .globl accumulator
 .globl register_x
@@ -138,7 +138,7 @@ cpu_init:
     // Set the initial program counter value (s7)
     move s0, ra     // Backup return address
     li   a0, 0xFFFC // RESET vector
-    jal  memory_read16
+    MEM_READ16
     move s7, v0
 
     // Set the initial lookup table (s6), cycle count (s5), and status flags (s4)
@@ -174,7 +174,7 @@ cpu_execute:
 
     // Fetch the current opcode
     move a0, s7
-    jal  memory_read8
+    MEM_READ8
 
     // Jump to the opcode's function in the lookup table
     sll  t0, v0, 2 // Word offset
@@ -196,7 +196,7 @@ trigger_nmi:
 nmi_notemu:
     // Push the PC bank to the stack and set the NMI vector
     srl  a1, s7, 16
-    jal  memory_write8
+    MEM_WRITE8
     addi a0, a0, -1
     li   s0, 0xFFEA // NMI vector
 
@@ -204,12 +204,12 @@ nmi_cont:
     // Push the PC to the stack
     addi a0, a0, -1
     move a1, s7
-    jal  memory_write16
+    MEM_WRITE16
 
     // Push the flags to the stack
     addi a0, a0, -1
     move a1, s4
-    jal  memory_write8
+    MEM_WRITE8
 
     // Update the stack pointer
     addi a0, a0, -1
@@ -221,7 +221,7 @@ nmi_cont:
 
     // Jump to the NMI vector
     move a0, s0
-    jal  memory_read16
+    MEM_READ16
     move s7, v0
 
     // Unhalt the CPU

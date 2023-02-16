@@ -337,7 +337,7 @@ tcs: // TCS
 
 .macro LDA_8 // LDA op (8-bit)
     // Load a value to the accumulator and set flags (8-bit)
-    jal  memory_read8
+    MEM_READ8
     move a0, v0
     sb   a0, accumulator + 1
     j    set_nz8
@@ -362,7 +362,7 @@ ldaily_8: ILY; LDA_8 // LDA [nn],Y   (8-bit)
 
 .macro LDA_16 // LDA op (16-bit)
     // Load a value to the accumulator and set flags (16-bit)
-    jal  memory_read16
+    MEM_READ16
     move a0, v0
     sh   a0, accumulator
     j    set_nz16
@@ -387,7 +387,7 @@ ldaily_16: ILY; LDA_16 // LDA [nn],Y   (16-bit)
 
 .macro LDX_8 // LDX op (8-bit)
     // Load a value to register X and set flags (8-bit)
-    jal  memory_read8
+    MEM_READ8
     move a0, v0
     sb   a0, register_x + 1
     j    set_nz8
@@ -402,7 +402,7 @@ ldxaby_8: ABY; LDX_8 // LDX nnnn,Y (8-bit)
 
 .macro LDX_16 // LDX op (16-bit)
     // Load a value to register X and set flags (16-bit)
-    jal  memory_read16
+    MEM_READ16
     move a0, v0
     sh   a0, register_x
     j    set_nz16
@@ -417,7 +417,7 @@ ldxaby_16: ABY; LDX_16 // LDX nnnn,Y (16-bit)
 
 .macro LDY_8 // LDY op (8-bit)
     // Load a value to register Y and set flags (8-bit)
-    jal  memory_read8
+    MEM_READ8
     move a0, v0
     sb   a0, register_y + 1
     j    set_nz8
@@ -432,7 +432,7 @@ ldyabx_8: ABX; LDY_8 // LDY nnnn,X (8-bit)
 
 .macro LDY_16 // LDY op (16-bit)
     // Load a value to register Y and set flags (16-bit)
-    jal  memory_read16
+    MEM_READ16
     move a0, v0
     sh   a0, register_y
     j    set_nz16
@@ -448,7 +448,7 @@ ldyabx_16: ABX; LDY_16 // LDY nnnn,X (16-bit)
 .macro STZ_8 // STZ op (8-bit)
     // Store zero to memory (8-bit)
     li   a1, 0
-    jal  memory_write8
+    MEM_WRITE8
     j    cpu_execute
 .endm
 
@@ -461,7 +461,7 @@ stzabx_8: ABX; STZ_8 // STZ nnnn,X (8-bit)
 .macro STZ_16 // STZ op (16-bit)
     // Store zero to memory (16-bit)
     li   a1, 0
-    jal  memory_write16
+    MEM_WRITE16
     j    cpu_execute
 .endm
 
@@ -474,7 +474,7 @@ stzabx_16: ABX; STZ_16 // STZ nnnn,X (16-bit)
 .macro STA_8 // STA op (8-bit)
     // Store the accumulator to memory (8-bit)
     lbu  a1, accumulator + 1
-    jal  memory_write8
+    MEM_WRITE8
     j    cpu_execute
 .endm
 
@@ -497,7 +497,7 @@ staily_8: ILY; STA_8 // STA [nn],Y   (8-bit)
 .macro STA_16 // STA op (16-bit)
     // Store the accumulator to memory (16-bit)
     lhu  a1, accumulator
-    jal  memory_write16
+    MEM_WRITE16
     j    cpu_execute
 .endm
 
@@ -520,7 +520,7 @@ staily_16: ILY; STA_16 // STA [nn],Y   (16-bit)
 .macro STX_8 // STX op (8-bit)
     // Store register X to memory (8-bit)
     lbu  a1, register_x + 1
-    jal  memory_write8
+    MEM_WRITE8
     j    cpu_execute
 .endm
 
@@ -532,7 +532,7 @@ stxabs_8: ABS; STX_8 // STX nnnn (8-bit)
 .macro STX_16 // STX op (16-bit)
     // Store register X to memory (16-bit)
     lhu  a1, register_x
-    jal  memory_write16
+    MEM_WRITE16
     j    cpu_execute
 .endm
 
@@ -544,7 +544,7 @@ stxabs_16: ABS; STX_16 // STX nnnn (16-bit)
 .macro STY_8 // STY op (8-bit)
     // Store register Y to memory (8-bit)
     lbu  a1, register_y + 1
-    jal  memory_write8
+    MEM_WRITE8
     j    cpu_execute
 .endm
 
@@ -556,7 +556,7 @@ styabs_8: ABS; STY_8 // STY nnnn (8-bit)
 .macro STY_16 // STY op (16-bit)
     // Store register Y to memory (16-bit)
     lhu  a1, register_y
-    jal  memory_write16
+    MEM_WRITE16
     j    cpu_execute
 .endm
 
@@ -569,7 +569,7 @@ pha_8: // PHA (8-bit)
     // Push the accumulator to the stack (8-bit)
     lhu  a0, stack_ptr
     lbu  a1, accumulator + 1
-    jal  memory_write8
+    MEM_WRITE8
     addi t0, a0, -1
     sh   t0, stack_ptr
     addi s7, s7, 1
@@ -581,7 +581,7 @@ pha_16: // PHA (16-bit)
     lhu  a0, stack_ptr
     addi a0, a0, -1
     lhu  a1, accumulator
-    jal  memory_write16
+    MEM_WRITE16
     addi t0, a0, -1
     sh   t0, stack_ptr
     addi s7, s7, 1
@@ -592,7 +592,7 @@ phx_8: // PHX (8-bit)
     // Push register X to the stack (8-bit)
     lhu  a0, stack_ptr
     lbu  a1, register_x + 1
-    jal  memory_write8
+    MEM_WRITE8
     addi t0, a0, -1
     sh   t0, stack_ptr
     addi s7, s7, 1
@@ -604,7 +604,7 @@ phx_16: // PHX (16-bit)
     lhu  a0, stack_ptr
     addi a0, a0, -1
     lhu  a1, register_x
-    jal  memory_write16
+    MEM_WRITE16
     addi t0, a0, -1
     sh   t0, stack_ptr
     addi s7, s7, 1
@@ -615,7 +615,7 @@ phy_8: // PHY (8-bit)
     // Push register Y to the stack (8-bit)
     lhu  a0, stack_ptr
     lbu  a1, register_y + 1
-    jal  memory_write8
+    MEM_WRITE8
     addi t0, a0, -1
     sh   t0, stack_ptr
     addi s7, s7, 1
@@ -627,7 +627,7 @@ phy_16: // PHY (16-bit)
     lhu  a0, stack_ptr
     addi a0, a0, -1
     lhu  a1, register_y
-    jal  memory_write16
+    MEM_WRITE16
     addi t0, a0, -1
     sh   t0, stack_ptr
     addi s7, s7, 1
@@ -638,7 +638,7 @@ php: // PHP
     // Push the flags to the stack
     lhu  a0, stack_ptr
     andi a1, s4, 0xFF
-    jal  memory_write8
+    MEM_WRITE8
     addi t0, a0, -1
     sh   t0, stack_ptr
     addi s7, s7, 1
@@ -649,7 +649,7 @@ phb: // PHB
     // Push the data bank to the stack
     lhu  a0, stack_ptr
     lbu  a1, data_bank
-    jal  memory_write8
+    MEM_WRITE8
     addi t0, a0, -1
     sh   t0, stack_ptr
     addi s7, s7, 1
@@ -660,7 +660,7 @@ phk: // PHK
     // Push the PC bank to the stack
     lhu  a0, stack_ptr
     srl  a1, s7, 16
-    jal  memory_write8
+    MEM_WRITE8
     addi t0, a0, -1
     sh   t0, stack_ptr
     addi s7, s7, 1
@@ -672,7 +672,7 @@ phd: // PHD
     lhu  a0, stack_ptr
     addi a0, a0, -1
     lhu  a1, direct_ofs
-    jal  memory_write16
+    MEM_WRITE16
     addi t0, a0, -1
     sh   t0, stack_ptr
     addi s7, s7, 1
@@ -682,16 +682,16 @@ phd: // PHD
 pei: // PEI nn
     // Get the 8-bit immediate value added to the direct offset as an address
     addi a0, s7, 1
-    jal  memory_read8
+    MEM_READ8
     lhu  a0, direct_ofs
     add  a0, a0, v0
 
     // Load a 16-bit value from memory and push it to the stack
-    jal  memory_read16
+    MEM_READ16
     lhu  a0, stack_ptr
     addi a0, a0, -1
     move a1, v0
-    jal  memory_write16
+    MEM_WRITE16
     addi t0, a0, -1
     sh   t0, stack_ptr
     addi s7, s7, 2
@@ -701,11 +701,11 @@ pei: // PEI nn
 pea: // PEA #nnnn
     // Push a 16-bit immediate value to the stack
     addi a0, s7, 1
-    jal  memory_read16
+    MEM_READ16
     lhu  a0, stack_ptr
     addi a0, a0, -1
     move a1, v0
-    jal  memory_write16
+    MEM_WRITE16
     addi t0, a0, -1
     sh   t0, stack_ptr
     addi s7, s7, 3
@@ -715,7 +715,7 @@ pea: // PEA #nnnn
 per: // PER disp16
     // Add a sign-extended 16-bit immediate value to the PC
     addi a0, s7, 1
-    jal  memory_read16
+    MEM_READ16
     sll  t0, v0, 16
     sra  t0, t0, 16
     addi s7, s7, 3
@@ -724,7 +724,7 @@ per: // PER disp16
     // Push the resulting value to the stack
     lhu  a0, stack_ptr
     addi a0, a0, -1
-    jal  memory_write16
+    MEM_WRITE16
     addi t0, a0, -1
     sh   t0, stack_ptr
     j    cpu_execute
@@ -734,7 +734,7 @@ pla_8: // PLA (8-bit)
     // Pop the accumulator from the stack and set flags (8-bit)
     lhu  a0, stack_ptr
     addi a0, a0, 1
-    jal  memory_read8
+    MEM_READ8
     sh   a0, stack_ptr
     move a0, v0
     sb   a0, accumulator + 1
@@ -746,7 +746,7 @@ pla_16: // PLA (16-bit)
     // Pop the accumulator from the stack and set flags (16-bit)
     lhu  a0, stack_ptr
     addi a0, a0, 1
-    jal  memory_read16
+    MEM_READ16
     addi a0, a0, 1
     sh   a0, stack_ptr
     move a0, v0
@@ -759,7 +759,7 @@ plx_8: // PLX (8-bit)
     // Pop register X from the stack and set flags (8-bit)
     lhu  a0, stack_ptr
     addi a0, a0, 1
-    jal  memory_read8
+    MEM_READ8
     sh   a0, stack_ptr
     move a0, v0
     sb   a0, register_x + 1
@@ -771,7 +771,7 @@ plx_16: // PLX (16-bit)
     // Pop register X from the stack and set flags (16-bit)
     lhu  a0, stack_ptr
     addi a0, a0, 1
-    jal  memory_read16
+    MEM_READ16
     addi a0, a0, 1
     sh   a0, stack_ptr
     move a0, v0
@@ -784,7 +784,7 @@ ply_8: // PLY (8-bit)
     // Pop register Y from the stack and set flags (8-bit)
     lhu  a0, stack_ptr
     addi a0, a0, 1
-    jal  memory_read8
+    MEM_READ8
     sh   a0, stack_ptr
     move a0, v0
     sb   a0, register_y + 1
@@ -796,7 +796,7 @@ ply_16: // PLY (16-bit)
     // Pop register Y from the stack and set flags (16-bit)
     lhu  a0, stack_ptr
     addi a0, a0, 1
-    jal  memory_read16
+    MEM_READ16
     addi a0, a0, 1
     sh   a0, stack_ptr
     move a0, v0
@@ -809,7 +809,7 @@ pld: // PLD
     // Pop the direct offset from the stack and set flags
     lhu  a0, stack_ptr
     addi a0, a0, 1
-    jal  memory_read16
+    MEM_READ16
     addi a0, a0, 1
     sh   a0, stack_ptr
     move a0, v0
@@ -822,7 +822,7 @@ plb: // PLB
     // Pop the data bank from the stack and set flags
     lhu  a0, stack_ptr
     addi a0, a0, 1
-    jal  memory_read8
+    MEM_READ8
     sh   a0, stack_ptr
     move a0, v0
     sb   a0, data_bank
@@ -834,7 +834,7 @@ plp: // PLP
     // Pop the flags from the stack
     lhu  a0, stack_ptr
     addi a0, a0, 1
-    jal  memory_read8
+    MEM_READ8
     sh   a0, stack_ptr
     andi s4, s4, 0xFF00
     or   s4, s4, v0
@@ -845,24 +845,24 @@ plp: // PLP
 mvp_8: // MVP ss,dd (8-bit)
     // Get the immediate 8-bit value plus register Y as the destination address (8-bit)
     addi a0, s7, 1
-    jal  memory_read8
+    MEM_READ8
     sll  s0, v0, 16
     lbu  t0, register_y + 1
     add  s0, s0, t0
 
     // Get the next immediate 8-bit value plus register Y as the source address (8-bit)
     addi a0, s7, 2
-    jal  memory_read8
+    MEM_READ8
     sll  s1, v0, 16
     lbu  t0, register_x + 1
     add  s1, s1, t0
 
     // Transfer an 8-bit value from the source to the destination
     move a0, s1
-    jal  memory_read8
+    MEM_READ8
     move a0, s0
     move a1, v0
-    jal  memory_write8
+    MEM_WRITE8
 
     // Decrement the registers (8-bit)
     addi t0, s1, -1
@@ -883,24 +883,24 @@ mvp8_cont:
 mvp_16: // MVP ss,dd (16-bit)
     // Get the immediate 8-bit value plus register Y as the destination address (16-bit)
     addi a0, s7, 1
-    jal  memory_read8
+    MEM_READ8
     sll  s0, v0, 16
     lhu  t0, register_y
     add  s0, s0, t0
 
     // Get the next immediate 8-bit value plus register Y as the source address (16-bit)
     addi a0, s7, 2
-    jal  memory_read8
+    MEM_READ8
     sll  s1, v0, 16
     lhu  t0, register_x
     add  s1, s1, t0
 
     // Transfer an 8-bit value from the source to the destination
     move a0, s1
-    jal  memory_read8
+    MEM_READ8
     move a0, s0
     move a1, v0
-    jal  memory_write8
+    MEM_WRITE8
 
     // Decrement the registers (16-bit)
     addi t0, s1, -1
@@ -921,24 +921,24 @@ mvp16_cont:
 mvn_8: // MVN ss,dd (8-bit)
     // Get the immediate 8-bit value plus register Y as the destination address (8-bit)
     addi a0, s7, 1
-    jal  memory_read8
+    MEM_READ8
     sll  s0, v0, 16
     lbu  t0, register_y + 1
     add  s0, s0, t0
 
     // Get the next immediate 8-bit value plus register Y as the source address (8-bit)
     addi a0, s7, 2
-    jal  memory_read8
+    MEM_READ8
     sll  s1, v0, 16
     lbu  t0, register_x + 1
     add  s1, s1, t0
 
     // Transfer an 8-bit value from the source to the destination
     move a0, s1
-    jal  memory_read8
+    MEM_READ8
     move a0, s0
     move a1, v0
-    jal  memory_write8
+    MEM_WRITE8
 
     // Increment the registers (8-bit)
     addi t0, s1, 1
@@ -959,24 +959,24 @@ mvn8_cont:
 mvn_16: // MVN ss,dd (16-bit)
     // Get the immediate 8-bit value plus register Y as the destination address (16-bit)
     addi a0, s7, 1
-    jal  memory_read8
+    MEM_READ8
     sll  s0, v0, 16
     lhu  t0, register_y
     add  s0, s0, t0
 
     // Get the next immediate 8-bit value plus register Y as the source address (16-bit)
     addi a0, s7, 2
-    jal  memory_read8
+    MEM_READ8
     sll  s1, v0, 16
     lhu  t0, register_x
     add  s1, s1, t0
 
     // Transfer an 8-bit value from the source to the destination
     move a0, s1
-    jal  memory_read8
+    MEM_READ8
     move a0, s0
     move a1, v0
-    jal  memory_write8
+    MEM_WRITE8
 
     // Increment the registers (16-bit)
     addi t0, s1, 1

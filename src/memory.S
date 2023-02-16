@@ -17,11 +17,7 @@
     along with sodium64. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <regdef.h>
-
-// Master cycle counts for CPU memory accesses
-#define RAM_CYCLE 8
-#define IO_CYCLE  6
+#include "cpu_address.h"
 
 .globl sram
 
@@ -29,10 +25,6 @@
 .globl tlbl_exception
 .globl tlbs_exception
 .globl tlbm_exception
-.globl memory_read8
-.globl memory_read16
-.globl memory_write8
-.globl memory_write16
 .globl io_read8
 .globl io_write8
 
@@ -361,8 +353,6 @@ tlbl_exception:
     mtc0 k1, $2  // EntryLo0
     addi k1, k1, 0x40
     mtc0 k1, $3  // EntryLo1
-    sll  k0, k0, 11
-    mtc0 k0, $10 // EntryHi
     nop
     tlbwi
 
@@ -375,6 +365,8 @@ tlbl_exception:
 
 tlbl_io:
     // Fall back to the I/O read handler if nothing is mapped
+    mfc0 k0, $14 // EPC
+    addi ra, k0, 4
     la   k0, io_read8
     mtc0 k0, $14 // EPC
     addi s5, s5, RAM_CYCLE - IO_CYCLE
@@ -393,8 +385,6 @@ tlbs_exception:
     mtc0 k1, $2  // EntryLo0
     addi k1, k1, 0x40
     mtc0 k1, $3  // EntryLo1
-    sll  k0, k0, 11
-    mtc0 k0, $10 // EntryHi
     nop
     tlbwi
 
@@ -407,6 +397,8 @@ tlbs_exception:
 
 tlbs_io:
     // Fall back to the I/O write handler if nothing is mapped
+    mfc0 k0, $14 // EPC
+    addi ra, k0, 4
     la   k0, io_write8
     mtc0 k0, $14 // EPC
     addi s5, s5, RAM_CYCLE - IO_CYCLE
@@ -422,46 +414,6 @@ tlbm_exception:
     nop
     nop
     eret
-
-
-memory_read8: // a0: address - v0: value
-    // Read a byte from memory and decrease the cycle count
-    addi s5, s5, -RAM_CYCLE
-    lbu  v0, (a0)
-    jr   ra
-
-
-memory_read16: // a0: address - v0: value
-    // Read 2 bytes from memory and form a 16-bit value
-    move a2, ra
-    jal  memory_read8
-    move s1, v0
-    addi a0, a0, 1
-    jal  memory_read8
-    addi a0, a0, -1
-    sll  v0, v0, 8
-    or   v0, v0, s1
-    jr   a2
-
-
-memory_write8: // a0: address, a1: value
-    // Write a byte to memory and decrease the cycle count
-    addi s5, s5, -RAM_CYCLE
-    sb   a1, (a0)
-    jr   ra
-
-
-memory_write16: // a0: address, a1: value
-    // Write a 16-bit value to memory as 2 bytes
-    move a2, ra
-    move s1, a1
-    jal  memory_write8
-    addi a0, a0, 1
-    srl  a1, a1, 8
-    jal  memory_write8
-    addi a0, a0, -1
-    move a1, s1
-    jr   a2
 
 
 io_read8: // a0: address - v0: value

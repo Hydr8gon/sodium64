@@ -17,7 +17,7 @@
     along with sodium64. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <regdef.h>
+#include "cpu_address.h"
 
 .globl write_mdmaen
 .globl write_dmapx
@@ -86,7 +86,7 @@ cpu_io:
     // Read a value from the CPU address and adjust
     sll  t0, s1, 2
     lw   a0, a1tbx(t0)
-    jal  memory_read8
+    MEM_READ8
     add  a0, a0, s2
     sll  t0, s1, 2
     sh   a0, a1tbx + 2(t0)
@@ -133,7 +133,7 @@ io_cpu:
     sll  t0, s1, 2
     lw   a0, a1tbx(t0)
     move a1, v0
-    jal  memory_write8
+    MEM_WRITE8
     add  a0, a0, s2
     sll  t0, s1, 2
     sh   a0, a1tbx + 2(t0)
