@@ -23,7 +23,7 @@
 
 .data
 
-framebuffer: .word 0xA0390000
+framebuffer: .word 0xA038D900
 
 .text
 
@@ -32,9 +32,9 @@ main:
     lui  t0, 0xA440     // VI register upper address
     li   t1, 0x0202     // 16-bit pixel format, no anti-aliasing
     sw   t1, 0x0000(t0) // VI_STATUS_REG
-    li   t1, 0xA0390000 // Framebuffer address
+    li   t1, 0xA038D900 // Framebuffer address
     sw   t1, 0x0004(t0) // VI_ORIGIN_REG
-    li   t1, 0x0100     // Framebuffer width
+    li   t1, 0x0118     // Framebuffer width
     sw   t1, 0x0008(t0) // VI_WIDTH_REG
     li   t1, 0x0200     // Line to trigger interrupt
     sw   t1, 0x000C(t0) // VI_INTR_REG
@@ -54,7 +54,7 @@ main:
     sw   t1, 0x0028(t0) // VI_V_START_REG
     li   t1, 0x000E0204 // Vertical color burst range
     sw   t1, 0x002C(t0) // VI_V_BURST_REG
-    li   t1, 0x019A     // Horizontal scale (10-bit fraction, 256/640)
+    li   t1, 0x01C0     // Horizontal scale (10-bit fraction, 280/640)
     sw   t1, 0x0030(t0) // VI_X_SCALE_REG
     li   t1, 0x0400     // Vertical scale (10-bit fraction, 240/240)
     sw   t1, 0x0034(t0) // VI_Y_SCALE_REG
@@ -87,7 +87,7 @@ main:
     cache 0x10, 0x0180(t0)
 
     // Initialize the stack below the ROM buffer
-    la   sp, 0x80090000
+    la   sp, 0x8008C000
 
     // Read SRAM from the cart to memory
     li   t0, 0xA8000000
@@ -104,7 +104,7 @@ read_sram:
     bne  t1, t2, read_sram
 
     // Clear the framebuffers and VRAM on boot (hardcoded for RSP access)
-    li   t0, 0xA0390000
+    li   t0, 0xA038D900
     li   t1, 0xA0400000
 clear_vram:
     sw   zero, (t0)
@@ -211,11 +211,11 @@ swap_buffers:
     // Get the address of the next of three framebuffers
     la   k0, framebuffer
     lw   k0, (k0)
-    li   k1, 0x20000
+    li   k1, 0x20D00 // Buffer size
     add  k0, k0, k1
     li   k1, 0xA03F0000
     bne  k0, k1, set_buffer
-    li   k0, 0xA0390000
+    li   k0, 0xA038D900
 
 set_buffer:
     // Set the framebuffer address and update input

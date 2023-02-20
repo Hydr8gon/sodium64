@@ -45,15 +45,15 @@ rdp_init:
 
 rdp_frame:
     // RDP commands that run at the start of a frame
-    .dword 0x3F1000FFA03B0000 // Set Color Image
-    .dword 0x2D000020004003A0 // Set Scissor
+    .dword 0x3F100117A03AE600 // Set Color Image
+    .dword 0x2D030020004303A0 // Set Scissor
     .dword 0x3700000000000000 // Set Fill Color
     .dword 0x2F3888FF00040001 // Set Other Modes (fill)
-    .dword 0x364003C000000000 // Fill Rectangle
+    .dword 0x3642F3C000030000 // Fill Rectangle
     .dword 0x2F0888FF00040001 // Set Other Modes (1 cycle)
-    .dword 0x3D100000A03EF000 // Set Texture Image (palette)
+    .dword 0x3D100000A038C000 // Set Texture Image (palette)
     .dword 0x3300000000400000 // Load Block (palette)
-    .dword 0x3D480000A03EF800 // Set Texture Image (texture)
+    .dword 0x3D480000A038C800 // Set Texture Image (texture)
 
 rdp_tile:
     // RDP commands that run when a tile is being drawn
@@ -205,10 +205,11 @@ next_tile:
     lhu  t6, scrn_data(t6)
 
     // Update the RDP draw command with the tile's coordinates
-    addi t0, s0, 8
+    addi t0, s0, 20
     sh   t0, 24 + rdp_tile // x1
-    sh   s0, 32 + rdp_tile // x3
-    sh   s0, 40 + rdp_tile // x2
+    addi t1, s0, 12
+    sh   t1, 32 + rdp_tile // x3
+    sh   t1, 40 + rdp_tile // x2
     lw   t0, fb_border
     add  t0, t0, s1
     sll  t0, t0, 2
@@ -372,7 +373,7 @@ decode_tile256:
 draw_tile:
     // DMA the tile texture to RDRAM
     la   a0, texture
-    la   a1, 0xA03EF800
+    la   a1, 0xA038C800
     li   a2, 0x7F
     jal  dma_write
 
@@ -450,9 +451,11 @@ check_object:
     bnez t7, next_object
 
     // Update the RDP draw command with the object's coordinates
-    sh   t6, 24 + rdp_tile // x1
-    sh   t5, 32 + rdp_tile // x3
-    sh   t5, 40 + rdp_tile // x2
+    addi t7, t6, 12
+    sh   t7, 24 + rdp_tile // x1
+    addi t7, t5, 12
+    sh   t7, 32 + rdp_tile // x3
+    sh   t7, 40 + rdp_tile // x2
     lw   t7, fb_border
     add  t4, t4, t7
     sll  t4, t4, 2
@@ -551,7 +554,7 @@ object_row:
 draw_object:
     // DMA the object texture to RDRAM
     la   a0, texture
-    la   a1, 0xA03EF800
+    la   a1, 0xA038C800
     li   a2, 0x1FF
     jal  dma_write
 
@@ -573,11 +576,11 @@ end_frame:
 
     // Update the RDP color buffer command with the next buffer address
     lw   t0, rdp_frame + 4
-    li   t1, 0x20000
+    li   t1, 0x20D00 // Buffer size
     add  t0, t0, t1
     li   t1, 0xA03F0000
     bne  t0, t1, set_buffer
-    li   t0, 0xA0390000
+    li   t0, 0xA038D900
 set_buffer:
     sw   t0, rdp_frame + 4
 
