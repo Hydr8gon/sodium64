@@ -43,7 +43,7 @@ read_iomap:
     .word read_unk:(0x2133 - 0x20FF)                          // 0x2100-0x2133
     .word read_mpyl,   read_mpym,   read_mpyh,   read_unk     // 0x2134-0x2137
     .word read_unk,    read_unk,    read_unk,    read_unk     // 0x2138-0x213B
-    .word rand,        rand,        read_unk,    read_unk     // 0x213C-0x213F
+    .word read_rand,   read_rand,   read_unk,    read_unk     // 0x213C-0x213F
     .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x2140-0x2143
     .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x2144-0x2147
     .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x2148-0x214B
@@ -428,6 +428,13 @@ io_read8: // a0: address - v0: value
 read_unk:
     // Unknown I/O register read; do nothing
     li   v0, 0
+    jr   ra
+
+
+read_rand:
+    // Stubbed I/O register read; get a "random" value using cycle counts
+    add  v0, s5, s3
+    andi v0, v0, 0xFF
     jr   ra
 
 
