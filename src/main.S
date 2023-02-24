@@ -19,7 +19,13 @@
 
 #include <regdef.h>
 
-.globl main
+.globl _start
+
+// Entry point; jump directly to main
+.section .boot
+_start:
+    j    main
+.section .code
 
 .data
 
@@ -28,6 +34,19 @@ framebuffer: .word 0xA038D900
 .text
 
 main:
+    // Disable interrupts and do the magic hardware init
+    mtc0 zero, $12 // Status
+    li   t0, 8
+    sw   t0, 0xBFC007FC
+
+    // Initialize the .bss area with zeroes
+    la   t0, __bss_start
+    la   t1, __bss_end
+bss_loop:
+    sw   zero, (t0)
+    addi t0, t0, 4
+    bltu t0, t1, bss_loop
+
     // Initialize the VI to display a 16-bit 256x224 framebuffer
     lui  t0, 0xA440     // VI register upper address
     li   t1, 0x0202     // 16-bit pixel format, no anti-aliasing
@@ -68,7 +87,7 @@ main:
     li   t1, 0x000F     // 16-bit - 1
     sw   t1, 0x0014(t0) // AI_BIT_RATE
 
-    // Overwrite the libdragon exception handlers
+    // Update the exception vectors
     la    t0, exception_vector
     lw    t1, 0x0000(t0)
     lw    t2, 0x0004(t0)
@@ -103,7 +122,7 @@ read_sram:
     addi t1, t1, 4
     bne  t1, t2, read_sram
 
-    // Clear the framebuffers and VRAM on boot (hardcoded for RSP access)
+    // Clear the framebuffers and VRAM (hardcoded for RSP access)
     li   t0, 0xA038D900
     li   t1, 0xA0400000
 clear_vram:
@@ -132,6 +151,8 @@ clear_vram:
     // Enable VI interrupts and nothing else
     li   t0, 0x0595     // Set VI mask
     sw   t0, 0xA430000C // MI_MASK_REG
+    li   t0, 0x401      // Enable interrupts
+    mtc0 t0, $12        // Status
 
     // Start execution
     j    cpu_execute
@@ -168,7 +189,7 @@ next_tlb:
 
 
 exception_vector:
-    // Jump to the custom exception handler (copied to the exception vector)
+    // Jump to the custom exception handler (copied to exception vectors)
     j    exception_handler
 
 

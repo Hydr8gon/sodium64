@@ -11,7 +11,7 @@ Automatic builds of the latest sodium64 commit are provided via GitHub Actions; 
 Place SNES ROMs with extension `.sfc`/`.smc` in the same folder as `sodium64.z64` and `rom-converter.py`. Run `rom-converter.py` using [Python](https://www.python.org) to convert the SNES ROMs to N64 ROMs. The output ROMs will be in a new folder called `out`. Currently only ROMs up to 3MB are supported.
 
 ### Compiling
-Although sodium64 is written in assembly, it relies on [libdragon](https://github.com/DragonMinded/libdragon.git) for its build system and a select few functions. When you have that set up, you can simply run `make` in the project root directory to compile.
+Although sodium64 is written in assembly, it relies on [libdragon](https://github.com/DragonMinded/libdragon.git) for its build system. When you have that set up, you can simply run `make` in the project root directory to compile.
 
 ### References
 * [Fullsnes](https://problemkaputt.de/fullsnes.htm) by Martin Korth

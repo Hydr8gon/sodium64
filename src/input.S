@@ -56,21 +56,14 @@ input_update:
     sw   k1, 0x0000(k0) // SI_DRAM_ADDR
     li   k1, 0x0FC0     // PIF RAM
     sw   k1, 0x0004(k0) // SI_PIF_AD_RD64B
-
-    // Invalidate cache for the DMA buffer
-    la    k0, joybus_cmd
-    cache 0x11, 0x00(k0)
-    cache 0x11, 0x10(k0)
-    cache 0x11, 0x20(k0)
-    cache 0x11, 0x30(k0)
     eret
 
 
 read_joyxl: // a0: address
-    // Read the button data for the controller
+    // Read the uncached button data for the controller
     andi t2, a0, 0x0006
     sll  t2, t2, 2
-    lhu  t0, joybus_cmd + 4(t2)
+    lhu  t0, 0x20000004 + joybus_cmd(t2)
 
     // Map N64 LR to SNES LR
     andi v0, t0, 0x3 << 4
@@ -88,10 +81,10 @@ read_joyxl: // a0: address
 
 
 read_joyxh: // a0: address
-    // Read the button data for the controller
+    // Read the uncached button data for the controller
     andi t2, a0, 0x0006
     sll  t2, t2, 2
-    lhu  t0, joybus_cmd + 4(t2)
+    lhu  t0, 0x20000004 + joybus_cmd(t2)
 
     // Map N64 Dpad to SNES Dpad
     srl  t1, t0, 8
