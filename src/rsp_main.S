@@ -197,19 +197,7 @@ load_screen:
     add  a1, a1, t0
     jal  dma_read
 
-next_tile:
-    // Get the BG entry for the current tile
-    add  t4, s6, s0
-    andi t6, t4, 0x1FF
-    srl  t6, t6, 2
-    lhu  t6, scrn_data(t6)
-
-    // Update the RDP draw command with the tile's coordinates
-    addi t0, s0, 20
-    sh   t0, 24 + rdp_tile // x1
-    addi t1, s0, 12
-    sh   t1, 32 + rdp_tile // x3
-    sh   t1, 40 + rdp_tile // x2
+    // Update the RDP draw command with the tile's Y-coordinate
     lw   t0, fb_border
     add  t0, t0, s1
     sll  t0, t0, 2
@@ -218,6 +206,20 @@ next_tile:
     sll  t1, t0, 16
     or   t0, t0, t1
     sw   t0, 20 + rdp_tile // y2, y1
+
+next_tile:
+    // Get the BG entry for the current tile
+    add  t4, s6, s0
+    andi t6, t4, 0x1FF
+    srl  t6, t6, 2
+    lhu  t6, scrn_data(t6)
+
+    // Update the RDP draw command with the tile's X-coordinate
+    addi t0, s0, 20
+    sh   t0, 24 + rdp_tile // x1
+    addi t1, s0, 12
+    sh   t1, 32 + rdp_tile // x3
+    sh   t1, 40 + rdp_tile // x2
 
     // Update the RDP texture parameters based on mirroring
     srl  t5, t6, 11
@@ -245,8 +247,8 @@ next_tile:
     jal  dma_read
 
     // Set initial values and jump to the tile decoder
-    li   t7, 0
-    li   t8, 0
+    li   t7, 0x80
+    li   t8, 0x10
     jr   t9
 
 decode_tile4:
@@ -257,7 +259,7 @@ decode_tile4:
 
 loop_tile4:
     // Prepare 4-color tile data for decoding
-    lhu  t4, 0x00 + char_data(t8)
+    lhu  t4, -2 + char_data(t8)
     mtc2 t4, $v03, 0 // Upper byte 1 to lane 0, bits 8-15
     mtc2 t4, $v03, 1 // Lower byte 1 to lane 1, bits 8-15
 
@@ -269,28 +271,28 @@ loop_tile4:
     vor   $v02, $v03, $v04, 0 // Combine bits to form indices
 
     // Add the palette offset to non-zero indices
+    // In parallel, move to the next line of the tile
     veq  $v00, $v02, $v31, 0
+        addi t7, t7, -0x10
     vmrg $v00, $v02, $v05, 8
+        addi t8, t8, -0x2
     vadd $v02, $v02, $v00, 0
 
-    // Loop through each line until the tile is complete
+    // Write the line to the texture buffer and loop until complete
     sqv  $v02, 0, 0, t7
-    addi t8, t8, 2
-    addi t7, t7, 0x10
-    andi t5, t8, 0xF
-    bnez t5, loop_tile4
+    bnez t8, loop_tile4
     b    draw_tile
 
 decode_tile16:
-    // Set the 4-color palette offset
+    // Set the 16-color palette offset
     srl  t0, t6, 6
     andi t0, t0, 0x7 << 4
     mtc2 t0, $v05, 0 // Palette offset
 
 loop_tile16:
     // Prepare 16-color tile data for decoding
-    lhu  t4, 0x00 + char_data(t8)
-    lhu  t5, 0x10 + char_data(t8)
+    lhu  t4, 0x00 - 2 + char_data(t8)
+    lhu  t5, 0x10 - 2 + char_data(t8)
     mtc2 t4, $v03, 0 // Upper byte 1 to lane 0, bits 8-15
     mtc2 t4, $v03, 1 // Lower byte 1 to lane 1, bits 8-15
     mtc2 t5, $v13, 0 // Upper byte 2 to lane 0, bits 8-15
@@ -310,24 +312,24 @@ loop_tile16:
     vor   $v01, $v12, $v02, 0 // Combine partial indices
 
     // Add the palette offset to non-zero indices
+    // In parallel, move to the next line of the tile
     veq  $v00, $v01, $v31, 0
+        addi t7, t7, -0x10
     vmrg $v00, $v01, $v05, 8
+        addi t8, t8, -0x2
     vadd $v02, $v01, $v00, 0
 
-    // Loop through each line until the tile is complete
+    // Write the line to the texture buffer and loop until complete
     sqv  $v02, 0, 0, t7
-    addi t8, t8, 2
-    addi t7, t7, 0x10
-    andi t5, t8, 0xF
-    bnez t5, loop_tile16
+    bnez t8, loop_tile16
     b    draw_tile
 
 decode_tile256:
     // Prepare 256-color tile data for decoding
-    lhu  t2, 0x00 + char_data(t8)
-    lhu  t3, 0x10 + char_data(t8)
-    lhu  t4, 0x20 + char_data(t8)
-    lhu  t5, 0x30 + char_data(t8)
+    lhu  t2, 0x00 - 2 + char_data(t8)
+    lhu  t3, 0x10 - 2 + char_data(t8)
+    lhu  t4, 0x20 - 2 + char_data(t8)
+    lhu  t5, 0x30 - 2 + char_data(t8)
     mtc2 t2, $v03, 0 // Upper byte 1 to lane 0, bits 8-15
     mtc2 t2, $v03, 1 // Lower byte 1 to lane 1, bits 8-15
     mtc2 t3, $v13, 0 // Upper byte 2 to lane 0, bits 8-15
@@ -363,12 +365,11 @@ decode_tile256:
     vmudn $v07, $v07, $v30, 0 // Shift upper indices left
     vor   $v00, $v06, $v07, 0 // Combine indices
 
-    // Loop through each line until the tile is complete
+    // Write the line to the texture buffer and loop until complete
+    addi t7, t7, -0x10
     sqv  $v00, 0, 0, t7
-    addi t8, t8, 2
-    addi t7, t7, 0x10
-    andi t5, t8, 0xF
-    bnez t5, decode_tile256
+    addi t8, t8, -0x2
+    bnez t8, decode_tile256
 
 draw_tile:
     // DMA the tile texture to RDRAM
@@ -477,10 +478,13 @@ check_object:
     sh   t4, 56 + rdp_tile // Gradient along X
     sh   t3, 80 + rdp_tile // Gradient along Y
 
-    // Get the object's palette offset
+    // Set the object's palette offset
     srl  t3, t1, 5
     andi t3, t3, 0x70
     addi t3, t3, 0x80
+    mtc2 t3, $v05, 0
+
+    // Set initial values for drawing the object
     li   t8, 0
     li   t7, 0
     li   t6, 0
@@ -506,7 +510,6 @@ decode_object:
     mtc2 t4, $v03, 1 // Lower byte 1 to lane 1, bits 8-15
     mtc2 t5, $v13, 0 // Upper byte 2 to lane 0, bits 8-15
     mtc2 t5, $v13, 1 // Lower byte 2 to lane 1, bits 8-15
-    mtc2 t3, $v05, 0 // Palette offset
 
     // Decode the palette indices
     vand  $v01, $v25, $v03, 9 // Mask out other lower bits
@@ -522,15 +525,16 @@ decode_object:
     vor   $v01, $v12, $v02, 0 // Combine partial indices
 
     // Add the palette offset to non-zero indices
+    // In parallel, move to the next line of the tile
     veq  $v00, $v01, $v31, 0
+        addi t7, t7, 0x20
     vmrg $v00, $v01, $v05, 8
+        addi t8, t8, 0x2
     vadd $v02, $v01, $v00, 0
 
-    // Loop through each line until the tile is complete
-    sqv  $v02, 0, 0, t7
-    addi t8, t8, 2
-    addi t7, t7, 0x20
+    // Write the line to the texture buffer and loop until complete
     andi t5, t8, 0xF
+    sqv  $v02, 0, -0x20, t7
     bnez t5, decode_object
 
     // Move to the next tile if the object is large
@@ -608,6 +612,11 @@ set_border:
 
 
 dma_write: // a0: RSP address, a1: DRAM address, a2: size
+    // Wait until a texture isn't being loaded to TMEM
+    mfc0 t0, COP0_DP_STATUS
+    andi t0, t0, 0x10 // TMEM busy
+    bnez t0, dma_write
+
     // Transfer data from the RSP via DMA
     mtc0 a0, COP0_DMA_SPADDR
     mtc0 a1, COP0_DMA_RAMADDR
