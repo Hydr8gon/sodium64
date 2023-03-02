@@ -145,8 +145,8 @@ rom_loop:
 
     // Detect HiROM headers with a rudimentary checksum check
     // TODO: improve this?
-    lhu  t0, 0x8009FFDC
-    lhu  t1, 0x8009FFDE
+    lhu  t0, 0x8009BFDC
+    lhu  t1, 0x8009BFDE
     xor  t0, t0, t1
     xori t0, t0, 0xFFFF
     beqz t0, map_hirom
@@ -433,7 +433,7 @@ read_unk:
 
 read_rand:
     // Stubbed I/O register read; get a "random" value using cycle counts
-    add  v0, s5, s3
+    addu v0, s5, s3
     andi v0, v0, 0xFF
     jr   ra
 

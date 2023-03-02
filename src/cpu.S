@@ -144,7 +144,7 @@ cpu_init:
     // Set the initial lookup table (s6), cycle count (s5), and status flags (s4)
     la   s6, opcodes_emu
     li   s5, 341 * 225 * 4
-    li   s4, 0x100
+    li   s4, 0x134
 
     // Set the initial APU cycle count (s3) and DSP cycle count (a3)
     move s3, s5
