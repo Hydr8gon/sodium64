@@ -23,7 +23,7 @@
 
 .data
 
-texture:   .byte 0:0x200
+texture:   .byte 0:0x80
 oam:       .byte 0:0x220
 scrn_data: .byte 0:0x80
 char_data: .byte 0:0x40
@@ -58,7 +58,7 @@ rdp_frame:
 rdp_tile:
     // RDP commands that run when a tile is being drawn
     .dword 0x3100000000000000 // Sync Load
-    .dword 0x3300000001200000 // Load Block (texture)
+    .dword 0x3300000001080000 // Load Block (texture)
     .dword 0x0A81000000000000 // Texture Triangle 1
     .dword 0x0100000000000000 // Texture Triangle 2
     .dword 0x0000000000000000 // Texture Triangle 3
@@ -72,33 +72,23 @@ rdp_tile:
     .dword 0x0000000000000000 // Texture Triangle 11
     .dword 0x0000000000000000 // Texture Triangle 12
 
-bg_params:
+tile_params:
     // S-coordinate, gradient along X, gradient along Y
     .hword 0x0010, 0x0020, 0x0100, 0 // No mirror
     .hword 0x00F0, 0xFFE0, 0x0100, 0 // X-mirror
     .hword 0x0710, 0x0020, 0xFF00, 0 // Y-mirror
     .hword 0x07F0, 0xFFE0, 0xFF00, 0 // XY-mirror
 
-obj_params:
-    // S-coordinate, gradient along X, gradient along Y
-    .hword 0x0010, 0x0020, 0x0200, 0 // No mirror, small
-    .hword 0x0010, 0x0020, 0x0200, 0 // No mirror, big
-    .hword 0x00F0, 0xFFE0, 0x0200, 0 // X-mirror, small
-    .hword 0x01F0, 0xFFE0, 0x0200, 0 // X-mirror, big
-    .hword 0x0E10, 0x0020, 0xFE00, 0 // Y-mirror, small
-    .hword 0x1E10, 0x0020, 0xFE00, 0 // Y-mirror, big
-    .hword 0x0EF0, 0xFFE0, 0xFE00, 0 // XY-mirror, small
-    .hword 0x1FF0, 0xFFE0, 0xFE00, 0 // XY-mirror, big
-
 tile_jumps: .word decode_tile4, decode_tile16, decode_tile256
 
-.space 0x8FC
+.space 0xAB8
 
-// Values updated by CPU; addresses 0xF88-0xFFF
+// Values updated by CPU; addresses 0xF84-0xFFF
 fb_border:   .word 0x08
 obj_enable:  .word 0x00
 bg_order:    .word 0x1B
 bg_type:     .word 0x00
+obj_size:    .word 0x10100808
 objcharbase: .word 0x0000
 bgscrnbase:  .word 0x0000:4
 bgbaseofsh:  .word 0x0000:4
@@ -224,8 +214,8 @@ next_tile:
     // Update the RDP texture parameters based on mirroring
     srl  t5, t6, 11
     andi t5, t5, 0x18
-    lw   t4, 0 + bg_params(t5)
-    lh   t3, 4 + bg_params(t5)
+    lw   t4, 0 + tile_params(t5)
+    lh   t3, 4 + tile_params(t5)
     srl  t5, t4, 16
     sh   t5, 48 + rdp_tile // S-coordinate
     sh   t4, 56 + rdp_tile // Gradient along X
@@ -380,7 +370,7 @@ draw_tile:
 
     // Run the RDP to draw a tile
     la   a0, rdp_tile
-    la   a1, bg_params
+    la   a1, tile_params
     jal  rdp_send
 
 finish_tile:
@@ -395,7 +385,7 @@ finish_tile:
 
 skip_tile:
     la   a0, 0x10 + rdp_tile
-    la   a1, bg_params
+    la   a1, tile_params
     jal  rdp_send
     b    finish_tile
 
@@ -419,6 +409,12 @@ check_object:
     andi t3, t3, 0x6
     srl  t2, t2, t3
 
+    // Get the object's size based on the large bit
+    andi t0, t2, 0x2  // Large
+    lhu  s0, obj_size(t0)
+    andi s1, s0, 0xFF // Y-size
+    srl  s0, s0, 8    // X-size
+
     // Get the object's Y-coordinate, wrapped past line 240
     srl  t3, t1, 24
     addi t3, t3, 1
@@ -426,14 +422,11 @@ check_object:
     slt  t4, t4, t3
     sll  t4, t4, 31
     sra  t4, t4, 23
-    or   t3, t3, t4
+    or   s3, t3, t4
 
     // Skip the object if it doesn't occupy any visible scanlines
-    addi t4, t3, 8
-    andi v0, t2, 0x2 // Large
-    sll  v1, v0, 2
-    add  t4, t4, v1
-    and  t5, t4, t3
+    add  t4, s3, s1
+    and  t5, t4, s3
     sra  t5, t5, 8
     bnez t5, next_object
 
@@ -442,54 +435,70 @@ check_object:
     andi t5, t5, 0xFF
     sll  t6, t2, 31 // Upper X
     sra  t6, t6, 23
-    or   t5, t5, t6
+    or   s2, t5, t6
 
     // Skip the object if it doesn't occupy any visible pixels
-    addi t6, t5, 8
-    add  t6, t6, v1
-    and  t7, t6, t5
+    add  t6, s2, s0
+    and  t7, t6, s2
     sra  t7, t7, 8
     bnez t7, next_object
 
-    // Update the RDP draw command with the object's coordinates
-    addi t7, t6, 12
-    sh   t7, 24 + rdp_tile // x1
-    addi t7, t5, 12
-    sh   t7, 32 + rdp_tile // x3
-    sh   t7, 40 + rdp_tile // x2
-    lw   t7, fb_border
-    add  t4, t4, t7
-    sll  t4, t4, 2
-    sh   t4, 18 + rdp_tile // y3
-    add  t3, t3, t7
-    sll  t3, t3, 2
-    sll  t4, t3, 16
-    or   t3, t3, t4
-    sw   t3, 20 + rdp_tile // y2, y1
-
-    // Update the RDP texture parameters based on size and mirroring
-    srl  t5, t1, 10
-    andi t5, t5, 0x30
-    add  t5, t5, v1
-    lw   t4, 0 + obj_params(t5)
-    lh   t3, 4 + obj_params(t5)
+    // Update the RDP texture parameters based on mirroring
+    srl  t5, t1, 11
+    andi t5, t5, 0x18
+    lw   t4, 0 + tile_params(t5)
+    lh   t3, 4 + tile_params(t5)
     srl  t5, t4, 16
     sh   t5, 48 + rdp_tile // S-coordinate
     sh   t4, 56 + rdp_tile // Gradient along X
     sh   t3, 80 + rdp_tile // Gradient along Y
 
-    // Set the object's palette offset
+    // Set initial values for drawing the object
     srl  t3, t1, 5
     andi t3, t3, 0x70
     addi t3, t3, 0x80
-    mtc2 t3, $v05, 0
+    mtc2 t3, $v05, 0 // Palette offset
+    move s4, s0      // X-size reload
+    li   s5, 0       // Character offset
 
-    // Set initial values for drawing the object
-    li   t8, 0
-    li   t7, 0
-    li   t6, 0
+    // Set initial values based on horizontal mirroring
+    andi t7, t1, 0x4000 // X-mirror
+    li   s6, 8
+    move v0, s0
+    beqz t7, object_ymir
+    add  s2, s2, s0
+    addi s2, s2, -8
+    addi s6, zero, -8
+    sub  v0, zero, s0
 
-load_object:
+object_ymir:
+    // Set initial values based on vertical mirroring
+    andi t7, t1, 0x8000 // Y-mirror
+    li   s7, 8
+    beqz t7, next_objy
+    add  s3, s3, s1
+    addi s3, s3, -8
+    addi s7, zero, -8
+
+next_objy:
+    // Update the RDP draw command with the object's Y-coordinate
+    lw   t7, fb_border
+    add  t7, t7, s3
+    sll  t7, t7, 2
+    addi t6, t7, 8 << 2
+    sh   t6, 18 + rdp_tile // y3
+    sll  t3, t7, 16
+    or   t3, t3, t7
+    sw   t3, 20 + rdp_tile // y2, y1
+
+next_objx:
+    // Update the RDP draw command with the object's X-coordinate
+    addi t7, s2, 12 // Vertical border
+    sh   t7, 32 + rdp_tile // x3
+    sh   t7, 40 + rdp_tile // x2
+    addi t7, t7, 8
+    sh   t7, 24 + rdp_tile // x1
+
     // Load the tile's character data from VRAM
     la   a0, char_data
     la   a1, 0xA03F0000 // VRAM
@@ -498,9 +507,13 @@ load_object:
     andi t4, t1, 0x1FF
     sll  t4, t4, 5
     add  a1, a1, t4
-    add  a1, a1, t6
-    li   a2, 0x3F
+    add  a1, a1, s5
+    li   a2, 0x1F
     jal  dma_read
+
+    // Set initial values for drawing the tile
+    li   t8, 0 // Character offset
+    li   t7, 0 // Texture offset
 
 decode_object:
     // Prepare 16-color tile data for decoding
@@ -527,45 +540,42 @@ decode_object:
     // Add the palette offset to non-zero indices
     // In parallel, move to the next line of the tile
     veq  $v00, $v01, $v31, 0
-        addi t7, t7, 0x20
+        addi t7, t7, 0x10
     vmrg $v00, $v01, $v05, 8
         addi t8, t8, 0x2
     vadd $v02, $v01, $v00, 0
 
     // Write the line to the texture buffer and loop until complete
     andi t5, t8, 0xF
-    sqv  $v02, 0, -0x20, t7
+    sqv  $v02, 0, -0x10, t7
     bnez t5, decode_object
 
-    // Move to the next tile if the object is large
-    or   t5, v0, v1
-    beqz t5, draw_object
-    beqz v1, object_row
-    li   t8, 0x20
-    addi t7, t7, -0xF0
-    li   v1, 0
-    b    decode_object
-
-object_row:
-    // Move to the next row of tiles if the object is large
-    li   t8, 0x00
-    li   t7, 0x100
-    li   t6, 0x200
-    li   v0, 0
-    li   v1, 1
-    b    load_object
-
-draw_object:
     // DMA the object texture to RDRAM
     la   a0, texture
     la   a1, 0xA038C800
-    li   a2, 0x1FF
+    li   a2, 0x7F
     jal  dma_write
 
-    // Run the RDP to draw an object
+    // Run the RDP to draw an object tile
     la   a0, rdp_tile
-    la   a1, bg_params
+    la   a1, tile_params
     jal  rdp_send
+
+    // Loop through object tiles in the X-direction
+    addi s0, s0, -8
+    add  s2, s2, s6
+    addi s5, s5, 0x20
+    bnez s0, next_objx
+
+    // Loop through object tiles in the Y-direction
+    move s0, s4
+    sub  s2, s2, v0
+    sll  t7, s0, 2
+    sub  s5, s5, t7
+    addi s5, s5, 0x200
+    addi s1, s1, -8
+    add  s3, s3, s7
+    bnez s1, next_objy
 
 next_object:
     // Move to the next object until all are drawn

@@ -93,11 +93,12 @@ nmitimen: .byte  0x00
 rdnmi:    .byte  0x00
 hvbjoy:   .byte  0x00
 
-// Mirrors of RSP values; addresses 0xF88-0xFFF
+// Mirrors of RSP values; addresses 0xF84-0xFFF
 fb_border:   .word 0x08
 obj_enable:  .word 0x00
 bg_order:    .word 0x1B
 bg_type2:    .word 0x00
+obj_size:    .word 0x10100808
 objcharbase: .word 0x0000
 bgscrnbase:  .word 0x0000:4
 bgbaseofsh:  .word 0x0000:4
@@ -123,6 +124,11 @@ bg_masks:
 // Possible offsets for additional screens past the base
 scrn_ofsh: .hword 0x0000, 0x0800, 0x0000, 0x0800
 scrn_ofsv: .hword 0x0000, 0x0000, 0x0800, 0x1000
+
+// Possible object sizes; bytes are small X, small Y, large X, large Y
+obj_sizes:
+    .word 0x08081010, 0x08082020, 0x08084040, 0x10102020
+    .word 0x10104040, 0x20204040, 0x10202040, 0x10202020
 
 // Possible address increments for VRAM access
 vram_incrs: .byte 1, 32, 128, 128
@@ -207,7 +213,7 @@ update_dpal:
     // Update the RSP's copy of OAM in DMEM
     la   t0, oam
     la   t1, oam + 0x220
-    la   t2, 0xA4000200
+    la   t2, 0xA4000080
 oam_loop:
     lw   t3, (t0)
     addi t0, t0, 4
@@ -230,7 +236,7 @@ vram_loop:
     // Update the RSP's register values in DMEM
     la   t0, fb_border
     la   t1, bg_orders
-    la   t2, 0xA4000F88
+    la   t2, 0xA4000F84
 reg_loop:
     lw   t3, (t0)
     addi t0, t0, 4
@@ -339,10 +345,16 @@ no_blank:
 
 write_obsel: // a1: value
     // Update the OBJ character base address in DMEM
-    // TODO: OBJ size, gap
+    // TODO: use the gap setting
     andi t0, a1, 0x3
     sll  t0, t0, 14
     sw   t0, objcharbase
+
+    // Update the OBJ small and large sizes in DMEM
+    andi t0, a1, 0xE0
+    srl  t0, t0, 3
+    lw   t0, obj_sizes(t0)
+    sw   t0, obj_size
     jr   ra
 
 
