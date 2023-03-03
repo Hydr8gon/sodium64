@@ -36,8 +36,9 @@ wram:  .byte 0:0x20000
 empty: .byte 0:0x2000
 .byte 0:0x1000 // Alignment
 
-memory_map: .word 0:0x800
-wmadd:      .word 0x00000
+memory_map:  .word 0:0x800
+rom_pointer: .word 0x340000
+wmadd:       .word 0x000000
 
 read_iomap:
     .word read_unk:(0x2133 - 0x20FF)                          // 0x2100-0x2133
@@ -131,22 +132,11 @@ write_iomap:
 .text
 
 memory_init:
-    // Copy a ROM appended to the file into memory
-    // TODO: support more than 3MB
-    la   t0, 0xB0104000 // ROM appended to file
-    la   t1, 0x8008C000 // ROM buffer start
-    la   t2, 0x8038C000 // ROM buffer end
-rom_loop:
-    lw   t3, (t0)
-    addi t0, t0, 4
-    sw   t3, (t1)
-    addi t1, t1, 4
-    bne  t1, t2, rom_loop
-
     // Detect HiROM headers with a rudimentary checksum check
     // TODO: improve this?
-    lhu  t0, 0x8009BFDC
-    lhu  t1, 0x8009BFDE
+    lw   t0, 0xB0113FDC
+    andi t1, t0, 0xFFFF
+    srl  t0, t0, 16
     xor  t0, t0, t1
     xori t0, t0, 0xFFFF
     beqz t0, map_hirom
@@ -195,7 +185,8 @@ lowram_area:
 
 lorom_area:
     // Get a pointer to a ROM block mapped as LoROM
-    la   t3, 0x8008C000 // ROM buffer
+    // Special case; ROM is dynamically loaded by the exception handler
+    la   t3, 0x10104000 // ROM appended to file
     li   t4, 0x7F0000
     and  t4, t4, t0     // Mirrored bank
     srl  t4, t4, 1      // 32KB every 64KB bank
@@ -203,9 +194,7 @@ lorom_area:
     li   t4, 0x7FFF
     and  t4, t4, t0     // Offset within 32KB
     add  t3, t3, t4
-    la   t4, 0x8038C000 // ROM bounds
-    bge  t3, t4, loempty_area
-    b    map_loblock
+    b    map_lonone
 
 losram_area:
     // Get a pointer to a SRAM block mapped as LoROM
@@ -292,13 +281,12 @@ hiwram_area:
 
 hirom_area:
     // Get a pointer to a ROM block mapped as HiROM
-    la   t3, 0x8008C000 // ROM buffer
+    // Special case; ROM is dynamically loaded by the exception handler
+    la   t3, 0x10104000 // ROM appended to file
     li   t4, 0x3FFFFF   // ROM mask
     and  t4, t4, t0
     add  t3, t3, t4
-    la   t4, 0x8038C000 // ROM bounds
-    bge  t3, t4, hiempty_area
-    b    map_hiblock
+    b    map_hinone
 
 hisram_area:
     // Get a pointer to a SRAM block mapped as HiROM
@@ -347,8 +335,38 @@ tlbl_exception:
     srl  k0, a0, 13
     sll  k0, k0, 2
     lw   k1, memory_map(k0)
-    beqz k1, tlbl_io
 
+    // Check for special cases (I/O or ROM)
+    beqz k1, tlbl_io
+    lui  k0, 0x1000
+    sub  k0, k0, k1
+    bgtz k0, tlbl_set
+
+    // DMA the requested 8KB block of ROM to memory
+    lui  k0, 0xA460     // PI register upper address
+    sw   k1, 0x0004(k0) // PI_CART_ADDR
+    lw   k1, rom_pointer
+    sw   k1, 0x0000(k0) // PI_DRAM_ADDR
+    li   k1, 0x1FFF     // 8KB
+    sw   k1, 0x000C(k0) // PI_WR_LEN
+
+    // Create an EntryLo0 value and increment the ROM pointer
+    lw   k1, rom_pointer
+    addi k0, k1, 0x2000
+    srl  k1, k1, 6
+    ori  k1, k1, 0x1B // Cache, Valid, Global
+    bne  k0, 0x380000, not_end
+    li   k0, 0x340000
+not_end:
+    sw   k0, rom_pointer
+
+dma_wait:
+    // Wait for the DMA to complete
+    lw   k0, 0xA4600010 // PI_STATUS
+    andi k0, k0, 0x1    // DMA busy
+    bnez k0, dma_wait
+
+tlbl_set:
     // Overwrite the oldest TLB entry
     mtc0 k1, $2  // EntryLo0
     addi k1, k1, 0x40
@@ -379,7 +397,12 @@ tlbs_exception:
     srl  k0, a0, 13
     sll  k0, k0, 2
     lw   k1, memory_map(k0)
+
+    // Check for special cases (I/O or ROM)
     beqz k1, tlbs_io
+    lui  k0, 0x1000
+    sub  k0, k0, k1
+    blez k0, tlbm_exception // Ignore unmapped ROM
 
     // Overwrite the oldest TLB entry
     mtc0 k1, $2  // EntryLo0
