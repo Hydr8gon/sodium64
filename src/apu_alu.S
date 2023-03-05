@@ -290,7 +290,7 @@ apu_cmpidy: IDY; CMPA // CMP A,[aa]+Y
     sub  a0, v0, a1
     lbu  t1, apu_flags
     andi t1, t1, 0xFF & ~0x01
-    sleu t2, a0, t0 // C
+    sleu t2, a0, v0 // C
     or   t1, t1, t2
     sb   t1, apu_flags
     j    apu_set_nz
@@ -451,6 +451,7 @@ apu_sbcidy: IDY; SBCA // SBC A,[aa]+Y
     andi t1, t2, 0x01 // C
     add  a1, a1, t1
     jal  apu_write8
+    move a0, a1
 
     // Set flags for subtraction
     // TODO: set the H flag

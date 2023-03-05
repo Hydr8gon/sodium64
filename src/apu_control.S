@@ -391,9 +391,14 @@ apu_call: // CALL aaaa
 
 
 .macro TCALL n // TCALL n
-    // Jump to a hardcoded address based on n
-    li   t0, 0xFFDE - (\n * 2)
-    sh   a0, apu_count
+    // Jump to a 16-bit value from an address based on n
+    li   a0, 0xFFDE - (\n * 2) + 1
+    jal  apu_read8
+    sll  s1, v0, 8
+    addi a0, a0, -1
+    jal  apu_read8
+    or   a1, v0, s1
+    sh   a1, apu_count
 
     // Push the old program counter to the stack
     lhu  s1, apu_stack
@@ -502,9 +507,11 @@ apu_brk: // BRK
     lbu  a1, apu_flags
     andi t0, a1, 0xFF & ~0x04 // Clear I
     ori  t0, t0, 0x10         // Set B
-    addi t0, s1, -2
-    sb   t0, apu_stack + 1
+    sb   t0, apu_flags
+    addi a0, s1, -2
     jal  apu_write8
+    addi t0, s1, -3
+    sb   t0, apu_stack + 1
     j    cpu_execute
 
 
