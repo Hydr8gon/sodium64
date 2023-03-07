@@ -77,6 +77,7 @@
     MEM_READ8
     lhu  a0, direct_ofs
     add  a0, a0, v0
+    andi a0, a0, 0xFFFF
     addi s7, s7, 2
 .endm
 
@@ -86,9 +87,9 @@
     MEM_READ8
     lhu  t0, register_x
     add  t0, t0, v0
-    andi t0, t0, 0xFF
     lhu  a0, direct_ofs
     add  a0, a0, t0
+    andi a0, a0, 0xFFFF
     addi s7, s7, 2
 .endm
 
@@ -98,9 +99,9 @@
     MEM_READ8
     lhu  t0, register_y
     add  t0, t0, v0
-    andi t0, t0, 0xFF
     lhu  a0, direct_ofs
     add  a0, a0, t0
+    andi a0, a0, 0xFFFF
     addi s7, s7, 2
 .endm
 
@@ -178,6 +179,7 @@
     MEM_READ8
     lhu  a0, direct_ofs
     add  a0, a0, v0
+    andi a0, a0, 0xFFFF
 
     // Get a 16-bit value from memory added to the data bank as an address
     MEM_READ16
@@ -193,9 +195,9 @@
     MEM_READ8
     lhu  t0, register_x
     add  t0, t0, v0
-    andi t0, t0, 0xFF
     lhu  a0, direct_ofs
     add  a0, a0, t0
+    andi a0, a0, 0xFFFF
 
     // Get a 16-bit value from memory added to the data bank as an address
     MEM_READ16
@@ -211,6 +213,7 @@
     MEM_READ8
     lhu  a0, direct_ofs
     add  a0, a0, v0
+    andi a0, a0, 0xFFFF
 
     // Get a 16-bit value from memory plus register Y added to the data bank as an address
     MEM_READ16
@@ -245,6 +248,7 @@
     MEM_READ8
     lhu  a0, direct_ofs
     add  a0, a0, v0
+    andi a0, a0, 0xFFFF
 
     // Read a 24-bit value from memory as an address
     MEM_READ16
@@ -262,6 +266,7 @@
     MEM_READ8
     lhu  a0, direct_ofs
     add  a0, a0, v0
+    andi a0, a0, 0xFFFF
 
     // Read a 24-bit value from memory plus register Y as an address
     MEM_READ16
