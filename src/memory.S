@@ -31,7 +31,7 @@
 .data
 
 .byte 0:0x1000 // Alignment
-sram:  .byte 0:0x2000
+sram:  .byte 0:0x8000
 wram:  .byte 0:0x20000
 empty: .byte 0:0x2000
 .byte 0:0x1000 // Alignment
@@ -149,6 +149,14 @@ map_lorom:
     li   t1, 0xFFFFFF // Maximum address
     li   t2, 0x002000 // Block size (8KB)
 
+    // Set the SRAM mask using the header size
+    lw   t9, 0xB010BFD8
+    srl  t9, t9, 24
+    beqz t9, build_lomap
+    li   t3, 0x400
+    sll  t9, t3, t9
+    addi t9, t9, -1
+
 build_lomap:
     // Determine the LoROM memory area from the address bank
     li   t3, 0x400000
@@ -198,12 +206,13 @@ lorom_area:
 
 losram_area:
     // Get a pointer to a SRAM block mapped as LoROM
+    beqz t9, loempty_area
     andi t4, t0, 0xFFFF
     li   t5, 0x8000
     bge  t4, t5, lorom_area // 0x8000-0xFFFF: WS1/WS2 LoROM
-    andi t4, t4, 0x1FFF
+    and  t4, t4, t9
     la   t3, sram
-    add  t3, t3, t4         // 0x0000-0x7FFF: 8KB SRAM
+    add  t3, t3, t4         // 0x0000-0x7FFF: 2KB-32KB SRAM
     ori  t3, t3, 1          // Write bit
     b    map_loblock
 
@@ -246,6 +255,14 @@ map_hirom:
     li   t0, 0x000000 // Current address
     li   t1, 0xFFFFFF // Maximum address
     li   t2, 0x002000 // Block size (8KB)
+
+    // Set the SRAM mask using the header size
+    lw   t9, 0xB0113FD8
+    srl  t9, t9, 24
+    beqz t9, build_himap
+    li   t3, 0x400
+    sll  t9, t3, t9
+    addi t9, t9, -1
 
 build_himap:
     // Determine the HiROM memory area from the address bank
@@ -290,9 +307,10 @@ hirom_area:
 
 hisram_area:
     // Get a pointer to a SRAM block mapped as HiROM
-    andi t4, t0, 0x1FFF
+    beqz t9, hiempty_area
+    and  t4, t0, t9
     la   t3, sram
-    add  t3, t3, t4 // 8KB SRAM
+    add  t3, t3, t4 // 2KB-32KB SRAM
     ori  t3, t3, 1  // Write bit
     b    map_hiblock
 

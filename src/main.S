@@ -262,7 +262,7 @@ reset_interrupt:
     la   t1, sram
     andi t2, t1, 0xFFF  // 4KB-aligned
     sub  t1, t1, t2
-    addi t2, t1, 0x2000 // 8KB size
+    addi t2, t1, 0x8000 // 32KB size
 write_sram:
     lw   t3, (t1)
     addi t1, t1, 4
