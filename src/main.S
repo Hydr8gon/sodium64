@@ -260,9 +260,10 @@ reset_interrupt:
     // Write SRAM from memory to the cart
     li   t0, 0xA8000000
     la   t1, sram
-    andi t2, t1, 0xFFF  // 4KB-aligned
+    andi t2, t1, 0xFFF // 4KB-aligned
     sub  t1, t1, t2
-    addi t2, t1, 0x8000 // 32KB size
+    li   t2, 0x8000    // 32KB size
+    add  t2, t2, t1
 write_sram:
     lw   t3, (t1)
     addi t1, t1, 4
