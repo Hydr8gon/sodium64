@@ -20,8 +20,8 @@
 #include <regdef.h>
 
 // Master cycle counts for CPU memory accesses (underclocked)
-#define RAM_CYCLE 10 // 8
-#define IO_CYCLE   8 // 6
+#define RAM_CYCLE 9 // 8
+#define IO_CYCLE  7 // 6
 
 .macro MEM_READ8 // a0: address - v0: value
     // Read a byte from memory and decrease the cycle count
@@ -75,8 +75,7 @@
     // Get the 8-bit immediate value added to the direct offset as an address
     addi a0, s7, 1
     MEM_READ8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
+    add  a0, s8, v0
     andi a0, a0, 0xFFFF
     addi s7, s7, 2
 .endm
@@ -87,8 +86,7 @@
     MEM_READ8
     lhu  t0, register_x
     add  t0, t0, v0
-    lhu  a0, direct_ofs
-    add  a0, a0, t0
+    add  a0, s8, t0
     andi a0, a0, 0xFFFF
     addi s7, s7, 2
 .endm
@@ -99,8 +97,7 @@
     MEM_READ8
     lhu  t0, register_y
     add  t0, t0, v0
-    lhu  a0, direct_ofs
-    add  a0, a0, t0
+    add  a0, s8, t0
     andi a0, a0, 0xFFFF
     addi s7, s7, 2
 .endm
@@ -118,8 +115,7 @@
     // Get the 16-bit immediate value added to the data bank as an address
     addi a0, s7, 1
     MEM_READ16
-    lbu  a0, data_bank
-    sll  a0, a0, 16
+    lw   a0, data_bank
     add  a0, a0, v0
     addi s7, s7, 3
 .endm
@@ -130,8 +126,7 @@
     MEM_READ16
     lhu  t0, register_x
     add  t0, t0, v0
-    lbu  a0, data_bank
-    sll  a0, a0, 16
+    lw   a0, data_bank
     add  a0, a0, t0
     addi s7, s7, 3
 .endm
@@ -142,8 +137,7 @@
     MEM_READ16
     lhu  t0, register_y
     add  t0, t0, v0
-    lbu  a0, data_bank
-    sll  a0, a0, 16
+    lw   a0, data_bank
     add  a0, a0, t0
     addi s7, s7, 3
 .endm
@@ -177,14 +171,12 @@
     // Get the 8-bit immediate value added to the direct offset as an address
     addi a0, s7, 1
     MEM_READ8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
+    add  a0, s8, v0
     andi a0, a0, 0xFFFF
 
     // Get a 16-bit value from memory added to the data bank as an address
     MEM_READ16
-    lbu  a0, data_bank
-    sll  a0, a0, 16
+    lw   a0, data_bank
     add  a0, a0, v0
     addi s7, s7, 2
 .endm
@@ -195,14 +187,12 @@
     MEM_READ8
     lhu  t0, register_x
     add  t0, t0, v0
-    lhu  a0, direct_ofs
-    add  a0, a0, t0
+    add  a0, s8, t0
     andi a0, a0, 0xFFFF
 
     // Get a 16-bit value from memory added to the data bank as an address
     MEM_READ16
-    lbu  a0, data_bank
-    sll  a0, a0, 16
+    lw   a0, data_bank
     add  a0, a0, v0
     addi s7, s7, 2
 .endm
@@ -211,14 +201,12 @@
     // Get the 8-bit immediate value added to the direct offset as an address
     addi a0, s7, 1
     MEM_READ8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
+    add  a0, s8, v0
     andi a0, a0, 0xFFFF
 
     // Get a 16-bit value from memory plus register Y added to the data bank as an address
     MEM_READ16
-    lbu  a0, data_bank
-    sll  a0, a0, 16
+    lw   a0, data_bank
     lhu  t0, register_y
     add  a0, a0, v0
     add  a0, a0, t0
@@ -234,8 +222,7 @@
 
     // Get a 16-bit value from memory plus register Y added to the data bank as an address
     MEM_READ16
-    lbu  a0, data_bank
-    sll  a0, a0, 16
+    lw   a0, data_bank
     lhu  t0, register_y
     add  a0, a0, v0
     add  a0, a0, t0
@@ -246,8 +233,7 @@
     // Get the 8-bit immediate value added to the direct offset as an address
     addi a0, s7, 1
     MEM_READ8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
+    add  a0, s8, v0
     andi a0, a0, 0xFFFF
 
     // Read a 24-bit value from memory as an address
@@ -264,8 +250,7 @@
     // Get the 8-bit immediate value added to the direct offset as an address
     addi a0, s7, 1
     MEM_READ8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
+    add  a0, s8, v0
     andi a0, a0, 0xFFFF
 
     // Read a 24-bit value from memory plus register Y as an address

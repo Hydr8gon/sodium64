@@ -23,7 +23,6 @@
 .globl register_x
 .globl register_y
 .globl stack_ptr
-.globl direct_ofs
 .globl data_bank
 
 .globl cpu_init
@@ -35,12 +34,11 @@
 
 .data
 
+data_bank:   .word  0x000000
 accumulator: .hword 0x0000
 register_x:  .hword 0x0000
 register_y:  .hword 0x0000
 stack_ptr:   .hword 0x01FF
-direct_ofs:  .hword 0x0000
-data_bank:   .byte  0x00
 
 opcodes_emu: // Lookup table for 6502 emulation mode
     .word brk_e, oraidx_8, cop_e,    oradrs_8, tsbdir_8, oradir_8, asldir_8, oraidl_8, php,   ora_8,    asl_8, phd,   tsbabs_8, oraabs_8, aslabs_8, oralng_8 // 0x00-0x0F
@@ -141,10 +139,11 @@ cpu_init:
     MEM_READ16
     move s7, v0
 
-    // Set the initial lookup table (s6), cycle count (s5), and status flags (s4)
+    // Set the initial lookup table (s6), cycle count (s5), status flags (s4), and direct offset (s8)
     la   s6, opcodes_emu
     li   s5, 341 * 225 * 4
     li   s4, 0x134
+    li   s8, 0
 
     // Set the initial APU cycle count (s3) and DSP cycle count (a3)
     move s3, s5
@@ -241,8 +240,8 @@ update_mode:
     sb   t0, stack_ptr    // Reset SP bank
     sb   zero, register_x // Clear high byte
     sb   zero, register_y // Clear high byte
-    sh   zero, direct_ofs
-    sb   zero, data_bank
+    move s8, zero         // Clear direct offset
+    sb   zero, data_bank + 1
     j    cpu_execute
 
 not_emu:

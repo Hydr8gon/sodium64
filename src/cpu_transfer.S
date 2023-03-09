@@ -297,7 +297,7 @@ tyx_16: // TYX (16-bit)
 
 tdc: // TDC
     // Transfer the direct offset to the accumulator and set flags
-    lhu  a0, direct_ofs
+    move a0, s8
     sh   a0, accumulator
     addi s7, s7, 1
     j    set_nz16
@@ -306,7 +306,7 @@ tdc: // TDC
 tcd: // TCD
     // Transfer the accumulator to the direct offset and set flags
     lhu  a0, accumulator
-    sh   a0, direct_ofs
+    move s8, a0
     addi s7, s7, 1
     j    set_nz16
 
@@ -648,7 +648,7 @@ php: // PHP
 phb: // PHB
     // Push the data bank to the stack
     lhu  a0, stack_ptr
-    lbu  a1, data_bank
+    lbu  a1, data_bank + 1
     MEM_WRITE8
     addi t0, a0, -1
     sh   t0, stack_ptr
@@ -671,7 +671,7 @@ phd: // PHD
     // Push the direct offset to the stack
     lhu  a0, stack_ptr
     addi a0, a0, -1
-    lhu  a1, direct_ofs
+    move a1, s8
     MEM_WRITE16
     addi t0, a0, -1
     sh   t0, stack_ptr
@@ -683,8 +683,7 @@ pei: // PEI nn
     // Get the 8-bit immediate value added to the direct offset as an address
     addi a0, s7, 1
     MEM_READ8
-    lhu  a0, direct_ofs
-    add  a0, a0, v0
+    add  a0, s8, v0
 
     // Load a 16-bit value from memory and push it to the stack
     MEM_READ16
@@ -813,7 +812,7 @@ pld: // PLD
     addi a0, a0, 1
     sh   a0, stack_ptr
     move a0, v0
-    sh   a0, direct_ofs
+    move s8, a0
     addi s7, s7, 1
     j    set_nz16
 
@@ -825,7 +824,7 @@ plb: // PLB
     MEM_READ8
     sh   a0, stack_ptr
     move a0, v0
-    sb   a0, data_bank
+    sb   a0, data_bank + 1
     addi s7, s7, 1
     j    set_nz8
 
