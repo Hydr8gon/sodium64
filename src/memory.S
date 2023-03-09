@@ -132,6 +132,21 @@ write_iomap:
 .text
 
 memory_init:
+    // DMA the first 2MB of ROM to stay in RAM always
+    lui  t0, 0xA460     // PI register upper address
+    la   t1, 0x10104000 // ROM file
+    sw   t1, 0x0004(t0) // PI_CART_ADDR
+    la   t1, 0x80140000 // ROM buffer
+    sw   t1, 0x0000(t0) // PI_DRAM_ADDR
+    li   t1, 0x1FFFFF   // 2MB
+    sw   t1, 0x000C(t0) // PI_WR_LEN
+
+pi_wait1:
+    // Wait for the DMA to complete
+    lw   t1, 0x0010(t0) // PI_STATUS
+    andi t1, t1, 0x1    // DMA busy
+    bnez t1, pi_wait1
+
     // Detect HiROM headers with a rudimentary checksum check
     // TODO: improve this?
     lw   t0, 0xB0113FDC
@@ -192,15 +207,20 @@ lowram_area:
     b    map_loblock
 
 lorom_area:
-    // Get a pointer to a ROM block mapped as LoROM
-    // Special case; ROM is dynamically loaded by the exception handler
-    la   t3, 0x10104000 // ROM appended to file
+    // Get an offset to a ROM block mapped as LoROM
     li   t4, 0x7F0000
-    and  t4, t4, t0     // Mirrored bank
-    srl  t4, t4, 1      // 32KB every 64KB bank
+    and  t4, t4, t0 // Mirrored bank
+    srl  t4, t4, 1  // 32KB every 64KB bank
+    li   t3, 0x7FFF
+    and  t3, t3, t0 // Offset within 32KB
+    add  t4, t4, t3
+
+    // Map the first 2MB directly and special case the rest
+    la   t3, 0x80140000 // ROM buffer
     add  t3, t3, t4
-    li   t4, 0x7FFF
-    and  t4, t4, t0     // Offset within 32KB
+    la   t5, 0x80340000 // ROM bounds
+    blt  t3, t5, map_loblock
+    la   t3, 0x10104000 // ROM file
     add  t3, t3, t4
     b    map_lonone
 
@@ -297,11 +317,16 @@ hiwram_area:
     b    map_hiblock
 
 hirom_area:
-    // Get a pointer to a ROM block mapped as HiROM
-    // Special case; ROM is dynamically loaded by the exception handler
-    la   t3, 0x10104000 // ROM appended to file
-    li   t4, 0x3FFFFF   // ROM mask
+    // Get an offset to a ROM block mapped as HiROM
+    li   t4, 0x3FFFFF // ROM mask
     and  t4, t4, t0
+
+    // Map the first 2MB directly and special case the rest
+    la   t3, 0x80140000 // ROM buffer
+    add  t3, t3, t4
+    la   t5, 0x80340000 // ROM bounds
+    blt  t3, t5, map_hiblock
+    la   t3, 0x10104000 // ROM file
     add  t3, t3, t4
     b    map_hinone
 
@@ -378,11 +403,11 @@ tlbl_exception:
 not_end:
     sw   k0, rom_pointer
 
-dma_wait:
+pi_wait2:
     // Wait for the DMA to complete
     lw   k0, 0xA4600010 // PI_STATUS
     andi k0, k0, 0x1    // DMA busy
-    bnez k0, dma_wait
+    bnez k0, pi_wait2
 
 tlbl_set:
     // Overwrite the oldest TLB entry
