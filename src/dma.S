@@ -52,9 +52,11 @@ transfer_modes:
 .text
 
 write_mdmaen: // a1: value
-    // Backup the return address and APU cycle count
+    // Push non-temporary registers to the stack
     addi sp, sp, -16
-    sw   ra, 8(sp)
+    sw   a1, 12(sp)
+    sw   a0, 8(sp)
+    sw   ra, 4(sp)
     sw   s3, 0(sp)
 
     // Set the initial enabled channels (s0) and current channel (s1)
@@ -152,8 +154,10 @@ dma_end:
     addi s1, s1, 1
     bnez s0, dma_start
 
-    // Restore the return address and APU cycle count
-    lw   ra, 8(sp)
+    // Pop non-temporary registers from the stack
+    lw   a1, 12(sp)
+    lw   a0, 8(sp)
+    lw   ra, 4(sp)
     lw   s3, 0(sp)
     addi sp, sp, 16
     jr   ra
