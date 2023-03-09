@@ -58,7 +58,7 @@ write_mdmaen: // a1: value
     sw   s3, 0(sp)
 
     // Set the initial enabled channels (s0) and current channel (s1)
-    move s0, a1
+    andi s0, a1, 0xFF
     li   s1, 0
 
 dma_start:
