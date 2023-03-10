@@ -111,9 +111,10 @@ bss_loop:
     // Read SRAM from the cart to memory
     li   t0, 0xA8000000
     la   t1, sram
-    andi t2, t1, 0xFFF  // 4KB-aligned
+    andi t2, t1, 0xFFF // 4KB-aligned
     sub  t1, t1, t2
-    addi t2, t1, 0x2000 // 8KB size
+    li   t2, 0x8000    // 32KB size
+    add  t2, t2, t1
 read_sram:
     lw   t3, (t0)
     addi t0, t0, 4

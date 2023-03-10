@@ -34,7 +34,6 @@
 sram:  .byte 0:0x8000
 wram:  .byte 0:0x20000
 empty: .byte 0:0x2000
-.byte 0:0x1000 // Alignment
 
 memory_map:  .word 0:0x800
 rom_pointer: .word 0x340000
@@ -227,15 +226,24 @@ lorom_area:
     b    map_lonone
 
 losram_area:
-    // Get a pointer to a SRAM block mapped as LoROM
-    beqz t9, loempty_area
+    // Check if this is a ROM or SRAM area
     andi t4, t0, 0xFFFF
     li   t5, 0x8000
     bge  t4, t5, lorom_area // 0x8000-0xFFFF: WS1/WS2 LoROM
+
+    // Special case SRAM smaller than 8KB
+    beqz t9, loempty_area
+    li   t5, 0x1FFF
+    bge  t9, t5, losram_map
+    sll  t3, t9, 2 // Valid not set
+    b    map_lonone
+
+losram_map:
+    // Get a pointer to a SRAM block mapped as LoROM
     and  t4, t4, t9
     la   t3, sram
-    add  t3, t3, t4         // 0x0000-0x7FFF: 2KB-32KB SRAM
-    ori  t3, t3, 1          // Write bit
+    add  t3, t3, t4 // 0x0000-0x7FFF: 2KB-32KB SRAM
+    ori  t3, t3, 1  // Write bit
     b    map_loblock
 
 loio_area:
@@ -307,7 +315,7 @@ hisys_area:
     li   t4, 0x8000
     bge  t3, t4, hirom_area  // 0x8000-0xFFFF: WS1/WS2 HiROM
     li   t4, 0x6000
-    bge  t3, t4, hisram_area // 0x6000-0x7FFF: 8KB SRAM
+    bge  t3, t4, hisram_area // 0x6000-0x7FFF: 2KB-32KB SRAM
     b    hiio_area           // 0x2000-0x5FFF: I/O registers
 
 hiwram_area:
@@ -333,8 +341,15 @@ hirom_area:
     b    map_hinone
 
 hisram_area:
-    // Get a pointer to a SRAM block mapped as HiROM
+    // Special case SRAM smaller than 8KB
     beqz t9, hiempty_area
+    li   t5, 0x1FFF
+    bge  t9, t5, hisram_map
+    sll  t3, t9, 2 // Valid not set
+    b    map_hinone
+
+hisram_map:
+    // Get a pointer to a SRAM block mapped as HiROM
     and  t4, t0, t9
     la   t3, sram
     add  t3, t3, t4 // 2KB-32KB SRAM
@@ -381,12 +396,30 @@ tlbl_exception:
     sll  k0, k0, 2
     lw   k1, memory_map(k0)
 
-    // Check for special cases (I/O or ROM)
+    // Check for special cases (I/O, ROM, SRAM)
     beqz k1, tlbl_io
     lui  k0, 0x1000
     sub  k0, k0, k1
-    bgtz k0, tlbl_set
+    blez k0, tlbl_rom
+    andi k0, k1, 0x2
+    beqz k0, tlbl_sram
 
+tlbl_set:
+    // Overwrite the oldest TLB entry
+    mtc0 k1, $2  // EntryLo0
+    addi k1, k1, 0x40
+    mtc0 k1, $3  // EntryLo1
+    nop
+    tlbwi
+
+    // Increment the TLB index
+    mfc0 k0, $0 // Index
+    addi k0, k0, 1
+    andi k0, k0, 0x1F
+    mtc0 k0, $0 // Index
+    eret
+
+tlbl_rom:
     // DMA the requested 8KB block of ROM to memory
     lui  k0, 0xA460     // PI register upper address
     sw   k1, 0x0004(k0) // PI_CART_ADDR
@@ -410,21 +443,7 @@ pi_wait2:
     lw   k0, 0xA4600010 // PI_STATUS
     andi k0, k0, 0x1    // DMA busy
     bnez k0, pi_wait2
-
-tlbl_set:
-    // Overwrite the oldest TLB entry
-    mtc0 k1, $2  // EntryLo0
-    addi k1, k1, 0x40
-    mtc0 k1, $3  // EntryLo1
-    nop
-    tlbwi
-
-    // Increment the TLB index
-    mfc0 k0, $0 // Index
-    addi k0, k0, 1
-    andi k0, k0, 0x1F
-    mtc0 k0, $0 // Index
-    eret
+    b    tlbl_set
 
 tlbl_io:
     // Fall back to the I/O read handler if nothing is mapped
@@ -436,6 +455,16 @@ tlbl_io:
     nop
     eret
 
+tlbl_sram:
+    // Fall back to the SRAM read handler if small SRAM is mapped
+    mfc0 k0, $14   // EPC
+    addi ra, k0, 4
+    la   k0, sram_read8
+    mtc0 k0, $14   // EPC
+    srl  k1, k1, 2 // Size
+    and  t0, a0, k1
+    eret
+
 
 tlbs_exception:
     // Look up the EntryLo0 value for the missed address
@@ -443,11 +472,13 @@ tlbs_exception:
     sll  k0, k0, 2
     lw   k1, memory_map(k0)
 
-    // Check for special cases (I/O or ROM)
+    // Check for special cases (I/O, ROM, SRAM)
     beqz k1, tlbs_io
     lui  k0, 0x1000
     sub  k0, k0, k1
     blez k0, tlbm_exception // Ignore unmapped ROM
+    andi k0, k1, 0x2
+    beqz k0, tlbs_sram
 
     // Overwrite the oldest TLB entry
     mtc0 k1, $2  // EntryLo0
@@ -473,6 +504,16 @@ tlbs_io:
     nop
     eret
 
+tlbs_sram:
+    // Fall back to the SRAM write handler if small SRAM is mapped
+    mfc0 k0, $14   // EPC
+    addi ra, k0, 4
+    la   k0, sram_write8
+    mtc0 k0, $14   // EPC
+    srl  k1, k1, 2 // Size
+    and  t0, a0, k1
+    eret
+
 
 tlbm_exception:
     // Skip writes to read-only memory
@@ -482,6 +523,26 @@ tlbm_exception:
     nop
     nop
     eret
+
+
+sram_read8: // t0: address - v0: value
+    // Read an 8-bit value from SRAM
+    la   t1, sram
+    andi t2, t1, 0xFFF // 4KB-aligned
+    sub  t1, t1, t2
+    add  t0, t0, t1
+    lbu  v0, (t0)
+    jr   ra
+
+
+sram_write8: // t0: address, a1: value
+    // Write an 8-bit value to SRAM
+    la   t1, sram
+    andi t2, t1, 0xFFF // 4KB-aligned
+    sub  t1, t1, t2
+    add  t0, t0, t1
+    sb   a1, (t0)
+    jr   ra
 
 
 io_read8: // a0: address - v0: value
