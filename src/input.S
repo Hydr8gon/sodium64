@@ -21,6 +21,7 @@
 
 .globl input_init
 .globl input_update
+.globl read_joyx
 .globl read_joyxl
 .globl read_joyxh
 
@@ -57,6 +58,13 @@ input_update:
     li   k1, 0x0FC0     // PIF RAM
     sw   k1, 0x0004(k0) // SI_PIF_AD_RD64B
     eret
+
+
+read_joyx: // a0: address
+    // Stub to fix input in games like Donkey Kong Country
+    // TODO: actually implement manual controller ports
+    li   v0, 0x01
+    jr   ra
 
 
 read_joyxl: // a0: address

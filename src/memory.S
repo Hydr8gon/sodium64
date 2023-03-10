@@ -61,7 +61,9 @@ read_iomap:
     .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x2174-0x2177
     .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x2178-0x217B
     .word read_apuio0, read_apuio1, read_apuio2, read_apuio3  // 0x217C-0x217F
-    .word read_unk:(0x420F - 0x217F)                          // 0x2180-0x420F
+    .word read_unk:(0x4013 - 0x217F)                          // 0x2180-0x4013
+    .word read_unk,    read_unk,    read_joyx,   read_joyx    // 0x4014-0x4017
+    .word read_unk:(0x420F - 0x4017)                          // 0x4018-0x420F
     .word read_rdnmi,  read_unk,    read_hvbjoy, read_unk     // 0x4210-0x4213
     .word read_rddivl, read_rddivh, read_rdmpyl, read_rdmpyh  // 0x4214-0x4217
     .word read_joyxl,  read_joyxh,  read_joyxl,  read_joyxh   // 0x4218-0x421B
