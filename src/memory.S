@@ -36,7 +36,7 @@ wram:  .byte 0:0x20000
 empty: .byte 0:0x2000
 
 memory_map:  .word 0:0x800
-rom_pointer: .word 0x340000
+rom_pointer: .word 0x320000
 wmadd:       .word 0x000000
 
 read_iomap:
@@ -137,7 +137,7 @@ memory_init:
     lui  t0, 0xA460     // PI register upper address
     la   t1, 0x10104000 // ROM file
     sw   t1, 0x0004(t0) // PI_CART_ADDR
-    la   t1, 0x80140000 // ROM buffer
+    la   t1, 0x80120000 // ROM buffer
     sw   t1, 0x0000(t0) // PI_DRAM_ADDR
     li   t1, 0x1FFFFF   // 2MB
     sw   t1, 0x000C(t0) // PI_WR_LEN
@@ -217,9 +217,9 @@ lorom_area:
     add  t4, t4, t3
 
     // Map the first 2MB directly and special case the rest
-    la   t3, 0x80140000 // ROM buffer
+    la   t3, 0x80120000 // ROM buffer
     add  t3, t3, t4
-    la   t5, 0x80340000 // ROM bounds
+    la   t5, 0x80320000 // ROM bounds
     blt  t3, t5, map_loblock
     la   t3, 0x10104000 // ROM file
     add  t3, t3, t4
@@ -332,9 +332,9 @@ hirom_area:
     and  t4, t4, t0
 
     // Map the first 2MB directly and special case the rest
-    la   t3, 0x80140000 // ROM buffer
+    la   t3, 0x80120000 // ROM buffer
     add  t3, t3, t4
-    la   t5, 0x80340000 // ROM bounds
+    la   t5, 0x80320000 // ROM bounds
     blt  t3, t5, map_hiblock
     la   t3, 0x10104000 // ROM file
     add  t3, t3, t4
@@ -433,8 +433,8 @@ tlbl_rom:
     addi k0, k1, 0x2000
     srl  k1, k1, 6
     ori  k1, k1, 0x1B // Cache, Valid, Global
-    bne  k0, 0x380000, not_end
-    li   k0, 0x340000
+    bne  k0, 0x360000, not_end
+    li   k0, 0x320000
 not_end:
     sw   k0, rom_pointer
 

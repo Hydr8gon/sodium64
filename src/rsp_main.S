@@ -23,10 +23,11 @@
 
 .data
 
-texture:   .byte 0:0x80
-oam:       .byte 0:0x220
-scrn_data: .byte 0:0x80
-char_data: .byte 0:0x40
+texture:    .byte 0:0x80
+oam:        .byte 0:0x220
+scrn_data:  .byte 0:0x80
+char_data:  .byte 0:0x40
+tile_table: .byte 0:0x400
 
 vec_data:
     .hword 0x8000, 0x4000, 0x2000, 0x1000, 0x0800, 0x0400, 0x0200, 0x0100 // Mask
@@ -53,11 +54,10 @@ rdp_frame:
     .dword 0x2F0888FF00040001 // Set Other Modes (1 cycle)
     .dword 0x3D100000A038C000 // Set Texture Image (palette)
     .dword 0x3300000000400000 // Load Block (palette)
-    .dword 0x3D480000A038C800 // Set Texture Image (texture)
 
 rdp_tile:
     // RDP commands that run when a tile is being drawn
-    .dword 0x3100000000000000 // Sync Load
+    .dword 0x3D480000A0360000 // Set Texture Image (texture)
     .dword 0x3300000001080000 // Load Block (texture)
     .dword 0x0A81000000000000 // Texture Triangle 1
     .dword 0x0100000000000000 // Texture Triangle 2
@@ -81,7 +81,7 @@ tile_params:
 
 tile_jumps: .word decode_tile4, decode_tile16, decode_tile256
 
-.space 0xAB8
+.space 0x6C0
 
 // Values updated by CPU; addresses 0xF84-0xFFF
 fb_border:   .word 0x08
@@ -144,6 +144,15 @@ draw_bg:
     sll  t0, s4, 2
     lw   t9, tile_jumps - 4(t0) // Code path
     addi s4, s4, 3              // Character shift
+
+    // Reset the tile cache for a new BG
+    la   t0, tile_table
+    la   t2, vec_data
+clear_cache:
+    sqv  $v31, 0, 0x00, t0
+    sqv  $v31, 0, 0x10, t0
+    addi t0, t0, 0x20
+    bne  t0, t2, clear_cache
 
     // Get the horizontal and vertical offsets within the BG
     sll  s2, t1, 1
@@ -221,17 +230,26 @@ next_tile:
     sh   t4, 56 + rdp_tile // Gradient along X
     sh   t3, 80 + rdp_tile // Gradient along Y
 
-    // Skip decoding if the last tile's character number was the same
-    andi t0, t6, 0x3FF
-    beq  t0, v1, skip_tile
+    // Skip uploading if the last tile's number and palette were the same
+    andi t0, t6, 0x1FFF
+    beq  t0, v1, skip_upload
+    move v1, t0
+
+    // Skip decoding if the tile is already cached with the same palette
+    andi s8, t6, 0x3FF // Character number
+    lbu  t1, tile_table(s8)
+    srl  a3, t6, 5
+    andi a3, a3, 0xE0  // Palette offset
+    ori  a3, a3, 0x01  // Cache bit
+    beq  a3, t1, skip_decode
+    sb   a3, tile_table(s8)
 
     // Load the tile's character data from VRAM
     la   a0, char_data
     la   a1, 0xA03F0000 // VRAM
     lw   t0, bgcharbase(s2)
     add  a1, a1, t0
-    andi v1, t6, 0x3FF  // Character number
-    sll  t0, v1, s4
+    sll  t0, s8, s4
     add  a1, a1, t0
     li   a2, 0x3F
     jal  dma_read
@@ -243,8 +261,7 @@ next_tile:
 
 decode_tile4:
     // Set the 4-color palette offset
-    srl  t0, t6, 8
-    andi t0, t0, 0x7 << 2
+    srl  t0, a3, 3
     mtc2 t0, $v05, 0 // Palette offset
 
 loop_tile4:
@@ -271,12 +288,11 @@ loop_tile4:
     // Write the line to the texture buffer and loop until complete
     sqv  $v02, 0, 0, t7
     bnez t8, loop_tile4
-    b    draw_tile
+    b    cache_tile
 
 decode_tile16:
     // Set the 16-color palette offset
-    srl  t0, t6, 6
-    andi t0, t0, 0x7 << 4
+    srl  t0, a3, 1
     mtc2 t0, $v05, 0 // Palette offset
 
 loop_tile16:
@@ -312,7 +328,7 @@ loop_tile16:
     // Write the line to the texture buffer and loop until complete
     sqv  $v02, 0, 0, t7
     bnez t8, loop_tile16
-    b    draw_tile
+    b    cache_tile
 
 decode_tile256:
     // Prepare 256-color tile data for decoding
@@ -361,13 +377,17 @@ decode_tile256:
     addi t8, t8, -0x2
     bnez t8, decode_tile256
 
-draw_tile:
-    // DMA the tile texture to RDRAM
+cache_tile:
+    // DMA the texture to the tile cache in RDRAM
     la   a0, texture
-    la   a1, 0xA038C800
+    la   a1, 0xA0360000
+    sll  t0, s8, 7
+    add  a1, a1, t0
+    sw   a1, rdp_tile + 4
     li   a2, 0x7F
     jal  dma_write
 
+draw_tile:
     // Run the RDP to draw a tile
     la   a0, rdp_tile
     la   a1, tile_params
@@ -383,7 +403,16 @@ finish_tile:
     blt  s1, s7, draw_row
     b    next_bg
 
-skip_tile:
+skip_decode:
+    // Update the RDP texture address and draw a cached tile
+    la   a1, 0xA0360000
+    sll  t0, s8, 7
+    add  a1, a1, t0
+    sw   a1, rdp_tile + 4
+    b    draw_tile
+
+skip_upload:
+    // Run the RDP to draw a tile, skipping texture upload
     la   a0, 0x10 + rdp_tile
     la   a1, tile_params
     jal  rdp_send
@@ -399,6 +428,10 @@ next_bg:
     lw   t0, obj_enable
     beqz t0, end_frame
     li   t9, 0
+
+    // Reset the RDP texture address for objects
+    la   a1, 0xA0360000
+    sw   a1, rdp_tile + 4
 
 check_object:
     // Read the 4 object bytes and additional 2 bits
@@ -552,7 +585,7 @@ decode_object:
 
     // DMA the object texture to RDRAM
     la   a0, texture
-    la   a1, 0xA038C800
+    la   a1, 0xA0360000
     li   a2, 0x7F
     jal  dma_write
 
