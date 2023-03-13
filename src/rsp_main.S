@@ -81,11 +81,12 @@ tile_params:
 
 tile_jumps: .word decode_tile4, decode_tile16, decode_tile256
 
-.space 0x6C0
+.space 0x6BC
 
-// Values updated by CPU; addresses 0xF84-0xFFF
+// Values updated by CPU; addresses 0xF80-0xFFF
 fb_border:   .word 0x08
 obj_enable:  .word 0x00
+obj_rotate:  .word 0x000
 bg_order:    .word 0x1B
 bg_type:     .word 0x00
 obj_size:    .word 0x10100808
@@ -126,7 +127,7 @@ draw_frame:
     xori t0, t0, 0x10
     add  s7, s7, t0
 
-    // Initialize the current BG shift
+    // Initialize the current BG priority
     li   s3, 0
 
 draw_bg:
@@ -140,7 +141,7 @@ draw_bg:
     lw   s4, bg_type
     srl  s4, s4, t1
     andi s4, s4, 0x3
-    beqz s4, next_bg
+    beqz s4, finish_bg
     sll  t0, s4, 2
     lw   t9, tile_jumps - 4(t0) // Code path
     addi s4, s4, 3              // Character shift
@@ -383,7 +384,7 @@ cache_tile:
     la   a1, 0xA0360000
     sll  t0, s8, 7
     add  a1, a1, t0
-    sw   a1, rdp_tile + 4
+    sw   a1, 4 + rdp_tile
     li   a2, 0x7F
     jal  dma_write
 
@@ -401,14 +402,14 @@ finish_tile:
     // Move to the next row of the BG until finished
     addi s1, s1, 8
     blt  s1, s7, draw_row
-    b    next_bg
+    b    finish_bg
 
 skip_decode:
     // Update the RDP texture address and draw a cached tile
     la   a1, 0xA0360000
     sll  t0, s8, 7
     add  a1, a1, t0
-    sw   a1, rdp_tile + 4
+    sw   a1, 4 + rdp_tile
     b    draw_tile
 
 skip_upload:
@@ -418,24 +419,24 @@ skip_upload:
     jal  rdp_send
     b    finish_tile
 
-next_bg:
-    // Move to the next BG until all have been drawn
-    addi s3, s3, 2
-    andi s3, s3, 0x7
-    bnez s3, draw_bg
-
+finish_bg:
     // Check if objects are enabled
     lw   t0, obj_enable
-    beqz t0, end_frame
-    li   t9, 0
+    beqz t0, next_bg
 
-    // Reset the RDP texture address for objects
+    // Initialize the OAM count and RDP texture address
+    lw   t9, obj_rotate
     la   a1, 0xA0360000
-    sw   a1, rdp_tile + 4
+    sw   a1, 4 + rdp_tile
 
 check_object:
-    // Read the 4 object bytes and additional 2 bits
+    // Read an OAM entry and skip if wrong priority
     lw   t1, oam(t9)
+    srl  t2, t1, 11
+    andi t2, t2, 0x6
+    bne  t2, s3, next_object
+
+    // Read the object's additional 2 bits
     srl  t2, t9, 4
     lbu  t2, 0x200 + oam(t2)
     srl  t3, t9, 1
@@ -455,11 +456,11 @@ check_object:
     slt  t4, t4, t3
     sll  t4, t4, 31
     sra  t4, t4, 23
-    or   s3, t3, t4
+    or   s8, t3, t4
 
     // Skip the object if it doesn't occupy any visible scanlines
-    add  t4, s3, s1
-    and  t5, t4, s3
+    add  t4, s8, s1
+    and  t5, t4, s8
     sra  t5, t5, 8
     bnez t5, next_object
 
@@ -507,16 +508,16 @@ check_object:
 object_ymir:
     // Set initial values based on vertical mirroring
     andi t7, t1, 0x8000 // Y-mirror
-    li   s7, 8
+    li   gp, 8
     beqz t7, next_objy
-    add  s3, s3, s1
-    addi s3, s3, -8
-    addi s7, zero, -8
+    add  s8, s8, s1
+    addi s8, s8, -8
+    addi gp, zero, -8
 
 next_objy:
     // Update the RDP draw command with the object's Y-coordinate
     lw   t7, fb_border
-    add  t7, t7, s3
+    add  t7, t7, s8
     sll  t7, t7, 2
     addi t6, t7, 8 << 2
     sh   t6, 18 + rdp_tile // y3
@@ -607,16 +608,22 @@ decode_object:
     sub  s5, s5, t7
     addi s5, s5, 0x200
     addi s1, s1, -8
-    add  s3, s3, s7
+    add  s8, s8, gp
     bnez s1, next_objy
 
 next_object:
-    // Move to the next object until all are drawn
-    addi t9, t9, 4
-    andi t9, t9, 0x1FF
-    bnez t9, check_object
+    // Move to the next object until all have been drawn
+    addi t9, t9, -4
+    lw   t0, obj_rotate
+    andi t9, t9, 0x1FC
+    bne  t9, t0, check_object
 
-end_frame:
+next_bg:
+    // Move to the next BG until all have been drawn
+    addi s3, s3, 2
+    andi s3, s3, 0x7
+    bnez s3, draw_bg
+
     // Halt until the next frame can be drawn
     li   t0, 0x0002 // Set halt
     mtc0 t0, COP0_SP_STATUS

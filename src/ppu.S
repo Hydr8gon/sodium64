@@ -74,11 +74,10 @@ bg_type:     .byte 0x55
 vram_incl:   .byte 0x00
 vram_inch:   .byte 0x00
 
-oam_reload: .hword 0x0000
-oam_lsb:    .byte  0x00
-bg_old:     .byte  0x00
-m7_old:     .byte  0x00
-cg_lsb:     .byte  0x00
+oam_lsb: .byte  0x00
+bg_old:  .byte  0x00
+m7_old:  .byte  0x00
+cg_lsb:  .byte  0x00
 
 mpy:      .word  0x000000
 coldata:  .hword 0x0000
@@ -93,9 +92,10 @@ nmitimen: .byte  0x00
 rdnmi:    .byte  0x00
 hvbjoy:   .byte  0x00
 
-// Mirrors of RSP values; addresses 0xF84-0xFFF
+// Mirrors of RSP values; addresses 0xF80-0xFFF
 fb_border:   .word 0x08
 obj_enable:  .word 0x00
+obj_rotate:  .word 0x000
 bg_order:    .word 0x1B
 bg_type2:    .word 0x00
 obj_size:    .word 0x10100808
@@ -233,10 +233,20 @@ vram_loop:
     addi t2, t2, 4
     bne  t0, t1, vram_loop
 
+    // Set the RSP's OAM priority rotation value
+    lhu  t1, oamadd
+    andi t0, t1, 0x8000
+    beqz t0, no_rotate
+    sll  t0, t1, 1
+    addi t0, t0, -4
+    andi t0, t0, 0x1FC
+no_rotate:
+    sw   t0, obj_rotate
+
     // Update the RSP's register values in DMEM
     la   t0, fb_border
     la   t1, bg_orders
-    la   t2, 0xA4000F84
+    la   t2, 0xA4000F80
 reg_loop:
     lw   t3, (t0)
     addi t0, t0, 4
@@ -359,20 +369,26 @@ write_obsel: // a1: value
 
 
 write_oamaddl: // a1: value
-    // Set the low byte of the OAM reload and reload the address
-    sb   a1, oam_reload + 1
-    lhu  t0, oam_reload
-    sll  t0, t0, 1
+    // Set the low byte of the OAM address
+    lhu  t0, oamadd
+    sll  t1, a1, 1
+    andi t1, a1, 0x01FE
+    andi t0, t0, 0x8200
+    or   t0, t0, t1
     sh   t0, oamadd
     jr   ra
 
 
 write_oamaddh: // a1: value
-    // Set the high bit of the OAM reload and reload the address
-    andi t0, a1, 0x01
-    sb   t0, oam_reload
-    lhu  t0, oam_reload
-    sll  t0, t0, 1
+    // Set the high bits of the OAM address
+    lhu  t0, oamadd
+    sll  t1, a1, 9
+    sll  t2, a1, 8
+    andi t1, t1, 0x0200 // OAM address bit
+    andi t2, t2, 0x8000 // Priority rotation
+    andi t0, t0, 0x01FE
+    or   t0, t0, t1
+    or   t0, t0, t2
     sh   t0, oamadd
     jr   ra
 
