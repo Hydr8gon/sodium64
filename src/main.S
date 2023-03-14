@@ -106,7 +106,7 @@ bss_loop:
     cache 0x10, 0x0180(t0)
 
     // Initialize the stack below the ROM buffer
-    la   sp, 0x80120000
+    la   sp, 0x80160000
 
     // Read SRAM from the cart to memory
     li   t0, 0xA8000000

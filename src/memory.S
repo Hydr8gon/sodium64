@@ -36,8 +36,11 @@ wram:  .byte 0:0x20000
 empty: .byte 0:0x2000
 
 memory_map:  .word 0:0x800
-rom_pointer: .word 0x320000
-wmadd:       .word 0x000000
+rom_addrs:   .word 0:0x100
+rom_entries: .word 0:0x100
+rom_pointer: .byte 0x00
+
+wmadd: .word 0x000000
 
 read_iomap:
     .word read_unk:(0x2133 - 0x20FF)                          // 0x2100-0x2133
@@ -133,21 +136,6 @@ write_iomap:
 .text
 
 memory_init:
-    // DMA the first 2MB of ROM to stay in RAM always
-    lui  t0, 0xA460     // PI register upper address
-    la   t1, 0x10104000 // ROM file
-    sw   t1, 0x0004(t0) // PI_CART_ADDR
-    la   t1, 0x80120000 // ROM buffer
-    sw   t1, 0x0000(t0) // PI_DRAM_ADDR
-    li   t1, 0x1FFFFF   // 2MB
-    sw   t1, 0x000C(t0) // PI_WR_LEN
-
-pi_wait1:
-    // Wait for the DMA to complete
-    lw   t1, 0x0010(t0) // PI_STATUS
-    andi t1, t1, 0x1    // DMA busy
-    bnez t1, pi_wait1
-
     // Detect HiROM headers with a rudimentary checksum check
     // TODO: improve this?
     lw   t0, 0xB0113FDC
@@ -208,20 +196,14 @@ lowram_area:
     b    map_loblock
 
 lorom_area:
-    // Get an offset to a ROM block mapped as LoROM
+    // Special case LoROM; the exception handler will dynamically load blocks
+    la   t3, 0x10104000 // ROM appended to file
     li   t4, 0x7F0000
-    and  t4, t4, t0 // Mirrored bank
-    srl  t4, t4, 1  // 32KB every 64KB bank
-    li   t3, 0x7FFF
-    and  t3, t3, t0 // Offset within 32KB
-    add  t4, t4, t3
-
-    // Map the first 2MB directly and special case the rest
-    la   t3, 0x80120000 // ROM buffer
+    and  t4, t4, t0     // Mirrored bank
+    srl  t4, t4, 1      // 32KB every 64KB bank
     add  t3, t3, t4
-    la   t5, 0x80320000 // ROM bounds
-    blt  t3, t5, map_loblock
-    la   t3, 0x10104000 // ROM file
+    li   t4, 0x7FFF
+    and  t4, t4, t0     // Offset within 32KB
     add  t3, t3, t4
     b    map_lonone
 
@@ -327,16 +309,10 @@ hiwram_area:
     b    map_hiblock
 
 hirom_area:
-    // Get an offset to a ROM block mapped as HiROM
-    li   t4, 0x3FFFFF // ROM mask
+    // Special case HiROM; the exception handler will dynamically load blocks
+    la   t3, 0x10104000 // ROM appended to file
+    li   t4, 0x3FFFFF   // ROM mask
     and  t4, t4, t0
-
-    // Map the first 2MB directly and special case the rest
-    la   t3, 0x80120000 // ROM buffer
-    add  t3, t3, t4
-    la   t5, 0x80320000 // ROM bounds
-    blt  t3, t5, map_hiblock
-    la   t3, 0x10104000 // ROM file
     add  t3, t3, t4
     b    map_hinone
 
@@ -423,26 +399,68 @@ tlbl_rom:
     // DMA the requested 8KB block of ROM to memory
     lui  k0, 0xA460     // PI register upper address
     sw   k1, 0x0004(k0) // PI_CART_ADDR
-    lw   k1, rom_pointer
+    lbu  k1, rom_pointer
+    addi k1, k1, 0x160000 >> 13
+    sll  k1, k1, 13     // ROM buffer address
     sw   k1, 0x0000(k0) // PI_DRAM_ADDR
     li   k1, 0x1FFF     // 8KB
     sw   k1, 0x000C(k0) // PI_WR_LEN
 
     // Create an EntryLo0 value and increment the ROM pointer
-    lw   k1, rom_pointer
-    addi k0, k1, 0x2000
-    srl  k1, k1, 6
+    lbu  k0, rom_pointer
+    addi k1, k0, 1
+    sb   k1, rom_pointer
+    addi k1, k0, 0x160000 >> 13
+    sll  k1, k1, 7
     ori  k1, k1, 0x1B // Cache, Valid, Global
-    bne  k0, 0x360000, not_end
-    li   k0, 0x320000
-not_end:
-    sw   k0, rom_pointer
 
-pi_wait2:
+    // Restore the ROM entry that will be overwritten, if any
+    sll  k0, k0, 2 // Word offset
+    lw   t0, rom_entries(k0)
+    beqz t0, set_entry
+    lw   t1, rom_addrs(k0)
+    sw   t0, memory_map(t1)
+
+    // Save the EntryHi and Index registers
+    mfc0 t2, $10 // EntryHi
+    mfc0 t3, $0  // Index
+
+    // Probe for the overwritten entry in the TLB
+    sll  t1, t1, 11
+    mtc0 t1, $10 // EntryHi
+    nop
+    tlbp
+    nop
+    nop
+    mfc0 t1, $0  // Index
+
+    // Reset the TLB entry if it exists
+    srl  t1, t1, 31
+    bnez t1, not_found
+    li   t0, 0x80000000
+    mtc0 t0, $10  // EntryHi
+    nop
+    tlbwi
+
+not_found:
+    // Restore the EntryHi and Index registers
+    mtc0 t2, $10 // EntryHi
+    mtc0 t3, $0  // Index
+
+set_entry:
+    // Update the new entry in the memory map
+    srl  t0, a0, 13
+    sll  t0, t0, 2
+    lw   t1, memory_map(t0)
+    sw   t1, rom_entries(k0)
+    sw   t0, rom_addrs(k0)
+    sw   k1, memory_map(t0)
+
+pi_wait:
     // Wait for the DMA to complete
     lw   k0, 0xA4600010 // PI_STATUS
     andi k0, k0, 0x1    // DMA busy
-    bnez k0, pi_wait2
+    bnez k0, pi_wait
     b    tlbl_set
 
 tlbl_io:
