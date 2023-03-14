@@ -79,10 +79,11 @@ bg_type:     .byte 0x55
 vram_incl:   .byte 0x00
 vram_inch:   .byte 0x00
 
-oam_lsb: .byte  0x00
-bg_old:  .byte  0x00
-m7_old:  .byte  0x00
-cg_lsb:  .byte  0x00
+oam_addr: .hword 0x000
+oam_lsb:  .byte  0x00
+bg_old:   .byte  0x00
+m7_old:   .byte  0x00
+cg_lsb:   .byte  0x00
 
 mpy:      .word  0x000000
 coldata:  .hword 0x0000
@@ -251,11 +252,16 @@ vram_loop:
     lhu  t1, oamadd
     andi t0, t1, 0x8000
     beqz t0, no_rotate
-    sll  t0, t1, 1
+    sll  t0, t1, 2
     addi t0, t0, -4
     andi t0, t0, 0x1FC
 no_rotate:
     sw   t0, obj_rotate
+
+    // Reload the OAM address
+    sll  t0, t1, 1
+    andi t0, t0, 0x3FE
+    sh   t0, oam_addr
 
     // Update the RSP's register values in DMEM
     la   t0, split_line
@@ -443,38 +449,44 @@ write_obsel: // a1: value
 
 
 write_oamaddl: // a1: value
-    // Set the low byte of the OAM address
+    // Set the low byte of the OAM address reload
     lhu  t0, oamadd
-    sll  t1, a1, 1
-    andi t1, a1, 0x01FE
-    andi t0, t0, 0x8200
+    andi t1, a1, 0x00FF
+    andi t0, t0, 0x8100
     or   t0, t0, t1
     sh   t0, oamadd
+
+    // Reload the OAM address
+    sll  t0, t0, 1
+    andi t0, t0, 0x3FE
+    sh   t0, oam_addr
     jr   ra
 
 
 write_oamaddh: // a1: value
-    // Set the high bits of the OAM address
+    // Set the high bits of the OAM address reload
     lhu  t0, oamadd
-    sll  t1, a1, 9
-    sll  t2, a1, 8
-    andi t1, t1, 0x0200 // OAM address bit
-    andi t2, t2, 0x8000 // Priority rotation
-    andi t0, t0, 0x01FE
+    sll  t1, a1, 8
+    andi t1, t1, 0x8100
+    andi t0, t0, 0x00FF
     or   t0, t0, t1
-    or   t0, t0, t2
     sh   t0, oamadd
+
+    // Reload the OAM address
+    sll  t0, t0, 1
+    andi t0, t0, 0x3FE
+    sh   t0, oam_addr
     jr   ra
 
 
 write_oamdata: // a1: value
     // Increment the OAM address, wrapping around on overflow
-    lhu  t0, oamadd
+    lhu  t0, oam_addr
     blt  t0, 0x220, no_wrap
     addi t0, t0, -0x220
 no_wrap:
     addi t1, t0, 1
-    sh   t1, oamadd
+    sh   t1, oam_addr
 
     // Check if writing to the last 32 bytes, otherwise check for first/second access
     andi t1, t0, 0x200
