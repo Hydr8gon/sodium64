@@ -182,22 +182,26 @@ cpu_execute:
     jr   t0
 
 
-trigger_nmi:
+trigger_nmi: // a1: vector offset
     // Check if currently in emulation mode
     lhu  a0, stack_ptr
     andi s0, s4, 0x100
     beqz s0, nmi_notemu
 
-    // Set the NMI vector for emulation mode
+    // Set the vector to jump to for emulation mode
     li   s0, 0xFFFA // NMI vector (emulation mode)
+    add  s0, s0, a1
     b    nmi_cont
 
 nmi_notemu:
-    // Push the PC bank to the stack and set the NMI vector
+    // Set the vector to jump to
+    li   s0, 0xFFEA // NMI vector
+    add  s0, s0, a1
+
+    // Push the PC bank to the stack
     srl  a1, s7, 16
     MEM_WRITE8
     addi a0, a0, -1
-    li   s0, 0xFFEA // NMI vector
 
 nmi_cont:
     // Push the PC to the stack
@@ -225,7 +229,7 @@ nmi_cont:
 
     // Unhalt the CPU
     andi s4, s4, ~0x200 & 0xFFFF
-    j    cpu_execute
+    jr   ra
 
 
 update_mode:

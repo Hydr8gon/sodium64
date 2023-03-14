@@ -26,6 +26,7 @@
 .globl read_mpym
 .globl read_mpyh
 .globl read_rdnmi
+.globl read_timeup
 .globl read_hvbjoy
 .globl write_inidisp
 .globl write_obsel
@@ -61,8 +62,12 @@
 .globl write_coldata
 .globl write_setini
 .globl write_nmitimen
+.globl write_vtimel
+.globl write_vtimeh
 
 .data
+
+event_func: .word vblank_start
 
 cgram: .hword 0:0x100
 oam:   .byte  0:0x220
@@ -84,13 +89,20 @@ coldata:  .hword 0x0000
 oamadd:   .hword 0x0000
 vmadd:    .hword 0x0000
 cgadd:    .hword 0x0000
+vtime:    .hword 0x0000
 m7a:      .hword 0x0000
 m7b:      .byte  0x00
 tm:       .byte  0x00
 ts:       .byte  0x00
 nmitimen: .byte  0x00
 rdnmi:    .byte  0x00
+timeup:   .byte  0x00
 hvbjoy:   .byte  0x00
+
+
+// Extra set of below values; used for mid-frame effects
+split_line: .word  0x00 // 0xEFC-0xEFF
+top_values: .space 0x80 // 0xF00-0xF7F
 
 // Mirrors of RSP values; addresses 0xF80-0xFFF
 fb_border:   .word 0x08
@@ -136,12 +148,14 @@ vram_incrs: .byte 1, 32, 128, 128
 .text
 
 ppu_event:
-    // Check the current V-blank flag
-    lbu  t0, hvbjoy
-    bge  t0, 0x80, vblank_end
+    // Jump to the current PPU event function
+    lw   t0, event_func
+    jr   t0
+
 
 vblank_start:
     // Set the V-blank and NMI flags
+    lbu  t0, hvbjoy
     or   t0, t0, 0x80
     sb   t0, hvbjoy
     li   t0, 0x80
@@ -244,9 +258,9 @@ no_rotate:
     sw   t0, obj_rotate
 
     // Update the RSP's register values in DMEM
-    la   t0, fb_border
+    la   t0, split_line
     la   t1, bg_orders
-    la   t2, 0xA4000F80
+    la   t2, 0xA4000EFC
 reg_loop:
     lw   t3, (t0)
     addi t0, t0, 4
@@ -263,29 +277,72 @@ frame_wait:
     li   t0, 0x0001     // Clear halt
     sw   t0, 0xA4040010 // SP_STATUS_REG
 
-    // Schedule the V-blank end and trigger an NMI if enabled
-    li   a0, 341 * 37 * 4 // V-blank period
-    jal  sched_next
+    // Trigger an NMI if enabled
     lbu  t0, nmitimen
-    blt  t0, 0x80, cpu_execute
-    j    trigger_nmi
+    andi t0, t0, 0x80 // NMI enable
+    beqz t0, sched_end
+    li   a1, 0
+    jal  trigger_nmi
+
+sched_end:
+    // Schedule the V-blank end event
+    li   a0, 341 * 37 * 4 // V-blank period
+    la   a1, vblank_end
+    j    sched_next
+
 
 vblank_end:
     // Clear the V-blank and NMI flags
+    lbu  t0, hvbjoy
     andi t0, t0, ~0x80 & 0xFF
     sb   t0, hvbjoy
     sb   zero, rdnmi
 
-    // Schedule the V-blank start or skip to it if halted
-    bge  s4, 0x200, vblank_start
-    li   a0, 341 * 225 * 4
-    jal  sched_next
-    j    cpu_execute
+    // Reset the frame split
+    sw   zero, split_line
+
+    // Schedule the V-count interrupt event
+    li   a0, 341 * 112 * 4
+    la   a1, vcount_irq
+    j    sched_next
 
 
-sched_next: // a0: cycles
+vcount_irq:
+    // Trigger a V-count IRQ if enabled
+    // TODO: time this properly
+    lbu  t0, nmitimen
+    andi t0, t0, 0x20 // V-IRQ enable
+    beqz t0, sched_start
+    andi t1, s4, 0x04 // IRQ disable
+    bnez t1, sched_start
+    li   a1, 4
+    jal  trigger_nmi
+
+    // Set the V-count IRQ flag
+    li   t0, 0x80
+    sb   t0, timeup
+
+    // Save values for the first part of the frame
+    lhu  t0, vtime
+    sw   t0, split_line
+    la   t0, fb_border
+    la   t1, bg_orders
+val_loop:
+    lw   t3, (t0)
+    addi t2, t0, -0x80
+    sw   t3, (t2)
+    addi t0, t0, 4
+    bne  t0, t1, val_loop
+
+sched_start:
+    // Schedule the V-blank start event
+    li   a0, 341 * 113 * 4
+    la   a1, vblank_start
+    j    sched_next
+
+
+sched_next: // a0: cycles, a1: function
     // Update timers before cycles are adjusted
-    move s0, ra
     jal  update_timers
 
     // Offset all cycle counts for the next event
@@ -299,8 +356,15 @@ sched_next: // a0: cycles
     sw   t0, apu_cycle1
     sw   t1, apu_cycle2
 
-    // Update timer overflows after cycles are adjusted
-    move ra, s0
+    // Don't let the CPU run if it's halted
+    andi t0, s4, 0x200 // Halted
+    beqz t0, sched_done
+    li   s5, 0
+
+sched_done:
+    // Set the next event, update overflows, and return to execution
+    sw   a1, event_func
+    la   ra, cpu_execute
     j    update_overflows
 
 
@@ -329,9 +393,19 @@ read_rdnmi: // v0: value
     jr   ra
 
 
+read_timeup: // v0: value
+    // Read from the TIMEUP register, resetting its flag
+    lbu  v0, timeup
+    sb   zero, timeup
+    jr   ra
+
+
 read_hvbjoy: // v0: value
     // Read from the HVBJOY register
+    // TODO: Set H-blank flag based on timestamps
     lbu  v0, hvbjoy
+    xori v0, v0, 0x40 // Toggle H-blank (hack)
+    sb   v0, hvbjoy
     jr   ra
 
 
@@ -832,4 +906,17 @@ write_setini: // a1: value
 write_nmitimen: // a1: value
     // Write to the NMITIMEN register
     sb   a1, nmitimen
+    jr   ra
+
+
+write_vtimel: // a1: value
+    // Write the low byte of the V-count timer value
+    sb   a1, vtime + 1
+    jr   ra
+
+
+write_vtimeh: // a1: value
+    // Write the high bit of the V-count timer value
+    andi t0, 0x01
+    sb   t0, vtime
     jr   ra
