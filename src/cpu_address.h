@@ -19,9 +19,9 @@
 
 #include <regdef.h>
 
-// Master cycle counts for CPU memory accesses (underclocked)
-#define RAM_CYCLE 9 // 8
-#define IO_CYCLE  7 // 6
+// Master cycle counts for CPU memory accesses
+#define RAM_CYCLE 8
+#define IO_CYCLE  6
 
 .macro MEM_READ8 // a0: address - v0: value
     // Read a byte from memory and decrease the cycle count

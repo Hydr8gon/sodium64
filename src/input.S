@@ -68,9 +68,17 @@ read_joyx: // a0: address
 
 
 read_joyxl: // a0: address
-    // Read the uncached button data for the controller
+    // Check if the controller is connected, and return 0 if not
     andi t2, a0, 0x0006
     sll  t2, t2, 2
+    lbu  t0, 0x20000002 + joybus_cmd(t2)
+    andi t0, t0, 0xC0 // Error bits
+    beqz t0, joyxl_conn
+    li   v0, 0
+    jr   ra
+
+joyxl_conn:
+    // Read the uncached button data for the controller
     lhu  t0, 0x20000004 + joybus_cmd(t2)
 
     // Map N64 LR to SNES LR
@@ -89,9 +97,17 @@ read_joyxl: // a0: address
 
 
 read_joyxh: // a0: address
-    // Read the uncached button data for the controller
+    // Check if the controller is connected, and return 0 if not
     andi t2, a0, 0x0006
     sll  t2, t2, 2
+    lbu  t0, 0x20000002 + joybus_cmd(t2)
+    andi t0, t0, 0xC0 // Error bits
+    beqz t0, joyxh_conn
+    li   v0, 0
+    jr   ra
+
+joyxh_conn:
+    // Read the uncached button data for the controller
     lhu  t0, 0x20000004 + joybus_cmd(t2)
 
     // Map N64 Dpad to SNES Dpad
