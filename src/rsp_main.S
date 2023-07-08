@@ -44,6 +44,10 @@ rdp_init:
     .dword 0x3510810000000000 // Set Tile (palette)
     .dword 0x3548800001000090 // Set Tile (texture)
 
+rdp_section:
+    // RDP commands that run when changing the frame section
+    .dword 0x2D030020004303A0 // Set Scissor
+
 rdp_frame:
     // RDP commands that run at the start of a frame
     .dword 0x3F100117A03AE600 // Set Color Image
@@ -53,10 +57,6 @@ rdp_frame:
     .dword 0x2F0888FF00040001 // Set Other Modes (1 cycle)
     .dword 0x3D100000A038C000 // Set Texture Image (palette)
     .dword 0x3300000000400000 // Load Block (palette)
-
-rdp_section:
-    // RDP commands that run when changing the frame section
-    .dword 0x2D030020004303A0 // Set Scissor
 
 rdp_tile:
     // RDP commands that run when a tile is being drawn
@@ -75,6 +75,20 @@ rdp_tile:
     .dword 0x0000000000000000 // Texture Triangle 11
     .dword 0x0000000000000000 // Texture Triangle 12
 
+layer_chart:
+    // Bit 7: object, bit 6: BG priority, bits 3-2: BG type, bits 1-0: index
+    // BG type: 0 = none, 1 = 4-color, 2 = 16-color, 3 = 256-color
+    // Offset-per-tile, hi-res, and rotscale are unimplemented
+    .byte 0x07, 0x06, 0x80, 0x47, 0x46, 0x81, 0x05, 0x04, 0x82, 0x45, 0x44, 0x83, 0, 0, 0, 0 // Mode 0
+    .byte 0x06, 0x80, 0x46, 0x81, 0x09, 0x08, 0x82, 0x49, 0x48, 0x83, 0x00, 0x00, 0, 0, 0, 0 // Mode 1 (BG3 normal)
+    .byte 0x09, 0x80, 0x08, 0x81, 0x49, 0x82, 0x48, 0x83, 0x00, 0x00, 0x00, 0x00, 0, 0, 0, 0 // Mode 2
+    .byte 0x09, 0x80, 0x0C, 0x81, 0x49, 0x82, 0x4C, 0x83, 0x00, 0x00, 0x00, 0x00, 0, 0, 0, 0 // Mode 3
+    .byte 0x05, 0x80, 0x0C, 0x81, 0x45, 0x82, 0x4C, 0x83, 0x00, 0x00, 0x00, 0x00, 0, 0, 0, 0 // Mode 4
+    .byte 0x05, 0x80, 0x08, 0x81, 0x45, 0x82, 0x48, 0x83, 0x00, 0x00, 0x00, 0x00, 0, 0, 0, 0 // Mode 5
+    .byte 0x80, 0x08, 0x81, 0x82, 0x48, 0x83, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0, 0, 0, 0 // Mode 6
+    .byte 0x80, 0x0C, 0x4C, 0x81, 0x82, 0x83, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0, 0, 0, 0 // Mode 7
+    .byte 0x06, 0x80, 0x81, 0x09, 0x08, 0x82, 0x49, 0x48, 0x83, 0x46, 0x00, 0x00, 0, 0, 0, 0 // Mode 1 (BG3 high)
+
 tile_params:
     // S-coordinate, gradient along X, gradient along Y
     .hword 0x0010, 0x0020, 0x0100, 0 // No mirror
@@ -84,7 +98,9 @@ tile_params:
 
 tile_jumps: .word decode_tile4, decode_tile16, decode_tile256
 
-.space 0x638
+mask_ofs: .byte 0
+
+.space 0x5A7
 
 // Extra set of below values; used for mid-frame effects
 split_line: .word  0x00 // 0xEFC-0xEFF
@@ -92,10 +108,10 @@ top_values: .space 0x80 // 0xF00-0xF7F
 
 // Values updated by CPU; addresses 0xF80-0xFFF
 fb_border:   .word 0x08
-obj_enable:  .word 0x00
 obj_rotate:  .word 0x000
-bg_order:    .word 0x1B
-bg_type:     .word 0x00
+bg_mode:     .word 0x00
+sub_mask:    .word 0x00
+main_mask:   .word 0x00
 obj_size:    .word 0x10100808
 objcharbase: .word 0x0000
 bgscrnbase:  .word 0x0000:4
@@ -136,12 +152,18 @@ draw_frame:
 
     // Set values for the first frame section if split
     lw   t0, split_line
-    li   s3, 0         // BG priority
     beqz t0, full_frame
     bge  t0, sp, full_frame
     li   k0, 0         // Section start
     add  k1, t0, 2     // Section end
     addi s7, k0, -0x80 // Value offset
+    b    draw_section
+
+full_frame:
+    // Set values for the full frame if not split
+    li   k0, 0  // Section start
+    move k1, sp // Section end
+    li   s7, 0  // Value offset
 
 draw_section:
     // Update the RDP scissor command for a frame section
@@ -155,31 +177,59 @@ draw_section:
 
     // Run the RDP to prepare the section
     la   a0, rdp_section
-    la   a1, rdp_tile
+    la   a1, rdp_frame
     jal  rdp_send
-    b    draw_bg
 
-full_frame:
-    // Set values for the full frame if not split
-    li   k0, 0  // Section start
+    // Set the initial layer lookup offset
+    lw   s3, bg_mode(s7)
+    sll  s3, s3, 4
+    sb   zero, mask_ofs
+
+next_layer:
+    // Look up the next layer and check if it's BG or OBJ
+    // Layers are drawn in an order that mimics priority without slow depth testing
+    // This isn't fully accurate; OBJ priority effects like SMB3 pipes won't work
+    lbu  t0, layer_chart(s3)
+    addi s3, s3, 1
+    lbu  t1, mask_ofs
+    bge  t0, 0x80, draw_obj
+    bnez t0, draw_bg
+
+    // After the sub screen layers are done, draw the main screen layers on top
+    // Blending isn't implemented, but this at least allows using screens to reorder layers
+    bnez t1, next_section
+    lw   s3, bg_mode(s7)
+    sll  s3, s3, 4
+    li   t1, 4
+    sb   t1, mask_ofs
+    b    next_layer
+
+next_section:
+    // Set values for the second frame section if split
+    beqz s7, next_frame
+    move k0, k1 // Section start
     move k1, sp // Section end
     li   s7, 0  // Value offset
+    b    draw_section
 
 draw_bg:
-    // Get the index for the current BG
-    lw   t1, bg_order(s7)
-    srl  t1, t1, s3
-    andi t1, t1, 0x3
-    sll  t1, t1, 1
+    // Skip the layer if the BG is disabled
+    add  t1, t1, s7
+    lw   t1, sub_mask(t1)
+    li   t2, 1
+    andi t3, t0, 0x03 // Index
+    sll  t2, t2, t3
+    and  t1, t1, t2
+    beqz t1, next_layer
 
-    // Get the BG type or skip if disabled
-    lw   s4, bg_type(s7)
-    srl  s4, s4, t1
-    andi s4, s4, 0x3
-    beqz s4, next_bg
-    sll  t0, s4, 2
-    lw   t9, tile_jumps - 4(t0) // Code path
+    // Set parameters based on the BG type
+    srl  t1, t0, 2
+    andi s4, t1, 0x03
+    sll  t1, s4, 2
+    lw   t9, tile_jumps - 4(t1) // Code path
     addi s4, s4, 3              // Character shift
+    andi gp, t0, 0x40           // Priority
+    sll  gp, gp, 7
 
     // Reset the tile cache for a new BG
     la   t0, tile_table
@@ -191,7 +241,7 @@ clear_cache:
     bne  t0, t2, clear_cache
 
     // Get the horizontal and vertical offsets within the BG
-    sll  s2, t1, 1
+    sll  s2, t3, 2
     add  s2, s2, s7
     lw   s6, bghofs(s2)
     lw   s5, bgvofs(s2)
@@ -251,6 +301,11 @@ next_tile:
     andi t6, t4, 0x1FF
     srl  t6, t6, 2
     lhu  t6, scrn_data(t6)
+
+    // Skip the tile if its priority doesn't match the layer
+    andi t0, t6, 0x2000
+    xor  t0, t0, gp
+    bnez t0, finish_tile
 
     // Update the RDP draw command with the tile's X-coordinate
     addi t0, s0, 20
@@ -429,7 +484,7 @@ cache_tile:
 draw_tile:
     // Run the RDP to draw a tile
     la   a0, rdp_tile
-    la   a1, tile_params
+    la   a1, layer_chart
     jal  rdp_send
 
 finish_tile:
@@ -440,7 +495,7 @@ finish_tile:
     // Move to the next row of the BG until finished
     addi s1, s1, 8
     blt  s1, k1, draw_row
-    b    next_bg
+    b    next_layer
 
 skip_decode:
     // Update the RDP texture address and draw a cached tile
@@ -457,39 +512,13 @@ skip_upload:
     jal  rdp_send
     b    finish_tile
 
-next_bg:
-    // Move to the next BG until all have been drawn
-    addi s3, s3, 2
-    andi s3, s3, 0x7
-    bnez s3, draw_bg
-
-    // Set values for the second frame section if split
-    beqz s7, finish_bgs
-    move k0, k1 // Section start
-    move k1, sp // Section end
-    li   s7, 0  // Value offset
-    j    draw_section
-
-finish_bgs:
-    // Update the RDP scissor command for 224 or 239-line mode
-    lw   t0, fb_border
-    li   t1, 0x0020
-    li   t2, 0x03A0
-    bnez t0, set_border
-    li   t1, 0x0000
-    li   t2, 0x03C0
-set_border:
-    sh   t1, rdp_section + 2
-    sh   t2, rdp_section + 6
-
-    // Run the RDP to prepare the section
-    la   a0, rdp_section
-    la   a1, rdp_tile
-    jal  rdp_send
-
-    // Check if objects are enabled
-    lw   t0, obj_enable
-    beqz t0, next_frame
+draw_obj:
+    // Skip the layer if objects are disabled
+    add  t1, t1, s7
+    lw   t1, sub_mask(t1)
+    andi a3, t0, 0x03 // Priority
+    andi t1, t1, 0x10
+    beqz t1, next_layer
 
     // Initialize the OAM count and RDP texture address
     lw   t9, obj_rotate
@@ -504,6 +533,12 @@ check_object:
     srl  t3, t9, 1
     andi t3, t3, 0x6
     srl  t2, t2, t3
+
+    // Skip the object if its priority doesn't match the layer
+    srl  t0, t1, 12
+    andi t0, t0, 0x3
+    xor  t0, t0, a3
+    bnez t0, next_object
 
     // Get the object's size based on the large bit
     andi t0, t2, 0x2  // Large
@@ -522,8 +557,9 @@ check_object:
 
     // Skip the object if it doesn't occupy any visible scanlines
     add  t4, s8, s1
-    and  t5, t4, s8
-    sra  t5, t5, 8
+    slt  t5, t4, k0
+    sgt  t6, s8, k1
+    or   t5, t5, t6
     bnez t5, next_object
 
     // Get the object's X-coordinate, wrapped past pixel 256
@@ -654,7 +690,7 @@ decode_object:
 
     // Run the RDP to draw an object tile
     la   a0, rdp_tile
-    la   a1, tile_params
+    la   a1, layer_chart
     jal  rdp_send
 
     // Loop through object tiles in the X-direction
@@ -679,11 +715,23 @@ next_object:
     lw   t0, obj_rotate
     andi t9, t9, 0x1FC
     bne  t9, t0, check_object
+    b    next_layer
 
 next_frame:
     // Halt until the next frame can be drawn
     li   t0, 0x0002 // Set halt
     mtc0 t0, COP0_SP_STATUS
+
+    // Update the RDP scissor command for 224 or 239-line mode
+    lw   t0, fb_border
+    li   t1, 0x0020
+    li   t2, 0x03A0
+    bnez t0, set_border
+    li   t1, 0x0000
+    li   t2, 0x03C0
+set_border:
+    sh   t1, rdp_section + 2
+    sh   t2, rdp_section + 6
 
     // Update the RDP color buffer command with the next buffer address
     lw   t0, rdp_frame + 4
@@ -701,10 +749,10 @@ set_buffer:
     sh   t0, rdp_frame + 14
 
     // Run the RDP to prepare the next frame
-    la   a0, rdp_frame
-    la   a1, rdp_section
+    la   a0, rdp_section
+    la   a1, rdp_tile
     jal  rdp_send
-    j    draw_frame
+    b    draw_frame
 
 
 dma_write: // a0: RSP address, a1: DRAM address, a2: size

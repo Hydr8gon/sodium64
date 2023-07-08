@@ -75,7 +75,6 @@ vram:  .byte  0:0x10000
 
 frame_count: .byte 0x00
 brightness:  .byte 0x00
-bg_type:     .byte 0x55
 vram_incl:   .byte 0x00
 vram_inch:   .byte 0x00
 
@@ -107,10 +106,10 @@ top_values: .space 0x80 // 0xF00-0xF7F
 
 // Mirrors of RSP values; addresses 0xF80-0xFFF
 fb_border:   .word 0x08
-obj_enable:  .word 0x00
 obj_rotate:  .word 0x000
-bg_order:    .word 0x1B
-bg_type2:    .word 0x00
+bg_mode:     .word 0x00
+sub_mask:    .word 0x00
+main_mask:   .word 0x00
 obj_size:    .word 0x10100808
 objcharbase: .word 0x0000
 bgscrnbase:  .word 0x0000:4
@@ -120,19 +119,6 @@ bgcharbase:  .word 0x0000:4
 bghofs:      .word 0x0000:4
 bgvofs:      .word 0x0000:4
 fill_color:  .word 0x0000
-
-// 2 bits per BG; the order they should be drawn in
-bg_orders: .byte 0x1B, 0x87
-
-// 2 bits per BG: 0 = none, 1 = 4-color, 2 = 16-color, 3 = 256-color
-// TODO: offset-per-tile, hi-res, rotscale
-bg_types:
-    .byte 0x55, 0x1A, 0x0A, 0x0B, 0x07, 0x00, 0x00, 0x00
-
-// Masks for the BG type to disable certain layers
-bg_masks:
-    .byte 0x00, 0x03, 0x0C, 0x0F, 0x30, 0x33, 0x3C, 0x3F
-    .byte 0xC0, 0xC3, 0xCC, 0xCF, 0xF0, 0xF3, 0xFC, 0xFF
 
 // Possible offsets for additional screens past the base
 scrn_ofsh: .hword 0x0000, 0x0800, 0x0000, 0x0800
@@ -265,7 +251,7 @@ no_rotate:
 
     // Update the RSP's register values in DMEM
     la   t0, split_line
-    la   t1, bg_orders
+    la   t1, scrn_ofsh
     la   t2, 0xA4000EFC
 reg_loop:
     lw   t3, (t0)
@@ -332,7 +318,7 @@ vcount_irq:
     lhu  t0, vtime
     sw   t0, split_line
     la   t0, fb_border
-    la   t1, bg_orders
+    la   t1, scrn_ofsh
 val_loop:
     lw   t3, (t0)
     addi t2, t0, -0x80
@@ -514,26 +500,18 @@ oam_end:
 
 
 write_bgmode: // a1: value
-    // Set the appropriate BG type from the mode bits
-    // TODO: tile size
-    andi t0, a1, 0x07
-    lbu  t0, bg_types(t0)
-    sb   t0, bg_type
-
-    // Update the masked BG type in DMEM
-    lbu  t1, tm
-    lbu  t2, ts
-    or   t1, t1, t2
-    andi t1, t1, 0x0F
-    lbu  t1, bg_masks(t1)
-    and  t0, t0, t1
-    sw   t0, bg_type2
-
-    // Update the BG order in DMEM (BG3 is top priority if bit 3 is set in mode 1)
+    // Set the BG screen mode from 0 to 7
+    // TODO: use the tile sizes
     andi t0, a1, 0x0F
-    seq  t0, t0, 0x09
-    lbu  t0, bg_orders(t0)
-    sw   t0, bg_order
+    beq  t0, 0x09, high_prio
+    andi t0, t0, 0x07
+    sw   t0, bg_mode
+    jr   ra
+
+high_prio:
+    // Set a special mode when mode 1 is set with the BG3 priority bit
+    li   t0, 8
+    sw   t0, bg_mode
     jr   ra
 
 
@@ -845,37 +823,23 @@ cg_high:
 
 
 write_tm: // a1: value
-    // Set the main layer mask and apply the BG type mask to disable layers
+    // Set the main screen layer mask and mask out layers on the sub screen
     sb   a1, tm
     lbu  t0, ts
-    or   t0, t0, a1
-    srl  t4, t0, 4
-    andi t0, t0, 0x0F
-    lbu  t0, bg_masks(t0)
-    lbu  t1, bg_type
+    xori t1, a1, 0x1F
+    sw   a1, main_mask
     and  t0, t0, t1
-
-    // Update the masked BG type and OBJ enable in DMEM
-    sw   t0, bg_type2
-    sw   t4, obj_enable
+    sw   t0, sub_mask
     jr   ra
 
 
 write_ts: // a1: value
-    // Set the sub layer mask and apply the BG type mask to disable layers
-    // The sub screen isn't implemented yet, so the main and sub masks are combined
+    // Set the sub screen layer mask with main layers masked out
     sb   a1, ts
     lbu  t0, tm
-    or   t0, t0, a1
-    srl  t4, t0, 4
-    andi t0, t0, 0x0F
-    lbu  t0, bg_masks(t0)
-    lbu  t1, bg_type
-    and  t0, t0, t1
-
-    // Update the masked BG type and OBJ enable in DMEM
-    sw   t0, bg_type2
-    sw   t4, obj_enable
+    xori t0, t0, 0x1F
+    and  t0, t0, a1
+    sw   t0, sub_mask
     jr   ra
 
 
