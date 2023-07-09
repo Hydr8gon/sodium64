@@ -100,7 +100,10 @@ tile_jumps: .word decode_tile4, decode_tile16, decode_tile256
 
 mask_ofs: .byte 0
 
-.space 0x5A7
+.space 0x5A3
+
+// Pointer to active framebuffer; used for text drawing on CPU
+framebuffer: .word 0xA03AE600 // 0xEF8-0xEFB
 
 // Extra set of below values; used for mid-frame effects
 split_line: .word  0x00 // 0xEFC-0xEFF
@@ -734,7 +737,7 @@ set_border:
     sh   t2, rdp_section + 6
 
     // Update the RDP color buffer command with the next buffer address
-    lw   t0, rdp_frame + 4
+    lw   t0, framebuffer
     li   t1, 0x20D00 // Buffer size
     add  t0, t0, t1
     li   t1, 0xA03F0000
@@ -742,6 +745,7 @@ set_border:
     li   t0, 0xA038D900
 set_buffer:
     sw   t0, rdp_frame + 4
+    sw   t0, framebuffer
 
     // Update the RDP fill color command with palette color 0
     lw   t0, fill_color

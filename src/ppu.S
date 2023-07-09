@@ -19,6 +19,8 @@
 
 #include <regdef.h>
 
+.globl fps_emulate
+.globl fps_display
 .globl frame_count
 
 .globl ppu_event
@@ -73,6 +75,8 @@ cgram: .hword 0:0x100
 oam:   .byte  0:0x220
 vram:  .byte  0:0x10000
 
+fps_emulate: .byte 0x00
+fps_display: .byte 0x00
 frame_count: .byte 0x00
 brightness:  .byte 0x00
 vram_incl:   .byte 0x00
@@ -154,17 +158,28 @@ rsp_wait:
     andi t0, t0, 0x0001 // Halt
     beqz t0, rsp_wait
 
-    // Increment the frame counter with VI interrupts disabled
+    // Draw the FPS counter on the finished frame
+    lbu  t0, fps_toggle
+    beqz t0, count_frame
+    lbu  a0, fps_display
+    li   a1, 24 * 560 + 44 * 2
+    jal  draw_value
+
+count_frame:
+    // Increment the frame counters with VI interrupts disabled
     li   t0, 1 << 6     // Clear VI mask
     sw   t0, 0xA430000C // MI_INTR_MASK_REG
     lbu  t0, frame_count
+    lbu  t1, fps_emulate
     addi t0, t0, 1
     sb   t0, frame_count
+    addi t1, t1, 1
+    sb   t1, fps_emulate
     li   t0, 1 << 7     // Set VI mask
     sw   t0, 0xA430000C // MI_INTR_MASK_REG
 
     // Use the sub screen background color if it's set
-    // TODO: actually implement color math
+    // Blending isn't implemented, but this fixes the backdrop in some cases
     lbu  t0, brightness
     lhu  t8, cgram
     li   t9, 0x200

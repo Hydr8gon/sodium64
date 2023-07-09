@@ -30,6 +30,7 @@ _start:
 .data
 
 framebuffer: .word 0xA038D900
+fps_native:  .byte 0x00
 
 .text
 
@@ -219,6 +220,27 @@ vi_interrupt:
     lui  k0, 0xA440
     sw   zero, 0x0010(k0) // VI_CURRENT
 
+    // Wait one second by counting 60 frames at 60Hz
+    la   k0, fps_native
+    lbu  k1, (k0)
+    addi k1, k1, 1
+    addi k0, k1, -60
+    beqz k0, update_fps
+    la   k0, fps_native
+    sb   k1, (k0)
+    b    check_frame
+
+update_fps:
+    // Update the display FPS and reset the counters
+    la   k0, fps_emulate
+    lbu  k1, (k0)
+    sb   zero, (k0)
+    la   k0, fps_native
+    sb   zero, (k0)
+    la   k0, fps_display
+    sb   k1, (k0)
+
+check_frame:
     // Continue if the next frame is ready, otherwise just update input
     la   k0, frame_count
     lbu  k1, (k0)

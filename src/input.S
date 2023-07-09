@@ -19,6 +19,8 @@
 
 #include <regdef.h>
 
+.globl fps_toggle
+
 .globl input_init
 .globl input_update
 .globl read_joyx
@@ -38,6 +40,9 @@ joybus_cmd:
     .dword 0x0000000000000000 // Nothing
     .dword 0x0000000000000001 // Run command
 
+start_hold: .byte 0x01
+fps_toggle: .byte 0x00
+
 .text
 
 input_init:
@@ -51,6 +56,35 @@ input_init:
 
 
 input_update:
+    // Check if controller 1's start button was pressed
+    la   k0, 0x20000002 + joybus_cmd
+    lbu  k1, 0(k0)
+    andi k1, k1, 0xC0 // Error bits
+    bnez k1, start_release
+    lbu  k1, 2(k0)
+    andi k1, k1, 0x10
+    beqz k1, start_release
+
+    // Check if the start button was previously held, and hold it
+    la   k0, start_hold
+    lbu  k1, (k0)
+    bnez k1, joybus_dma
+    li   k1, 1
+    sb   k1, (k0)
+
+    // Toggle the FPS counter if the start button was newly pressed
+    la   k0, fps_toggle
+    lbu  k1, (k0)
+    xori k1, k1, 0x01
+    sb   k1, (k0)
+    b    joybus_dma
+
+start_release:
+    // Release the start button so it can be pressed again
+    la   k0, start_hold
+    sb   zero, (k0)
+
+joybus_dma:
     // Read the output of the joybus command via DMA
     lui  k0, 0xA480     // SI register upper address
     la   k1, joybus_cmd // Output buffer
