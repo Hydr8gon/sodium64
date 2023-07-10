@@ -38,7 +38,6 @@ dsp_addr: .byte 0x00
 
 enabled:    .byte  0x00
 cur_addrs:  .hword 0x0000:8
-loop_addrs: .hword 0x0000:8
 counters:   .hword 0x0000:8
 
 .text
@@ -83,9 +82,23 @@ next_voice:
     addi t0, t0, 9
     beqz t3, decode_sample
     andi t3, t9, 0x2     // Loop
-    lhu  t0, loop_addrs(t1)
-    bnez t3, decode_sample
+    beqz t3, end_voice
 
+    // Get the address of the voice's sample table entry
+    lbu  t0, dsp_regs + 0x5D    // DIR
+    lbu  t3, dsp_regs + 0x4(t8) // VxSRCN
+    sll  t0, t0, 8
+    sll  t3, t3, 2
+    add  t0, t0, t3
+
+    // Load the loop address and start decoding from there
+    lhu  t0, apu_ram + 0x2(t0)
+    sll  a0, t0, 8
+    srl  t0, t0, 8
+    or   t0, t0, a0
+    b    decode_sample
+
+end_voice:
     // Disable the voice if it ends without loop
     li   t0, 1
     sll  t0, t0, t6
@@ -216,24 +229,15 @@ next_on:
     sll  t1, t1, 2
     add  t0, t0, t1
 
-    // Read the voice's start and loop addresses
-    lw   t0, apu_ram(t0)
-    srl  t1, t0, 16
-    sll  t2, t1, 8
-    srl  t1, t1, 8
-    or   t1, t1, t2 // Start
-    andi t0, t0, 0xFFFF
-    sll  t2, t0, 8
+    // Load the start address and reset the counter
+    lhu  t0, apu_ram(t0)
+    sll  t1, t0, 8
     srl  t0, t0, 8
-    or   t0, t0, t2 // Loop
-
-    // Reload the voice's addresses and counter
-    sll  t2, t6, 1 // Half-word offset
-    sh   t1, cur_addrs(t2)
-    sh   t0, loop_addrs(t2)
-    sh   zero, counters(t2)
-kon_end:
-    jr   ra
+    or   t0, t0, t1
+    sll  t1, t6, 1
+    sh   t0, cur_addrs(t1)
+    sh   zero, counters(t1)
+    b    next_on
 
 
 write_koff: // a1: value
@@ -242,4 +246,5 @@ write_koff: // a1: value
     xori t1, a1, 0xFF
     and  t0, t0, t1
     sb   t0, enabled
+kon_end:
     jr   ra
