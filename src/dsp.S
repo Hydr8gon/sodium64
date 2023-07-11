@@ -93,9 +93,10 @@ next_voice:
 
     // Load the loop address and start decoding from there
     lhu  t0, apu_ram + 0x2(t0)
-    sll  a0, t0, 8
+    sll  t3, t0, 8
     srl  t0, t0, 8
-    or   t0, t0, a0
+    or   t0, t0, t3
+    andi t0, t0, 0xFFFF
     b    decode_sample
 
 end_voice:

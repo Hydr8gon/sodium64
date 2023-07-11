@@ -223,10 +223,9 @@ vi_interrupt:
     // Wait one second by counting 60 frames at 60Hz
     la   k0, fps_native
     lbu  k1, (k0)
-    addi k1, k1, 1
-    addi k0, k1, -60
-    beqz k0, update_fps
-    la   k0, fps_native
+    addi k1, k1, -59
+    beqz k1, update_fps
+    addi k1, k1, 60
     sb   k1, (k0)
     b    check_frame
 
@@ -258,7 +257,8 @@ swap_buffers:
     li   k1, 0x20D00 // Buffer size
     add  k0, k0, k1
     li   k1, 0xA03F0000
-    bne  k0, k1, set_buffer
+    sub  k1, k1, k0
+    bnez k1, set_buffer
     li   k0, 0xA038D900
 
 set_buffer:
