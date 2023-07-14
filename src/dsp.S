@@ -36,21 +36,24 @@ dsp_pointer: .hword 0x000
 dsp_regs: .byte 0:0x100
 dsp_addr: .byte 0x00
 
-enabled:    .byte  0x00
-cur_addrs:  .hword 0x0000:8
-counters:   .hword 0x0000:8
+enabled:     .byte  0x00
+counters:    .hword 0x0000:8
+cur_addrs:   .hword 0x0000:8
+cur_samples: .hword 0x0000:32
+
+filter_jumps: .word filter_end, filter_1, filter_2, filter_3
 
 .text
 
 dsp_sample:
     // Set initial values for the sample
-    lbu  t7, enabled
     li   t6, -1 // Voice count
     li   t5,  0 // Left sample
     li   t4,  0 // Right sample
 
 next_voice:
     // Check if a voice is enabled
+    lbu  t7, enabled
     addi t6, t6, 1
     srl  t0, t7, t6
     beqz t0, write_sample
@@ -67,20 +70,25 @@ next_voice:
 
     // Increase the voice's position counter by the scaler
     sll  t1, t6, 1
-    lhu  t2, counters(t1)
-    addu t2, t2, t0
+    lhu  t9, counters(t1)
+    addu t2, t9, t0
     sh   t2, counters(t1)
 
-    // Check if the counter overflowed
+    // Skip decoding if still within the last 4-sample chunk
+    xor  t9, t9, t2
+    srl  t9, t9, 14
+    beqz t9, mix_sample
+
+    // Stay in the same BRR block until the counter overflows
     lhu  t0, cur_addrs(t1)
     srl  t3, t2, 16
-    beqz t3, decode_sample
+    beqz t3, decode_samples
 
-    // Move to the next 9-byte BRR block when the counter overflows
+    // Move to the next 9-byte BRR block based on current flags
     lbu  t9, apu_ram(t0) // Header
     andi t3, t9, 0x1     // End
     addi t0, t0, 9
-    beqz t3, decode_sample
+    beqz t3, decode_samples
     andi t3, t9, 0x2     // Loop
     beqz t3, end_voice
 
@@ -97,7 +105,7 @@ next_voice:
     srl  t0, t0, 8
     or   t0, t0, t3
     andi t0, t0, 0xFFFF
-    b    decode_sample
+    b    decode_samples
 
 end_voice:
     // Disable the voice if it ends without loop
@@ -108,26 +116,122 @@ end_voice:
     sb   t7, enabled
     b    next_voice
 
-decode_sample:
-    // Read the BRR block header and current sample byte
-    sh   t0, cur_addrs(t1)
-    lbu  t1, apu_ram(t0) // Header
-    srl  t1, t1, 4       // Shift
-    srl  t3, t2, 13
-    andi t3, t3, 0x7
-    addi t3, t3, 1       // Block offset
-    add  t0, t0, t3
-    lbu  t0, apu_ram(t0) // Sample byte
+decode_samples:
+    // Backup registers that will be used for decoding
+    addi sp, sp, -8
+    sw   t4, 4(sp)
+    sw   t5, 0(sp)
+    sll  t6, t6, 3
 
-    // Get the appropriate nibble, sign-extend it, and shift it
-    srl  t2, t2, 10
-    andi t2, t2, 0x4
-    xori t2, t2, 0x4
-    srl  t0, t0, t2
+    // Configure things based on the BRR block header
+    sh   t0, cur_addrs(t1)
+    lbu  t9, apu_ram(t0) // Header
+    srl  t1, t9, 4       // Shift
+    andi t9, t9, 0x0C    // Filter
+    lw   t9, filter_jumps(t9)
+
+    // Load 4 4-bit BRR samples at once to be decoded
+    srl  t3, t2, 13
+    andi t3, t3, 0x6
+    add  t0, t0, t3
+    lbu  t3, apu_ram + 1(t0)
+    lbu  t4, apu_ram + 2(t0)
+    sll  t3, t3, 8
+    or   t4, t4, t3
+    li   t5, 8
+
+next_sample:
+    // Pass the next sample, sign-extended and shifted, to the filter
+    addi t5, t5, -2
+    sll  t3, t5, 1
+    srl  t0, t4, t3
     sll  t0, t0, 28
     sra  t0, t0, 28
     sll  t0, t0, t1
     sra  t0, t0, 1
+    jr   t9
+
+filter_1:
+    // Apply the old sample, multiplied by 0.9375
+    addi t7, t5, 2
+    andi t7, t7, 0x6
+    add  t3, t6, t7
+    lh   t7, cur_samples(t3)
+    add  t0, t0, t7
+    sra  t7, t7, 4
+    sub  t0, t0, t7
+    b    filter_end
+
+filter_2:
+    // Apply the old sample, multiplied by 1.90625
+    addi t7, t5, 2
+    andi t7, t7, 0x6
+    add  t3, t6, t7
+    lh   t7, cur_samples(t3)
+    sll  t3, t7, 1
+    add  t0, t0, t3
+    li   t3, 3
+    mult t7, t3
+    mflo t3
+    sra  t3, t3, 5
+    sub  t0, t0, t3
+
+    // Apply the older sample, multiplied by -0.9375
+    addi t7, t5, 4
+    andi t7, t7, 0x6
+    add  t3, t6, t7
+    lh   t7, cur_samples(t3)
+    sub  t0, t0, t7
+    sra  t3, t7, 4
+    add  t0, t0, t3
+    b    filter_end
+
+filter_3:
+    // Apply the old sample, multiplied by 1.796875
+    addi t7, t5, 2
+    andi t7, t7, 0x6
+    add  t3, t6, t7
+    lh   t7, cur_samples(t3)
+    sll  t3, t7, 1
+    add  t0, t0, t3
+    li   t3, 13
+    mult t7, t3
+    mflo t3
+    sra  t3, t3, 6
+    sub  t0, t0, t3
+
+    // Apply the older sample, multiplied by -0.8125
+    addi t7, t5, 4
+    andi t7, t7, 0x6
+    add  t3, t6, t7
+    lh   t7, cur_samples(t3)
+    sub  t0, t0, t7
+    li   t3, 3
+    mult t7, t3
+    mflo t3
+    sra  t3, t3, 4
+    add  t0, t0, t3
+
+filter_end:
+    // Store the sample and loop until all 4 are done
+    add  t3, t6, t5
+    sh   t0, cur_samples(t3)
+    bnez t5, next_sample
+
+    // Restore registers that were used for decoding
+    lw   t4, 4(sp)
+    lw   t5, 0(sp)
+    srl  t6, t6, 3
+    addi sp, sp, 8
+
+mix_sample:
+    // Load the current sample from the voice's cache
+    sll  t1, t6, 3
+    srl  t3, t2, 11
+    andi t3, t3, 0x6
+    xori t3, t3, 0x6
+    add  t1, t1, t3
+    lh   t0, cur_samples(t1)
 
     // Mix the sample on the left channel
     lb   t1, 0x0 + dsp_regs(t8) // VxVOLL
@@ -230,7 +334,7 @@ next_on:
     sll  t1, t1, 2
     add  t0, t0, t1
 
-    // Load the start address and reset the counter
+    // Load the start address and reset the voice
     lhu  t0, apu_ram(t0)
     sll  t1, t0, 8
     srl  t0, t0, 8
@@ -238,6 +342,8 @@ next_on:
     sll  t1, t6, 1
     sh   t0, cur_addrs(t1)
     sh   zero, counters(t1)
+    sll  t1, t6, 3
+    sd   zero, cur_samples(t1)
     b    next_on
 
 
