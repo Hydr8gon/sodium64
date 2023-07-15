@@ -30,8 +30,8 @@
 
 .data
 
-dsp_buffer:  .word 0:0x400
-dsp_pointer: .hword 0x000
+dsp_buffer:  .word  0:0x800
+dsp_pointer: .hword 0x0000
 
 dsp_regs: .byte 0:0x100
 dsp_addr: .byte 0x00
@@ -170,9 +170,8 @@ filter_2:
     lh   t7, cur_samples(t3)
     sll  t3, t7, 1
     add  t0, t0, t3
-    li   t3, 3
-    mult t7, t3
-    mflo t3
+    sll  t3, t7, 1
+    add  t3, t3, t7
     sra  t3, t3, 5
     sub  t0, t0, t3
 
@@ -194,9 +193,10 @@ filter_3:
     lh   t7, cur_samples(t3)
     sll  t3, t7, 1
     add  t0, t0, t3
-    li   t3, 13
-    mult t7, t3
-    mflo t3
+    sll  t3, t7, 3
+    add  t3, t3, t7
+    sll  t7, t7, 2
+    add  t3, t3, t7
     sra  t3, t3, 6
     sub  t0, t0, t3
 
@@ -206,9 +206,8 @@ filter_3:
     add  t3, t6, t7
     lh   t7, cur_samples(t3)
     sub  t0, t0, t7
-    li   t3, 3
-    mult t7, t3
-    mflo t3
+    sll  t3, t7, 1
+    add  t3, t3, t7
     sra  t3, t3, 4
     add  t0, t0, t3
 
@@ -258,23 +257,22 @@ write_sample:
 
     // Increment the sample pointer
     addi a0, t1, 4
-    andi t0, a0, 0xFFF
+    andi t0, a0, 0x1FFF
     sh   t0, dsp_pointer
 
     // Schedule the next sample and check if a buffer is ready
-    andi t0, a0, 0x7FF
+    andi t0, a0, 0xFFF
     addi a3, a3, -DSP_SAMPLE
     beqz t0, submit_buffer
     j    apu_execute
 
-
-submit_buffer: // a0: buffer end
+submit_buffer:
     // Submit a buffer to the AI when one is ready
     lui  t0, 0xA450     // AI register upper address
-    la   t1, dsp_buffer - 0x800
+    la   t1, dsp_buffer - 0x1000
     add  t1, t1, a0     // Buffer address
     sw   t1, 0x0000(t0) // AI_DRAM_ADDR
-    li   t1, 0x800      // Buffer length
+    li   t1, 0x1000     // Buffer length
     sw   t1, 0x0004(t0) // AI_LENGTH
     j    apu_execute
 
