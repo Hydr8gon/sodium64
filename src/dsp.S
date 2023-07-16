@@ -39,7 +39,7 @@ dsp_addr: .byte 0x00
 enabled:     .byte  0x00
 counters:    .hword 0x0000:8
 cur_addrs:   .hword 0x0000:8
-cur_samples: .hword 0x0000:32
+cur_samples: .dword 0x0000:8
 
 filter_jumps: .word filter_end, filter_1, filter_2, filter_3
 

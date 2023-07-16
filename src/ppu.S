@@ -308,15 +308,25 @@ vblank_end:
     // Reset the frame split
     sw   zero, split_line
 
-    // Schedule the V-count interrupt event
-    li   a0, 341 * 112 * 4
+    // Schedule a V-count event if the time is valid
+    // TODO: support V-count during V-blank
+    lhu  t0, vtime
+    bge  t0, 225, no_count
+    li   t1, 341 * 4
+    mult t0, t1
+    mflo a0
     la   a1, vcount_irq
+    j    sched_next
+
+no_count:
+    // Schedule the V-blank start event
+    li   a0, 341 * 225 * 4
+    la   a1, vblank_start
     j    sched_next
 
 
 vcount_irq:
     // Trigger a V-count IRQ if enabled
-    // TODO: time this properly
     lbu  t0, nmitimen
     andi t0, t0, 0x20 // V-IRQ enable
     beqz t0, sched_start
@@ -329,7 +339,7 @@ vcount_irq:
     li   t0, 0x80
     sb   t0, timeup
 
-    // Save values for the first part of the frame
+    // Save values for the previous frame section
     lhu  t0, vtime
     sw   t0, split_line
     la   t0, fb_border
@@ -343,7 +353,12 @@ val_loop:
 
 sched_start:
     // Schedule the V-blank start event
-    li   a0, 341 * 113 * 4
+    lhu  t0, vtime
+    li   t1, 225
+    sub  t0, t1, t0
+    li   t1, 341 * 4
+    mult t0, t1
+    mflo a0
     la   a1, vblank_start
     j    sched_next
 
@@ -903,6 +918,7 @@ write_nmitimen: // a1: value
 write_vtimel: // a1: value
     // Write the low byte of the V-count timer value
     sb   a1, vtime + 1
+skip_event:
     jr   ra
 
 
@@ -910,4 +926,40 @@ write_vtimeh: // a1: value
     // Write the high bit of the V-count timer value
     andi t0, 0x01
     sb   t0, vtime
-    jr   ra
+
+    // Check if a V-count event can be scheduled
+    lw   t0, event_func
+    la   t1, vblank_start
+    bne  t0, t1, skip_event
+
+    // Calculate the cycles between V-blank and V-count
+    lhu  t0, vtime
+    li   t1, 225
+    sub  t0, t1, t0
+    blez t0, skip_event
+    li   t1, 341 * 4
+    mult t0, t1
+    mflo t0
+    bge  t0, s5, skip_event
+    sub  a0, zero, t0
+
+    // Update timers before cycles are adjusted
+    move t8, ra
+    jal  update_timers
+    move ra, t8
+
+    // Offset all cycle counts for the V-count event
+    lw   t0, apu_cycle1
+    lw   t1, apu_cycle2
+    add  s5, s5, a0 // CPU
+    add  s3, s3, a0 // APU
+    add  a3, a3, a0 // DSP
+    add  t0, t0, a0 // Timer 0/1
+    add  t1, t1, a0 // Timer 2
+    sw   t0, apu_cycle1
+    sw   t1, apu_cycle2
+
+    // Set the event function and update overflows
+    la   t0, vcount_irq
+    sw   t0, event_func
+    j    update_overflows
