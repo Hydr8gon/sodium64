@@ -53,6 +53,7 @@
 .data
 
 // The APU boot ROM allows uploading code from the CPU
+apu_map: .byte 0:0x3FF, 0x40
 apu_ram: .byte 0:0x10000
 apu_rom:
     .byte 0xCD, 0xEF, 0xBD, 0xE8, 0x00, 0xC6, 0x1D, 0xD0 // 0xFFC0-0xFFC7
@@ -118,6 +119,18 @@ apu_opcodes:
     .word apu_beq,    apu_tcallF, apu_clr7,   apu_bbc7,   apu_mvadrx, apu_mvaabx, apu_mvaaby, apu_mvaidy // 0xF0-0xF7
     .word apu_mvxdir, apu_mvxdry, apu_movdr2, apu_mvydrx, apu_incy,   apu_movya,  apu_dbnzy,  apu_unk    // 0xF8-0xFF
 
+read_iomap:
+    .word read_unk,    read_unk,    read_dspaddr, read_dspdata // 0xF0-0xF3
+    .word read_cpuio0, read_cpuio1, read_cpuio2,  read_cpuio3  // 0xF4-0xF7
+    .word read_unk,    read_unk,    read_unk,     read_unk     // 0xF8-0xFB
+    .word read_unk,    read_t0out,  read_t1out,   read_t2out   // 0xFC-0xFF
+
+write_iomap:
+    .word write_unk,    write_control, write_dspaddr, write_dspdata // 0xF0-0xF3
+    .word write_cpuio0, write_cpuio1,  write_cpuio2,  write_cpuio3  // 0xF4-0xF7
+    .word write_unk,    write_unk,     write_t0div,   write_t1div   // 0xF8-0xFB
+    .word write_t2div,  write_unk,     write_unk,     write_unk     // 0xFC-0xFF
+
 .text
 
 apu_execute:
@@ -155,23 +168,12 @@ apu_unk:
 
 
 apu_read8: // a0: address - v0: value
-    // Check if this is a ROM access
-    lbu  t0, apu_control
-    andi t0, t0, 0x80 // ROM enabled
-    beqz t0, read_ram
-    li   t0, 0xFFBF // Non-ROM area
-    slt  t0, t0, a0
-    beqz t0, read_ram
-
-    // Read a byte from ROM and decrease the APU cycle count
-    lbu  v0, 0x40 + apu_ram(a0)
+    // Read a byte from memory and decrease the APU cycle count
+    srl  t0, a0, 6
+    lbu  t1, apu_map(t0)
     addi s3, s3, -APU_CYCLE
-    jr   ra
-
-read_ram:
-    // Read a byte from RAM and decrease the APU cycle count
-    lbu  v0, apu_ram(a0)
-    addi s3, s3, -APU_CYCLE
+    add  t0, a0, t1
+    lbu  v0, apu_ram(t0)
 
     // Check if the address is an I/O port
     andi t0, a0, 0xFFF0
@@ -179,16 +181,14 @@ read_ram:
     jr   ra
 
 io_read8:
-    // Read from an APU I/O register
-    beq  a0, 0x00F2, read_dspaddr
-    beq  a0, 0x00F3, read_dspdata
-    beq  a0, 0x00F4, read_cpuio0
-    beq  a0, 0x00F5, read_cpuio1
-    beq  a0, 0x00F6, read_cpuio2
-    beq  a0, 0x00F7, read_cpuio3
-    beq  a0, 0x00FD, read_t0out
-    beq  a0, 0x00FE, read_t1out
-    beq  a0, 0x00FF, read_t2out
+    // Read from an I/O register in the lookup table
+    andi t0, a0, 0xF
+    sll  t0, t0, 2 // Word offset
+    lw   t0, read_iomap(t0)
+    jr   t0
+
+read_unk:
+    // Unknown I/O register read; do nothing
     jr   ra
 
 
@@ -203,17 +203,14 @@ apu_write8: // a0: address, a1: value
     jr   ra
 
 io_write8:
-    // Write to an APU I/O register
-    beq  a0, 0x00F1, write_control
-    beq  a0, 0x00F2, write_dspaddr
-    beq  a0, 0x00F3, write_dspdata
-    beq  a0, 0x00F4, write_cpuio0
-    beq  a0, 0x00F5, write_cpuio1
-    beq  a0, 0x00F6, write_cpuio2
-    beq  a0, 0x00F7, write_cpuio3
-    beq  a0, 0x00FA, write_t0div
-    beq  a0, 0x00FB, write_t1div
-    beq  a0, 0x00FC, write_t2div
+    // Write to an I/O register in the lookup table
+    andi t0, a0, 0xF
+    sll  t0, t0, 2 // Word offset
+    lw   t0, write_iomap(t0)
+    jr   t0
+
+write_unk:
+    // Unknown I/O register write; do nothing
     jr   ra
 
 
@@ -523,6 +520,11 @@ write_control: // a1: value
     lbu  t0, apu_control
     move ra, t9
     sb   a1, apu_control
+
+    // Update the APU ROM mapping
+    andi t1, a1, 0x80 // ROM enabled
+    srl  t1, t1, 1
+    sb   t1, apu_map + 0x3FF
 
     // Reset timers 0-2 if bit 0-2 turns from 0 to 1
     xor  t1, t0, a1
