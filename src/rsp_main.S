@@ -101,16 +101,16 @@ tile_jumps: .word decode_tile4, decode_tile16, decode_tile256
 
 mask_ofs: .byte 0
 
-.space 0x4D3
+.space 0x493
 
 // Pointer to active framebuffer; used for text drawing on CPU
-framebuffer: .word 0xA03AE600 // 0xEF8-0xEFB
+framebuffer: .word 0xA03AE600 // 0xEB8-0xEBB
 
 // Extra set of below values; used for mid-frame effects
-split_line: .word  0x00 // 0xEFC-0xEFF
-top_values: .space 0x80 // 0xF00-0xF7F
+split_line: .word  0x00 // 0xEBC-0xEBF
+top_values: .space 0xA0 // 0xEC0-0xF5F
 
-// Values updated by CPU; addresses 0xF80-0xFFF
+// Values updated by CPU; addresses 0xF60-0xFFF
 fb_border:   .word 0x08
 obj_rotate:  .word 0x000
 bg_mode:     .word 0x00
@@ -124,6 +124,14 @@ bgbaseofsv:  .word 0x0000:4
 bgcharbase:  .word 0x0000:4
 bghofs:      .word 0x0000:4
 bgvofs:      .word 0x0000:4
+m7hofs:      .word 0x0000
+m7vofs:      .word 0x0000
+m7a:         .word 0x0000
+m7b:         .word 0x0000
+m7c:         .word 0x0000
+m7d:         .word 0x0000
+m7x:         .word 0x0000
+m7y:         .word 0x0000
 fill_color:  .word 0x0000
 
 .text
@@ -161,7 +169,7 @@ draw_frame:
     bge  t0, sp, full_frame
     li   k0, 0         // Section start
     add  k1, t0, 2     // Section end
-    addi s7, k0, -0x80 // Value offset
+    addi s7, k0, -0xA0 // Value offset
     b    draw_section
 
 full_frame:
@@ -544,31 +552,67 @@ clear_cache7:
     sh   t4, 56 + rdp_tile // Gradient along X
     sh   t3, 80 + rdp_tile // Gradient along Y
 
-    // Get the horizontal and vertical offsets within the BG
-    lw   s6, bghofs(s7)
-    lw   s5, bgvofs(s7)
-
     // Set the initial tile Y-coordinate and character number
-    andi t0, s5, 0x7
-    andi t1, k0, 0x7
+    andi t0, k0, 0x7
     sub  s1, k0, t0
-    sub  s1, s1, t1
     li   v1, 0xFFFF
+
+    // Calculate the initial screen X coordinate
+    lh   t0, m7hofs + 2(s7)
+    lh   t2, m7x + 2(s7)
+    sub  t0, t0, t2
+    addi t0, t0, 4 // Tile center
+
+    // Calculate the initial screen Y coordinate
+    lh   t1, m7vofs + 2(s7)
+    lh   t3, m7y + 2(s7)
+    add  t1, t1, s1
+    sub  t1, t1, t3
+    addi t1, t1, 4 // Tile center
+
+    // Multiply 2 16-bit values to get a 32-bit value
+    .macro MUL m1, m2
+        mtc2  \m1, $v00, 0
+        mtc2  \m2, $v01, 0
+        vmudh $v00, $v00, $v01, 0
+        vsar  $v00, COP2_ACC_MD
+        vsar  $v01, COP2_ACC_HI
+        mfc2  t4, $v00, 0
+        mfc2  t5, $v01, 0
+        andi  t4, t4, 0xFFFF
+        sll   t5, t5, 16
+        or    t4, t4, t5
+    .endm
+
+    // Calculate the initial VRAM X coordinate
+    lh    s2, m7a + 2
+    sll   t2, t2, 8
+    MUL   t0, s2
+    add   t2, t2, t4
+    lh    s4, m7b + 2
+    MUL   t1, s4
+    add   t8, t2, t4
+
+    // Calculate the initial VRAM Y coordinate
+    lh    s5, m7c + 2
+    sll   t3, t3, 8
+    MUL   t0, s5
+    add   t3, t3, t4
+    lh    s6, m7d + 2
+    MUL   t1, s6
+    add   t9, t3, t4
 
 draw_row7:
     // Set the initial tile X-coordinate
-    andi t0, s6, 0x7
-    sub  s0, zero, t0
+    li   s0, 0
 
-    // Load a row of BG entries from the screen
-    la   a0, scrn_data
-    la   a1, 0xA03F0000 // VRAM
-    add  t0, s5, s1
-    andi t0, t0, 0x3FF
-    sll  t0, t0, 5
-    add  a1, a1, t0
-    li   a2, 0xFF
-    jal  dma_read
+next_tile7:
+    // Update the RDP draw command with the tile's X-coordinate
+    addi t0, s0, 20
+    sh   t0, 24 + rdp_tile // x1
+    addi t1, s0, 12
+    sh   t1, 32 + rdp_tile // x3
+    sh   t1, 40 + rdp_tile // x2
 
     // Update the RDP draw command with the tile's Y-coordinate
     lw   t0, fb_border
@@ -580,19 +624,21 @@ draw_row7:
     or   t0, t0, t1
     sw   t0, 20 + rdp_tile // y2, y1
 
-next_tile7:
-    // Get the BG entry for the current tile
-    add  t4, s6, s0
-    andi t6, t4, 0x3FF
-    srl  t6, t6, 2
-    lbu  t6, scrn_data + 1(t6)
+    // Load a row of BG entries from the screen
+    la   a0, scrn_data
+    la   a1, 0xA03F0000 // VRAM
+    sra  t0, t9, 11
+    andi t0, t0, 0x7F
+    sll  t0, t0, 8
+    add  a1, a1, t0
+    li   a2, 0xFF
+    jal  dma_read
 
-    // Update the RDP draw command with the tile's X-coordinate
-    addi t0, s0, 20
-    sh   t0, 24 + rdp_tile // x1
-    addi t1, s0, 12
-    sh   t1, 32 + rdp_tile // x3
-    sh   t1, 40 + rdp_tile // x2
+    // Get the BG entry for the current tile
+    sra  t0, t8, 11
+    andi t6, t0, 0x7F
+    sll  t6, t6, 1
+    lbu  t6, scrn_data + 1(t6)
 
     // Skip uploading if the last tile's number was the same
     beq  t6, v1, skip_upload7
@@ -641,12 +687,24 @@ draw_tile7:
     jal  rdp_send
 
 finish_tile7:
-    // Move to the next tile of the row until finished
+    // Move to the next tile, adjusting the VRAM coordinates
     addi s0, s0, 8
+    sll  t0, s2, 3
+    add  t8, t8, t0
+    sll  t0, s5, 3
+    add  t9, t9, t0
     blt  s0, 256, next_tile7
 
-    // Move to the next row of the BG until finished
+    // Move to the next row, adjusting the VRAM coordinates
     addi s1, s1, 8
+    sll  t0, s2, 8
+    sub  t8, t8, t0
+    sll  t0, s5, 8
+    sub  t9, t9, t0
+    sll  t0, s4, 3
+    add  t8, t8, t0
+    sll  t0, s6, 3
+    add  t9, t9, t0
     blt  s1, k1, draw_row7
     b    next_layer
 

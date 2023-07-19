@@ -80,8 +80,8 @@ write_iomap:
     .word write_bg2vofs,  write_bg3hofs, write_bg3vofs, write_bg4hofs // 0x2110-0x2113
     .word write_bg4vofs,  write_vmain,   write_vmaddl,  write_vmaddh  // 0x2114-0x2117
     .word write_vmdatal,  write_vmdatah, write_unk,     write_m7a     // 0x2118-0x211B
-    .word write_m7b,      write_unk,     write_unk,     write_unk     // 0x211C-0x211F
-    .word write_unk,      write_cgadd,   write_cgdata,  write_unk     // 0x2120-0x2123
+    .word write_m7b,      write_m7c,     write_m7d,     write_m7x     // 0x211C-0x211F
+    .word write_m7y,      write_cgadd,   write_cgdata,  write_unk     // 0x2120-0x2123
     .word write_unk:(0x212B - 0x2123)                                 // 0x2124-0x212B
     .word write_tm,       write_ts,      write_unk,     write_unk     // 0x212C-0x212F
     .word write_unk,      write_unk,     write_coldata, write_setini  // 0x2130-0x2133

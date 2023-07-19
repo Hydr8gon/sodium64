@@ -57,6 +57,10 @@
 .globl write_vmdatah
 .globl write_m7a
 .globl write_m7b
+.globl write_m7c
+.globl write_m7d
+.globl write_m7x
+.globl write_m7y
 .globl write_cgadd
 .globl write_cgdata
 .globl write_tm
@@ -94,8 +98,6 @@ oamadd:   .hword 0x0000
 vmadd:    .hword 0x0000
 cgadd:    .hword 0x0000
 vtime:    .hword 0x0000
-m7a:      .hword 0x0000
-m7b:      .byte  0x00
 tm:       .byte  0x00
 ts:       .byte  0x00
 nmitimen: .byte  0x00
@@ -105,10 +107,10 @@ hvbjoy:   .byte  0x00
 
 
 // Extra set of below values; used for mid-frame effects
-split_line: .word  0x00 // 0xEFC-0xEFF
-top_values: .space 0x80 // 0xF00-0xF7F
+split_line: .word  0x00 // 0xEBC-0xEBF
+top_values: .space 0xA0 // 0xEC0-0xF5F
 
-// Mirrors of RSP values; addresses 0xF80-0xFFF
+// Mirrors of RSP values; addresses 0xF60-0xFFF
 fb_border:   .word 0x08
 obj_rotate:  .word 0x000
 bg_mode:     .word 0x00
@@ -122,6 +124,14 @@ bgbaseofsv:  .word 0x0000:4
 bgcharbase:  .word 0x0000:4
 bghofs:      .word 0x0000:4
 bgvofs:      .word 0x0000:4
+m7hofs:      .word 0x0000
+m7vofs:      .word 0x0000
+m7a:         .word 0x0000
+m7b:         .word 0x0000
+m7c:         .word 0x0000
+m7d:         .word 0x0000
+m7x:         .word 0x0000
+m7y:         .word 0x0000
 fill_color:  .word 0x0000
 
 // Possible offsets for additional screens past the base
@@ -267,7 +277,7 @@ no_rotate:
     // Update the RSP's register values in DMEM
     la   t0, split_line
     la   t1, scrn_ofsh
-    la   t2, 0xA4000EFC
+    la   t2, 0xA4000EBC
 reg_loop:
     lw   t3, (t0)
     addi t0, t0, 4
@@ -346,7 +356,7 @@ vcount_irq:
     la   t1, scrn_ofsh
 val_loop:
     lw   t3, (t0)
-    addi t2, t0, -0x80
+    addi t2, t0, -0xA0
     sw   t3, (t2)
     addi t0, t0, 4
     bne  t0, t1, val_loop
@@ -651,6 +661,15 @@ write_bg1hofs: // a1: value
     or   t0, t0, t1
     sb   a1, bg_old
     sw   t0, bghofs + 0
+
+    // Update M7HOFS with a 13-bit value from the old and new bytes
+    lbu  t0, m7_old
+    sll  t1, a1, 8
+    or   t0, t0, t1
+    sb   a1, m7_old
+    sll  t0, t0, 18
+    sra  t0, t0, 18
+    sw   t0, m7hofs
     jr   ra
 
 
@@ -662,6 +681,15 @@ write_bg1vofs: // a1: value
     or   t0, t0, t1
     sb   a1, bg_old
     sw   t0, bgvofs + 0
+
+    // Update M7VOFS with a 13-bit value from the old and new bytes
+    lbu  t0, m7_old
+    sll  t1, a1, 8
+    or   t0, t0, t1
+    sb   a1, m7_old
+    sll  t0, t0, 18
+    sra  t0, t0, 18
+    sw   t0, m7vofs
     jr   ra
 
 
@@ -798,11 +826,11 @@ write_m7a: // a1: value
     sll  t1, a1, 8
     or   t0, t0, t1
     sb   a1, m7_old
-    sh   t0, m7a
+    sw   t0, m7a
 
     // Update the signed multiply result
-    lh   t0, m7a
-    lb   t1, m7b
+    lh   t0, m7a + 2
+    lb   t1, m7b + 2
     mult t0, t1
     mflo t0
     sw   t0, mpy
@@ -810,16 +838,63 @@ write_m7a: // a1: value
 
 
 write_m7b: // a1: value
-    // Update M7B and the old byte
+    // Update M7B with a 16-bit value from the old and new bytes
+    lbu  t0, m7_old
+    sll  t1, a1, 8
+    or   t0, t0, t1
     sb   a1, m7_old
-    sb   a1, m7b
+    sw   t0, m7b
 
     // Update the signed multiply result
-    lh   t0, m7a
-    lb   t1, m7b
+    lh   t0, m7a + 2
+    lb   t1, m7b + 2
     mult t0, t1
     mflo t0
     sw   t0, mpy
+    jr   ra
+
+
+write_m7c: // a1: value
+    // Update M7C with a 16-bit value from the old and new bytes
+    lbu  t0, m7_old
+    sll  t1, a1, 8
+    or   t0, t0, t1
+    sb   a1, m7_old
+    sw   t0, m7c
+    jr   ra
+
+
+write_m7d: // a1: value
+    // Update M7D with a 16-bit value from the old and new bytes
+    lbu  t0, m7_old
+    sll  t1, a1, 8
+    or   t0, t0, t1
+    sb   a1, m7_old
+    sw   t0, m7d
+    jr   ra
+
+
+write_m7x: // a1: value
+    // Update M7X with a 13-bit value from the old and new bytes
+    lbu  t0, m7_old
+    sll  t1, a1, 8
+    or   t0, t0, t1
+    sb   a1, m7_old
+    sll  t0, t0, 18
+    sra  t0, t0, 18
+    sw   t0, m7x
+    jr   ra
+
+
+write_m7y: // a1: value
+    // Update M7Y with a 13-bit value from the old and new bytes
+    lbu  t0, m7_old
+    sll  t1, a1, 8
+    or   t0, t0, t1
+    sb   a1, m7_old
+    sll  t0, t0, 18
+    sra  t0, t0, 18
+    sw   t0, m7y
     jr   ra
 
 
