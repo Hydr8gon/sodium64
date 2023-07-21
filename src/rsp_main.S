@@ -23,15 +23,15 @@
 
 .data
 
-texture:    .byte 0:0x80
+texture:    .byte 0:0x400
 oam:        .byte 0:0x220
 scrn_data:  .byte 0:0x100
 char_data:  .byte 0:0x80
 tile_table: .byte 0:0x400
 
 vec_data:
-    .hword 0x0100, 0x0100, 0x0100, 0x0100, 0x0100, 0x0100, 0x0100, 0x0100 // Shift byte
     .hword 0x8000, 0x4000, 0x2000, 0x1000, 0x0800, 0x0400, 0x0200, 0x0100 // Mask
+    .hword 0x0100, 0x0100, 0x0100, 0x0100, 0x0100, 0x0100, 0x0100, 0x0100 // Shift byte
     .hword 0x0002, 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080, 0x0100 // Shift 1
     .hword 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080, 0x0100, 0x0200 // Shift 2
     .hword 0x0008, 0x0010, 0x0020, 0x0040, 0x0080, 0x0100, 0x0200, 0x0400 // Shift 3
@@ -43,7 +43,7 @@ rdp_init:
     // RDP commands that only need to run once
     .dword 0x3C080E10001C8241 // Set Combine
     .dword 0x3510810000000000 // Set Tile (palette)
-    .dword 0x3548800001000090 // Set Tile (texture)
+    .dword 0x3548020001000090 // Set Tile (texture)
 
 rdp_section:
     // RDP commands that run when changing the frame section
@@ -61,8 +61,8 @@ rdp_frame:
 
 rdp_tile:
     // RDP commands that run when a tile is being drawn
-    .dword 0x3D480000A0360000 // Set Texture Image (texture)
-    .dword 0x3300000001080000 // Load Block (texture)
+    .dword 0x3D480007A0360000 // Set Texture Image (texture)
+    .dword 0x340000000101F01F // Load Tile (texture)
     .dword 0x0A81000000000000 // Texture Triangle 1
     .dword 0x0100000000000000 // Texture Triangle 2
     .dword 0x0000000000000000 // Texture Triangle 3
@@ -91,17 +91,16 @@ layer_chart:
     .byte 0x06, 0x80, 0x81, 0x09, 0x08, 0x82, 0x49, 0x48, 0x83, 0x46, 0x00, 0x00, 0, 0, 0, 0 // Mode 1 (BG3 high)
 
 tile_params:
-    // S-coordinate, gradient along X, gradient along Y
-    .hword 0x0010, 0x0020, 0x0100, 0 // No mirror
-    .hword 0x00F0, 0xFFE0, 0x0100, 0 // X-mirror
-    .hword 0x0710, 0x0020, 0xFF00, 0 // Y-mirror
-    .hword 0x07F0, 0xFFE0, 0xFF00, 0 // XY-mirror
+    // S/T coordinates, gradients along X, gradients along Y
+    .word 0x00000000, 0x00100000, 0x00000010, 0 // No mirror
+    .word 0x00700000, 0xFFF00000, 0x00000010, 0 // X-mirror
+    .word 0x00000070, 0x00100000, 0x0000FFF0, 0 // Y-mirror
+    .word 0x00700070, 0xFFF00000, 0x0000FFF0, 0 // XY-mirror
 
 tile_jumps: .word decode_tile4, decode_tile16, decode_tile256
+mask_ofs:   .byte 0
 
-mask_ofs: .byte 0
-
-.space 0x493
+.space 0xF3
 
 // Pointer to active framebuffer; used for text drawing on CPU
 framebuffer: .word 0xA03AE600 // 0xEB8-0xEBB
@@ -330,14 +329,14 @@ next_tile:
     sh   t1, 40 + rdp_tile // x2
 
     // Update the RDP texture parameters based on mirroring
-    srl  t5, t6, 11
-    andi t5, t5, 0x18
-    lw   t4, 0 + tile_params(t5)
-    lh   t3, 4 + tile_params(t5)
-    srl  t5, t4, 16
-    sh   t5, 48 + rdp_tile // S-coordinate
-    sh   t4, 56 + rdp_tile // Gradient along X
-    sh   t3, 80 + rdp_tile // Gradient along Y
+    srl  t5, t6, 10
+    andi t5, t5, 0x30
+    lw   t3, tile_params + 0(t5)
+    lw   t4, tile_params + 4(t5)
+    lw   t5, tile_params + 8(t5)
+    sw   t3, rdp_tile + 48 // Coordinates
+    sw   t4, rdp_tile + 56 // Gradients along X
+    sw   t5, rdp_tile + 80 // Gradients along Y
 
     // Skip uploading if the last tile's number and palette were the same
     andi t0, t6, 0x1FFF
@@ -349,9 +348,9 @@ next_tile:
     lbu  t1, tile_table(s8)
     srl  a3, t6, 5
     andi a3, a3, 0xE0  // Palette offset
-    ori  a3, a3, 0x01  // Cache bit
-    beq  a3, t1, skip_decode
-    sb   a3, tile_table(s8)
+    ori  t0, a3, 0x01  // Cache bit
+    beq  t0, t1, skip_decode
+    sb   t0, tile_table(s8)
 
     // Load the tile's character data from VRAM
     la   a0, char_data
@@ -364,13 +363,13 @@ next_tile:
     jal  dma_read
 
     // Set initial values and jump to the tile decoder
-    li   t7, 0x80
+    li   t7, 0x40
     li   t8, 0x10
     jr   t9
 
 decode_tile4:
     // Set the 4-color palette offset
-    srl  t0, a3, 3
+    sll  t0, a3, 5
     mtc2 t0, $v05, 0 // Palette offset
 
 loop_tile4:
@@ -380,28 +379,29 @@ loop_tile4:
     mtc2 t4, $v03, 1 // Lower byte 1 to lane 1, bits 8-15
 
     // Decode the palette indices
-    vand  $v01, $v25, $v03, 9 // Mask out other lower bits
-    vand  $v02, $v25, $v03, 8 // Mask out other upper bis
+    vand  $v01, $v24, $v03, 9 // Mask out other lower bits
+    vand  $v02, $v24, $v03, 8 // Mask out other upper bis
     vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 0
     vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 1
     vor   $v02, $v03, $v04, 0 // Combine bits to form indices
+    vmudn $v02, $v02, $v25, 0 // Shift to upper byte
 
     // Add the palette offset to non-zero indices
     // In parallel, move to the next line of the tile
     veq  $v00, $v02, $v31, 0
-        addi t7, t7, -0x10
+        addi t7, t7, -0x8
     vmrg $v00, $v02, $v05, 8
         addi t8, t8, -0x2
     vadd $v02, $v02, $v00, 0
 
     // Write the line to the texture buffer and loop until complete
-    sqv  $v02, 0, 0, t7
+    spv  $v02, 0, 0, t7
     bnez t8, loop_tile4
     b    cache_tile
 
 decode_tile16:
     // Set the 16-color palette offset
-    srl  t0, a3, 1
+    sll  t0, a3, 7
     mtc2 t0, $v05, 0 // Palette offset
 
 loop_tile16:
@@ -414,28 +414,29 @@ loop_tile16:
     mtc2 t5, $v13, 1 // Lower byte 2 to lane 1, bits 8-15
 
     // Decode the palette indices
-    vand  $v01, $v25, $v03, 9 // Mask out other lower bits
-    vand  $v02, $v25, $v03, 8 // Mask out other upper bis
+    vand  $v01, $v24, $v03, 9 // Mask out other lower bits
+    vand  $v02, $v24, $v03, 8 // Mask out other upper bis
     vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 0
     vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 1
     vor   $v02, $v03, $v04, 0 // Combine bits to form partial indices
-    vand  $v11, $v25, $v13, 9 // Mask out other lower bits
-    vand  $v12, $v25, $v13, 8 // Mask out other upper bits
+    vand  $v11, $v24, $v13, 9 // Mask out other lower bits
+    vand  $v12, $v24, $v13, 8 // Mask out other upper bits
     vmudl $v13, $v28, $v11, 0 // Shift lower bits to bit 2
     vmudl $v14, $v29, $v12, 0 // Shift upper bits to bit 3
     vor   $v12, $v13, $v14, 0 // Combine bits to form partial indices
     vor   $v01, $v12, $v02, 0 // Combine partial indices
+    vmudn $v01, $v01, $v25, 0 // Shift to upper byte
 
     // Add the palette offset to non-zero indices
     // In parallel, move to the next line of the tile
     veq  $v00, $v01, $v31, 0
-        addi t7, t7, -0x10
+        addi t7, t7, -0x8
     vmrg $v00, $v01, $v05, 8
         addi t8, t8, -0x2
     vadd $v02, $v01, $v00, 0
 
     // Write the line to the texture buffer and loop until complete
-    sqv  $v02, 0, 0, t7
+    spv  $v02, 0, 0, t7
     bnez t8, loop_tile16
     b    cache_tile
 
@@ -455,34 +456,35 @@ decode_tile256:
     mtc2 t5, $v18, 1 // Lower byte 4 to lane 1, bits 8-15
 
     // Decode the palette indices
-    vand  $v01, $v25, $v03, 9 // Mask out other lower bits
-    vand  $v02, $v25, $v03, 8 // Mask out other upper bis
+    vand  $v01, $v24, $v03, 9 // Mask out other lower bits
+    vand  $v02, $v24, $v03, 8 // Mask out other upper bis
     vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 0
     vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 1
     vor   $v02, $v03, $v04, 0 // Combine bits to form partial indices
-    vand  $v11, $v25, $v13, 9 // Mask out other lower bits
-    vand  $v12, $v25, $v13, 8 // Mask out other upper bits
+    vand  $v11, $v24, $v13, 9 // Mask out other lower bits
+    vand  $v12, $v24, $v13, 8 // Mask out other upper bits
     vmudl $v13, $v28, $v11, 0 // Shift lower bits to bit 2
     vmudl $v14, $v29, $v12, 0 // Shift upper bits to bit 3
     vor   $v12, $v13, $v14, 0 // Combine bits to form partial indices
     vor   $v06, $v12, $v02, 0 // Combine partial indices
-    vand  $v01, $v25, $v08, 9 // Mask out other lower bits
-    vand  $v02, $v25, $v08, 8 // Mask out other upper bis
+    vand  $v01, $v24, $v08, 9 // Mask out other lower bits
+    vand  $v02, $v24, $v08, 8 // Mask out other upper bis
     vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 0
     vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 1
     vor   $v02, $v03, $v04, 0 // Combine bits to form partial indices
-    vand  $v11, $v25, $v18, 9 // Mask out other lower bits
-    vand  $v12, $v25, $v18, 8 // Mask out other upper bits
+    vand  $v11, $v24, $v18, 9 // Mask out other lower bits
+    vand  $v12, $v24, $v18, 8 // Mask out other upper bits
     vmudl $v13, $v28, $v11, 0 // Shift lower bits to bit 2
     vmudl $v14, $v29, $v12, 0 // Shift upper bits to bit 3
     vor   $v12, $v13, $v14, 0 // Combine bits to form partial indices
     vor   $v07, $v12, $v02, 0 // Combine partial indices
     vmudn $v07, $v07, $v30, 0 // Shift upper indices left
     vor   $v00, $v06, $v07, 0 // Combine indices
+    vmudn $v00, $v00, $v25, 0 // Shift to upper byte
 
     // Write the line to the texture buffer and loop until complete
-    addi t7, t7, -0x10
-    sqv  $v00, 0, 0, t7
+    addi t7, t7, -0x8
+    spv  $v00, 0, 0, t7
     addi t8, t8, -0x2
     bnez t8, decode_tile256
 
@@ -493,7 +495,7 @@ cache_tile:
     sll  t0, s8, 7
     add  a1, a1, t0
     sw   a1, 4 + rdp_tile
-    li   a2, 0x7F
+    li   a2, 0x3F
     jal  dma_write
 
 draw_tile:
@@ -545,12 +547,12 @@ clear_cache7:
     bne  t0, t2, clear_cache7
 
     // Update the RDP texture parameters for no mirroring
-    lw   t4, tile_params + 0
-    lh   t3, tile_params + 4
-    srl  t5, t4, 16
-    sh   t5, 48 + rdp_tile // S-coordinate
-    sh   t4, 56 + rdp_tile // Gradient along X
-    sh   t3, 80 + rdp_tile // Gradient along Y
+    lw   t3, tile_params + 0
+    lw   t4, tile_params + 4
+    lw   t5, tile_params + 8
+    sw   t3, rdp_tile + 48 // Coordinates
+    sw   t4, rdp_tile + 56 // Gradients along X
+    sw   t5, rdp_tile + 80 // Gradients along Y
 
     // Set the initial tile Y-coordinate and character number
     andi t0, k0, 0x7
@@ -606,14 +608,6 @@ draw_row7:
     // Set the initial tile X-coordinate
     li   s0, 0
 
-next_tile7:
-    // Update the RDP draw command with the tile's X-coordinate
-    addi t0, s0, 20
-    sh   t0, 24 + rdp_tile // x1
-    addi t1, s0, 12
-    sh   t1, 32 + rdp_tile // x3
-    sh   t1, 40 + rdp_tile // x2
-
     // Update the RDP draw command with the tile's Y-coordinate
     lw   t0, fb_border
     add  t0, t0, s1
@@ -623,6 +617,14 @@ next_tile7:
     sll  t1, t0, 16
     or   t0, t0, t1
     sw   t0, 20 + rdp_tile // y2, y1
+
+next_tile7:
+    // Update the RDP draw command with the tile's X-coordinate
+    addi t0, s0, 20
+    sh   t0, 24 + rdp_tile // x1
+    addi t1, s0, 12
+    sh   t1, 32 + rdp_tile // x3
+    sh   t1, 40 + rdp_tile // x2
 
     // Load a row of BG entries from the screen
     la   a0, scrn_data
@@ -658,17 +660,17 @@ next_tile7:
     li   a2, 0x7F
     jal  dma_read
 
-    // Set the initial texture offset
-    li   t7, 0x80
+    // Set the initial decoding offsets
+    addi t7, a0, 0x80
+    li   t0, 0x40
 
 decode_tile7:
     // Copy a tile line to the texture buffer and loop until complete
     addi  t7, t7, -0x10
-    add   t0, a0, t7
-    lqv   $v00, 0, 0, t0
-    vmudl $v00, $v00, $v24
-    sqv   $v00, 0, 0, t7
-    bnez  t7, decode_tile7
+    lqv   $v00, 0, 0, t7
+    addi  t0, t0, -0x8
+    spv   $v00, 0, 0, t0
+    bnez  t0, decode_tile7
 
 cache_tile7:
     // DMA the texture to the tile cache in RDRAM
@@ -677,7 +679,7 @@ cache_tile7:
     sll  t0, t6, 7
     add  a1, a1, t0
     sw   a1, 4 + rdp_tile
-    li   a2, 0x7F
+    li   a2, 0x3F
     jal  dma_write
 
 draw_tile7:
@@ -788,19 +790,19 @@ check_object:
     bnez t7, next_object
 
     // Update the RDP texture parameters based on mirroring
-    srl  t5, t1, 11
-    andi t5, t5, 0x18
-    lw   t4, 0 + tile_params(t5)
-    lh   t3, 4 + tile_params(t5)
-    srl  t5, t4, 16
-    sh   t5, 48 + rdp_tile // S-coordinate
-    sh   t4, 56 + rdp_tile // Gradient along X
-    sh   t3, 80 + rdp_tile // Gradient along Y
+    srl  t5, t1, 10
+    andi t5, t5, 0x30
+    lw   t3, tile_params + 0(t5)
+    lw   t4, tile_params + 4(t5)
+    lw   t5, tile_params + 8(t5)
+    sw   t3, rdp_tile + 48 // Coordinates
+    sw   t4, rdp_tile + 56 // Gradients along X
+    sw   t5, rdp_tile + 80 // Gradients along Y
 
     // Set initial values for drawing the object
-    srl  t3, t1, 5
-    andi t3, t3, 0x70
-    addi t3, t3, 0x80
+    sll  t3, t1, 3
+    andi t3, t3, 0x7000
+    addi t3, t3, 0x8000
     mtc2 t3, $v05, 0 // Palette offset
     move s4, s0      // X-size reload
     li   s5, 0       // Character offset
@@ -869,35 +871,36 @@ decode_object:
     mtc2 t5, $v13, 1 // Lower byte 2 to lane 1, bits 8-15
 
     // Decode the palette indices
-    vand  $v01, $v25, $v03, 9 // Mask out other lower bits
-    vand  $v02, $v25, $v03, 8 // Mask out other upper bis
+    vand  $v01, $v24, $v03, 9 // Mask out other lower bits
+    vand  $v02, $v24, $v03, 8 // Mask out other upper bis
     vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 0
     vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 1
     vor   $v02, $v03, $v04, 0 // Combine bits to form partial indices
-    vand  $v11, $v25, $v13, 9 // Mask out other lower bits
-    vand  $v12, $v25, $v13, 8 // Mask out other upper bits
+    vand  $v11, $v24, $v13, 9 // Mask out other lower bits
+    vand  $v12, $v24, $v13, 8 // Mask out other upper bits
     vmudl $v13, $v28, $v11, 0 // Shift lower bits to bit 2
     vmudl $v14, $v29, $v12, 0 // Shift upper bits to bit 3
     vor   $v12, $v13, $v14, 0 // Combine bits to form partial indices
     vor   $v01, $v12, $v02, 0 // Combine partial indices
+    vmudn $v01, $v01, $v25, 0 // Shift to upper byte
 
     // Add the palette offset to non-zero indices
     // In parallel, move to the next line of the tile
     veq  $v00, $v01, $v31, 0
-        addi t7, t7, 0x10
+        addi t7, t7, 0x8
     vmrg $v00, $v01, $v05, 8
         addi t8, t8, 0x2
     vadd $v02, $v01, $v00, 0
 
     // Write the line to the texture buffer and loop until complete
     andi t5, t8, 0xF
-    sqv  $v02, 0, -0x10, t7
+    spv  $v02, 0, -0x8, t7
     bnez t5, decode_object
 
     // DMA the object texture to RDRAM
     la   a0, texture
     la   a1, 0xA0360000
-    li   a2, 0x7F
+    li   a2, 0x3F
     jal  dma_write
 
     // Run the RDP to draw an object tile

@@ -239,7 +239,7 @@ update_dpal:
     // Update the RSP's copy of OAM in DMEM
     la   t0, oam
     la   t1, oam + 0x220
-    la   t2, 0xA4000080
+    la   t2, 0xA4000400
 oam_loop:
     lw   t3, (t0)
     addi t0, t0, 4
