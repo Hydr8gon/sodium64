@@ -232,6 +232,9 @@ update_dpal:
     // Update a value in the RDP's palette and loop until finished
     sll  t1, t9, 2
     sh   t3, 0xA038C000(t1)
+    sh   t3, 0xA038C002(t1)
+    sh   t3, 0xA038C004(t1)
+    sh   t3, 0xA038C006(t1)
     bnez t9, update_dpal
     sh   t8, cgram
     sw   t3, fill_color

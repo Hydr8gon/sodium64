@@ -25,7 +25,7 @@
 
 texture:    .byte 0:0x400
 oam:        .byte 0:0x220
-scrn_data:  .byte 0:0x100
+scrn_data:  .byte 0:0x80
 char_data:  .byte 0:0x80
 tile_table: .byte 0:0x400
 
@@ -43,7 +43,6 @@ rdp_init:
     // RDP commands that only need to run once
     .dword 0x3C080E10001C8241 // Set Combine
     .dword 0x3510810000000000 // Set Tile (palette)
-    .dword 0x3548020001000090 // Set Tile (texture)
 
 rdp_section:
     // RDP commands that run when changing the frame section
@@ -59,9 +58,14 @@ rdp_frame:
     .dword 0x3D100000A038C000 // Set Texture Image (palette)
     .dword 0x3300000000400000 // Load Block (palette)
 
+rdp_mode7:
+    // RDP commands that run when changing to/from mode 7
+    .dword 0x3548020001054150 // Set Tile (texture)
+
 rdp_tile:
     // RDP commands that run when a tile is being drawn
     .dword 0x3D480007A0360000 // Set Texture Image (texture)
+    .dword 0x2800000000000000 // Sync Tile
     .dword 0x340000000101F01F // Load Tile (texture)
     .dword 0x0A81000000000000 // Texture Triangle 1
     .dword 0x0100000000000000 // Texture Triangle 2
@@ -97,10 +101,11 @@ tile_params:
     .word 0x00000070, 0x00100000, 0x0000FFF0, 0 // Y-mirror
     .word 0x00700070, 0xFFF00000, 0x0000FFF0, 0 // XY-mirror
 
-tile_jumps: .word decode_tile4, decode_tile16, decode_tile256
-mask_ofs:   .byte 0
+tile_jumps:   .word decode_tile4, decode_tile16, decode_tile256
+mode7_bounds: .word 0:4
+mask_ofs:     .byte 0
 
-.space 0xF3
+.space 0x15B
 
 // Pointer to active framebuffer; used for text drawing on CPU
 framebuffer: .word 0xA03AE600 // 0xEB8-0xEBB
@@ -304,10 +309,10 @@ load_screen:
     add  t0, t0, s1
     sll  t0, t0, 2
     addi t1, t0, 8 << 2
-    sh   t1, 18 + rdp_tile // y3
+    sh   t1, rdp_tile + 26 // y3
     sll  t1, t0, 16
     or   t0, t0, t1
-    sw   t0, 20 + rdp_tile // y2, y1
+    sw   t0, rdp_tile + 28 // y2, y1
 
 next_tile:
     // Get the BG entry for the current tile
@@ -323,10 +328,10 @@ next_tile:
 
     // Update the RDP draw command with the tile's X-coordinate
     addi t0, s0, 20
-    sh   t0, 24 + rdp_tile // x1
+    sh   t0, rdp_tile + 32 // x1
     addi t1, s0, 12
-    sh   t1, 32 + rdp_tile // x3
-    sh   t1, 40 + rdp_tile // x2
+    sh   t1, rdp_tile + 40 // x3
+    sh   t1, rdp_tile + 48 // x2
 
     // Update the RDP texture parameters based on mirroring
     srl  t5, t6, 10
@@ -334,9 +339,9 @@ next_tile:
     lw   t3, tile_params + 0(t5)
     lw   t4, tile_params + 4(t5)
     lw   t5, tile_params + 8(t5)
-    sw   t3, rdp_tile + 48 // Coordinates
-    sw   t4, rdp_tile + 56 // Gradients along X
-    sw   t5, rdp_tile + 80 // Gradients along Y
+    sw   t3, rdp_tile + 56 // Coordinates
+    sw   t4, rdp_tile + 64 // Gradients along X
+    sw   t5, rdp_tile + 88 // Gradients along Y
 
     // Skip uploading if the last tile's number and palette were the same
     andi t0, t6, 0x1FFF
@@ -494,7 +499,7 @@ cache_tile:
     la   a1, 0xA0360000
     sll  t0, s8, 7
     add  a1, a1, t0
-    sw   a1, 4 + rdp_tile
+    sw   a1, rdp_tile + 4
     li   a2, 0x3F
     jal  dma_write
 
@@ -519,13 +524,13 @@ skip_decode:
     la   a1, 0xA0360000
     sll  t0, s8, 7
     add  a1, a1, t0
-    sw   a1, 4 + rdp_tile
+    sw   a1, rdp_tile + 4
     b    draw_tile
 
 skip_upload:
     // Run the RDP to draw a tile, skipping texture upload
-    la   a0, 0x10 + rdp_tile
-    la   a1, tile_params
+    la   a0, rdp_tile + 24
+    la   a1, layer_chart
     jal  rdp_send
     b    finish_tile
 
@@ -537,72 +542,86 @@ draw_mode7:
     andi t1, t1, 0x1
     beqz t1, next_layer
 
-    // Reset the tile cache for a new BG
-    la   t0, tile_table
-    la   t2, vec_data
-clear_cache7:
-    sqv  $v31, 0, 0x00, t0
-    sqv  $v31, 0, 0x10, t0
-    addi t0, t0, 0x20
-    bne  t0, t2, clear_cache7
+    // Update RDP parameters for a texture width of 32 (4 tiles)
+    li   t0, 0x08   // Width / 4
+    sb   t0, rdp_mode7 + 2
+    li   t0, 0x001F // Width - 1
+    sh   t0, rdp_tile + 2
 
-    // Update the RDP texture parameters for no mirroring
-    lw   t3, tile_params + 0
-    lw   t4, tile_params + 4
-    lw   t5, tile_params + 8
-    sw   t3, rdp_tile + 48 // Coordinates
-    sw   t4, rdp_tile + 56 // Gradients along X
-    sw   t5, rdp_tile + 80 // Gradients along Y
-
-    // Set the initial tile Y-coordinate and character number
+    // Set the initial tile Y-coordinate
     andi t0, k0, 0x7
     sub  s1, k0, t0
-    li   v1, 0xFFFF
 
-    // Calculate the initial screen X coordinate
+    // Calculate the initial screen X-coordinate
     lh   t0, m7hofs + 2(s7)
     lh   t2, m7x + 2(s7)
     sub  t0, t0, t2
-    addi t0, t0, 4 // Tile center
 
-    // Calculate the initial screen Y coordinate
+    // Calculate the initial screen Y-coordinate
     lh   t1, m7vofs + 2(s7)
     lh   t3, m7y + 2(s7)
     add  t1, t1, s1
     sub  t1, t1, t3
-    addi t1, t1, 4 // Tile center
 
-    // Multiply 2 16-bit values to get a 32-bit value
-    .macro MUL m1, m2
-        mtc2  \m1, $v00, 0
-        mtc2  \m2, $v01, 0
-        vmudh $v00, $v00, $v01, 0
-        vsar  $v00, COP2_ACC_MD
-        vsar  $v01, COP2_ACC_HI
-        mfc2  t4, $v00, 0
-        mfc2  t5, $v01, 0
-        andi  t4, t4, 0xFFFF
-        sll   t5, t5, 16
-        or    t4, t4, t5
-    .endm
-
-    // Calculate the initial VRAM X coordinate
+    // Calculate the initial VRAM X-coordinate
     lh    s2, m7a + 2
     sll   t2, t2, 8
-    MUL   t0, s2
-    add   t2, t2, t4
+    move  a0, t0
+    move  a1, s2
+    jal   multiply
+    add   t2, t2, v0
     lh    s4, m7b + 2
-    MUL   t1, s4
-    add   t8, t2, t4
+    move  a0, t1
+    move  a1, s4
+    jal   multiply
+    add   t8, t2, v0
 
-    // Calculate the initial VRAM Y coordinate
+    // Calculate the initial VRAM Y-coordinate
     lh    s5, m7c + 2
     sll   t3, t3, 8
-    MUL   t0, s5
-    add   t3, t3, t4
+    move  a0, t0
+    move  a1, s5
+    jal   multiply
+    add   t3, t3, v0
     lh    s6, m7d + 2
-    MUL   t1, s6
-    add   t9, t3, t4
+    move  a0, t1
+    move  a1, s6
+    jal   multiply
+    add   t9, t3, v0
+
+    // Calculate the min and max X-offsets within a mode 7 tile
+    sll  a0, s2, 3
+    sll  a1, s4, 3
+    add  a2, a0, a1
+    jal  min_max
+    sw   v0, mode7_bounds + 0
+    sw   v1, mode7_bounds + 4
+
+    // Calculate the min and max Y-offsets within a mode 7 tile
+    sll  a0, s5, 3
+    sll  a1, s6, 3
+    add  a2, a0, a1
+    jal  min_max
+    sw   v0, mode7_bounds + 8
+    sw   v1, mode7_bounds + 12
+
+    // Update the RDP texture parameters with rotscale values
+    sra  t0, s2, 4
+    sh   t0, rdp_tile + 64 // S-gradient along X (int)
+    sra  t1, s5, 4
+    sh   t1, rdp_tile + 66 // T-gradient along X (int)
+    sll  t0, s2, 12
+    sh   t0, rdp_tile + 80 // S-gradient along X (frac)
+    sll  t1, s5, 12
+    sh   t1, rdp_tile + 82 // T-gradient along X (frac)
+    sra  t0, s4, 4
+    sh   t0, rdp_tile + 88 // S-gradient along Y (int)
+    sra  t1, s6, 4
+    sh   t1, rdp_tile + 90 // T-gradient along Y (int)
+    sll  t0, s4, 12
+    sh   t0, rdp_tile + 96 // S-gradient along Y (frac)
+    sll  t1, s6, 12
+    sh   t1, rdp_tile + 98 // T-gradient along Y (frac)
 
 draw_row7:
     // Set the initial tile X-coordinate
@@ -613,44 +632,126 @@ draw_row7:
     add  t0, t0, s1
     sll  t0, t0, 2
     addi t1, t0, 8 << 2
-    sh   t1, 18 + rdp_tile // y3
+    sh   t1, rdp_tile + 26 // y3
     sll  t1, t0, 16
     or   t0, t0, t1
-    sw   t0, 20 + rdp_tile // y2, y1
+    sw   t0, rdp_tile + 28 // y2, y1
 
 next_tile7:
     // Update the RDP draw command with the tile's X-coordinate
     addi t0, s0, 20
-    sh   t0, 24 + rdp_tile // x1
+    sh   t0, rdp_tile + 32 // x1
     addi t1, s0, 12
-    sh   t1, 32 + rdp_tile // x3
-    sh   t1, 40 + rdp_tile // x2
+    sh   t1, rdp_tile + 40 // x3
+    sh   t1, rdp_tile + 48 // x2
 
-    // Load a row of BG entries from the screen
+    // Calculate the S-offset of the top-left tile within the texture
+    lw   t0, mode7_bounds + 0
+    sra  t1, t8, 11
+    add  t0, t0, t8
+    sra  t0, t0, 11
+    sub  s8, t1, t0
+
+    // Calculate how many tiles wide the texture should be
+    lw   t0, mode7_bounds + 4
+    add  t0, t0, t8
+    sra  t0, t0, 11
+    sub  v0, t0, t1
+    add  v0, v0, s8
+    addi v0, v0, 1
+    ble  v0, 4, calc_tofs
+    li   v0, 4 // Max
+
+calc_tofs:
+    // Calculate the T-offset of the top-left tile within the texture
+    lw   t0, mode7_bounds + 8
+    sra  t1, t9, 11
+    add  t0, t0, t9
+    sra  t0, t0, 11
+    sub  gp, t1, t0 // Offset T
+
+    // Calculate how many tiles high the texture should be
+    lw   t0, mode7_bounds + 12
+    add  t0, t0, t9
+    sra  t0, t0, 11
+    sub  v1, t0, t1
+    add  v1, v1, gp
+    addi v1, v1, 1
+    ble  v1, 4, set_texels
+    li   v1, 4 // Max
+
+set_texels:
+    // Update the amount of texels the RDP should load to TMEM
+    sll  t0, v0, 5
+    addi t0, t0, -1
+    sll  t0, t0, 12
+    sll  t1, v1, 5
+    addi t1, t1, -1
+    or   t0, t0, t1
+    lui  t1, 0x0100
+    or   t0, t0, t1
+    sw   t0, rdp_tile + 20
+
+    // Update the RDP texture parameters with current coordinates
+    srl  t4, t8, 4
+    andi t4, t4, 0x7F
+    sll  t0, s8, 7
+    add  t4, t4, t0
+    sh   t4, rdp_tile + 56 // S-coordinate (int)
+    srl  t4, t9, 4
+    andi t4, t4, 0x7F
+    sll  t0, gp, 7
+    add  t4, t4, t0
+    sh   t4, rdp_tile + 58 // T-coordinate (int)
+    sll  t4, t8, 12
+    sh   t4, rdp_tile + 72 // S-coordinate (frac)
+    sll  t4, t9, 12
+    sh   t4, rdp_tile + 74 // T-coordinate (frac)
+
+    // Calculate the VRAM address of the texture's first BG entry
     la   a0, scrn_data
     la   a1, 0xA03F0000 // VRAM
     sra  t0, t9, 11
     andi t0, t0, 0x7F
+    sub  t0, t0, gp
     sll  t0, t0, 8
     add  a1, a1, t0
-    li   a2, 0xFF
-    jal  dma_read
-
-    // Get the BG entry for the current tile
     sra  t0, t8, 11
     andi t6, t0, 0x7F
+    sub  t6, t6, s8
     sll  t6, t6, 1
-    lbu  t6, scrn_data + 1(t6)
+    add  a1, a1, t6
+    li   a2, 0xF
+    andi a3, a1, 0x7
 
-    // Skip uploading if the last tile's number was the same
-    beq  t6, v1, skip_upload7
-    move v1, t6
+    // Load a row of entries for every tile row in the texture
+    move t1, v1
+    b    entry_start
+entry_row:
+    addi a0, a0, 0x10
+    addi a1, a1, 0x100
+entry_start:
+    jal  dma_read
+    addi t1, t1, -1
+    bnez t1, entry_row
 
-    // Skip decoding if the tile is already cached
-    lbu  t1, tile_table(t6)
-    li   t0, 1
-    bnez t1, skip_decode7
-    sb   t0, tile_table(t6)
+    // Backup the width so it can be restored for each row
+    move t5, v0
+
+next_subrow:
+    // Move to the next row within the texture
+    addi v1, v1, -1
+
+next_subtile:
+    // Move to the next tile within the texture
+    addi v0, v0, -1
+
+    // Get the BG entry for the current tile
+    sll  t0, v0, 1
+    sll  t1, v1, 4
+    add  t0, t0, t1
+    add  t0, t0, a3
+    lbu  t6, scrn_data + 1(t0)
 
     // Load the tile's character data from VRAM
     la   a0, char_data
@@ -662,33 +763,39 @@ next_tile7:
 
     // Set the initial decoding offsets
     addi t7, a0, 0x80
-    li   t0, 0x40
+    sll  t0, v0, 3
+    addi t1, v1, 1
+    sll  t1, t1, 8
+    add  t0, t0, t1
 
 decode_tile7:
     // Copy a tile line to the texture buffer and loop until complete
     addi  t7, t7, -0x10
     lqv   $v00, 0, 0, t7
-    addi  t0, t0, -0x8
+    addi  t0, t0, -0x20
     spv   $v00, 0, 0, t0
-    bnez  t0, decode_tile7
+    bne   t7, a0, decode_tile7
 
-cache_tile7:
-    // DMA the texture to the tile cache in RDRAM
+    // Loop through tiles until the texture is complete
+    bnez v0, next_subtile
+    move v0, t5
+    bnez v1, next_subrow
+
+    // DMA the texture to alternating RDRAM locations
     la   a0, texture
     la   a1, 0xA0360000
-    sll  t0, t6, 7
+    andi t0, s0, 0x8
+    sll  t0, t0, 8
     add  a1, a1, t0
-    sw   a1, 4 + rdp_tile
-    li   a2, 0x3F
+    sw   a1, rdp_tile + 4
+    li   a2, 0x3FF
     jal  dma_write
 
-draw_tile7:
     // Run the RDP to draw a tile
-    la   a0, rdp_tile
+    la   a0, rdp_mode7
     la   a1, layer_chart
     jal  rdp_send
 
-finish_tile7:
     // Move to the next tile, adjusting the VRAM coordinates
     addi s0, s0, 8
     sll  t0, s2, 3
@@ -708,22 +815,23 @@ finish_tile7:
     sll  t0, s6, 3
     add  t9, t9, t0
     blt  s1, k1, draw_row7
-    b    next_layer
 
-skip_decode7:
-    // Update the RDP texture address and draw a cached tile
-    la   a1, 0xA0360000
-    sll  t0, t6, 7
-    add  a1, a1, t0
-    sw   a1, 4 + rdp_tile
-    b    draw_tile7
+    // Restore RDP parameters that were changed for mode 7
+    li   t0, 0x02
+    sb   t0, rdp_mode7 + 2   // Texture width / 4
+    li   t0, 0x0007
+    sh   t0, rdp_tile + 2    // Texture width - 1
+    li   t0, 0x0101F01F
+    sw   t0, rdp_tile + 20   // Texels to load
+    sw   zero, rdp_tile + 72 // Coordinates (frac)
+    sw   zero, rdp_tile + 80 // Gradients along X (frac)
+    sw   zero, rdp_tile + 96 // Gradients along Y (frac)
 
-skip_upload7:
-    // Run the RDP to draw a tile, skipping texture upload
-    la   a0, 0x10 + rdp_tile
-    la   a1, tile_params
+    // Run the RDP for the end of mode 7
+    la   a0, rdp_mode7
+    la   a1, rdp_tile
     jal  rdp_send
-    b    finish_tile7
+    b    next_layer
 
 
 draw_obj:
@@ -737,7 +845,7 @@ draw_obj:
     // Initialize the OAM count and RDP texture address
     lw   t9, obj_rotate
     la   a1, 0xA0360000
-    sw   a1, 4 + rdp_tile
+    sw   a1, rdp_tile + 4
 
 check_object:
     // Read the 4 object bytes and additional 2 bits
@@ -795,9 +903,9 @@ check_object:
     lw   t3, tile_params + 0(t5)
     lw   t4, tile_params + 4(t5)
     lw   t5, tile_params + 8(t5)
-    sw   t3, rdp_tile + 48 // Coordinates
-    sw   t4, rdp_tile + 56 // Gradients along X
-    sw   t5, rdp_tile + 80 // Gradients along Y
+    sw   t3, rdp_tile + 56 // Coordinates
+    sw   t4, rdp_tile + 64 // Gradients along X
+    sw   t5, rdp_tile + 88 // Gradients along Y
 
     // Set initial values for drawing the object
     sll  t3, t1, 3
@@ -832,18 +940,18 @@ next_objy:
     add  t7, t7, s8
     sll  t7, t7, 2
     addi t6, t7, 8 << 2
-    sh   t6, 18 + rdp_tile // y3
+    sh   t6, rdp_tile + 26 // y3
     sll  t3, t7, 16
     or   t3, t3, t7
-    sw   t3, 20 + rdp_tile // y2, y1
+    sw   t3, rdp_tile + 28 // y2, y1
 
 next_objx:
     // Update the RDP draw command with the object's X-coordinate
     addi t7, s2, 12 // Vertical border
-    sh   t7, 32 + rdp_tile // x3
-    sh   t7, 40 + rdp_tile // x2
+    sh   t7, rdp_tile + 40 // x3
+    sh   t7, rdp_tile + 48 // x2
     addi t7, t7, 8
-    sh   t7, 24 + rdp_tile // x1
+    sh   t7, rdp_tile + 32 // x1
 
     // Load the tile's character data from VRAM
     la   a0, char_data
@@ -972,12 +1080,49 @@ set_buffer:
     b    draw_frame
 
 
-dma_write: // a0: RSP address, a1: DRAM address, a2: size
-    // Wait until a texture isn't being loaded to TMEM
-    mfc0 t0, COP0_DP_STATUS
-    andi t0, t0, 0x10 // TMEM busy
-    bnez t0, dma_write
+multiply: // a0: multiplicand, a1: multiplier - v0: product
+    // Multiply 2 16-bit values to get a 32-bit value
+    mtc2  a0, $v00, 0
+    mtc2  a1, $v01, 0
+    vmudh $v00, $v00, $v01, 0
+    vsar  $v00, COP2_ACC_MD
+    vsar  $v01, COP2_ACC_HI
+    mfc2  v0, $v00, 0
+    mfc2  v1, $v01, 0
+    andi  v0, v0, 0xFFFF
+    sll   v1, v1, 16
+    or    v0, v0, v1
+    jr    ra
 
+
+min_max: // a0-a2: values - v0: min, v1: max
+    // Find the minimum out of 4 values, including zero
+    move v0, zero
+    bgtz a0, min1
+    move v0, a0
+min1:
+    bgt  a1, v0, min2
+    move v0, a1
+min2:
+    bgt  a2, v0, min3
+    move v0, a2
+min3:
+
+    // Find the maximum out of 4 values, including zero
+    move v1, zero
+    blez a0, max1
+    move v1, a0
+max1:
+    ble  a1, v1, max2
+    move v1, a1
+max2:
+    ble  a2, v1, max3
+    move v1, a2
+max3:
+    jr   ra
+
+
+dma_write: // a0: RSP address, a1: DRAM address, a2: size
     // Transfer data from the RSP via DMA
     mtc0 a0, COP0_DMA_SPADDR
     mtc0 a1, COP0_DMA_RAMADDR
