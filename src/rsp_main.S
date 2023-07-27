@@ -368,8 +368,8 @@ next_tile:
     jal  dma_read
 
     // Set initial values and jump to the tile decoder
-    li   t7, 0x40
-    li   t8, 0x10
+    li   t7, 0x40            // Texture offset
+    la   t8, char_data + 0xE // Character offset
     jr   t9
 
 decode_tile4:
@@ -379,9 +379,7 @@ decode_tile4:
 
 loop_tile4:
     // Prepare 4-color tile data for decoding
-    lhu  t4, -2 + char_data(t8)
-    mtc2 t4, $v03, 0 // Upper byte 1 to lane 0, bits 8-15
-    mtc2 t4, $v03, 1 // Lower byte 1 to lane 1, bits 8-15
+    lpv  $v03, 0, 0x00, t8 // Upper/lower byte 1 to lane 0/1, bits 8-15
 
     // Decode the palette indices
     vand  $v01, $v24, $v03, 9 // Mask out other lower bits
@@ -401,7 +399,7 @@ loop_tile4:
 
     // Write the line to the texture buffer and loop until complete
     spv  $v02, 0, 0, t7
-    bnez t8, loop_tile4
+    bnez t7, loop_tile4
     b    cache_tile
 
 decode_tile16:
@@ -411,12 +409,8 @@ decode_tile16:
 
 loop_tile16:
     // Prepare 16-color tile data for decoding
-    lhu  t4, 0x00 - 2 + char_data(t8)
-    lhu  t5, 0x10 - 2 + char_data(t8)
-    mtc2 t4, $v03, 0 // Upper byte 1 to lane 0, bits 8-15
-    mtc2 t4, $v03, 1 // Lower byte 1 to lane 1, bits 8-15
-    mtc2 t5, $v13, 0 // Upper byte 2 to lane 0, bits 8-15
-    mtc2 t5, $v13, 1 // Lower byte 2 to lane 1, bits 8-15
+    lpv  $v03, 0, 0x00, t8 // Upper/lower byte 1 to lane 0/1, bits 8-15
+    lpv  $v13, 0, 0x10, t8 // Upper/lower byte 2 to lane 0/1, bits 8-15
 
     // Decode the palette indices
     vand  $v01, $v24, $v03, 9 // Mask out other lower bits
@@ -442,23 +436,15 @@ loop_tile16:
 
     // Write the line to the texture buffer and loop until complete
     spv  $v02, 0, 0, t7
-    bnez t8, loop_tile16
+    bnez t7, loop_tile16
     b    cache_tile
 
 decode_tile256:
     // Prepare 256-color tile data for decoding
-    lhu  t2, 0x00 - 2 + char_data(t8)
-    lhu  t3, 0x10 - 2 + char_data(t8)
-    lhu  t4, 0x20 - 2 + char_data(t8)
-    lhu  t5, 0x30 - 2 + char_data(t8)
-    mtc2 t2, $v03, 0 // Upper byte 1 to lane 0, bits 8-15
-    mtc2 t2, $v03, 1 // Lower byte 1 to lane 1, bits 8-15
-    mtc2 t3, $v13, 0 // Upper byte 2 to lane 0, bits 8-15
-    mtc2 t3, $v13, 1 // Lower byte 2 to lane 1, bits 8-15
-    mtc2 t4, $v08, 0 // Upper byte 3 to lane 0, bits 8-15
-    mtc2 t4, $v08, 1 // Lower byte 3 to lane 1, bits 8-15
-    mtc2 t5, $v18, 0 // Upper byte 4 to lane 0, bits 8-15
-    mtc2 t5, $v18, 1 // Lower byte 4 to lane 1, bits 8-15
+    lpv  $v03, 0, 0x00, t8 // Upper/lower byte 1 to lane 0/1, bits 8-15
+    lpv  $v13, 0, 0x10, t8 // Upper/lower byte 2 to lane 0/1, bits 8-15
+    lpv  $v08, 0, 0x20, t8 // Upper/lower byte 3 to lane 0/1, bits 8-15
+    lpv  $v18, 0, 0x30, t8 // Upper/lower byte 4 to lane 0/1, bits 8-15
 
     // Decode the palette indices
     vand  $v01, $v24, $v03, 9 // Mask out other lower bits
@@ -491,7 +477,7 @@ decode_tile256:
     addi t7, t7, -0x8
     spv  $v00, 0, 0, t7
     addi t8, t8, -0x2
-    bnez t8, decode_tile256
+    bnez t7, decode_tile256
 
 cache_tile:
     // DMA the texture to the tile cache in RDRAM
@@ -966,17 +952,13 @@ next_objx:
     jal  dma_read
 
     // Set initial values for drawing the tile
-    li   t8, 0 // Character offset
-    li   t7, 0 // Texture offset
+    li   t7, 0         // Texture offset
+    la   t8, char_data // Character offset
 
 decode_object:
     // Prepare 16-color tile data for decoding
-    lhu  t4, 0x00 + char_data(t8)
-    lhu  t5, 0x10 + char_data(t8)
-    mtc2 t4, $v03, 0 // Upper byte 1 to lane 0, bits 8-15
-    mtc2 t4, $v03, 1 // Lower byte 1 to lane 1, bits 8-15
-    mtc2 t5, $v13, 0 // Upper byte 2 to lane 0, bits 8-15
-    mtc2 t5, $v13, 1 // Lower byte 2 to lane 1, bits 8-15
+    lpv  $v03, 0, 0x00, t8 // Upper/lower byte 1 to lane 0/1, bits 8-15
+    lpv  $v13, 0, 0x10, t8 // Upper/lower byte 2 to lane 0/1, bits 8-15
 
     // Decode the palette indices
     vand  $v01, $v24, $v03, 9 // Mask out other lower bits
