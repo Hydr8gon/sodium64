@@ -101,15 +101,15 @@ $(BUILD_DIR)/%.o: %.S
 		$(CC) -c $(ASFLAGS) -o $@ $<; \
 	fi
 
-%.elf: $(N64_LIBDIR)/n64.ld
+%.elf:
 	@mkdir -p $(dir $@)
 	@echo "    [LD] $@"
-	$(CXX) -o $@ $(filter-out $(N64_LIBDIR)/n64.ld,$^) -lc $(patsubst %,-Wl$(COMMA)%,$(LDFLAGS)) -Wl,-Map=$(BUILD_DIR)/$(notdir $(basename $@)).map
+	$(N64_CXX) -o $@ $(filter-out $(N64_LIBDIR)/n64.ld,$^) -lc $(patsubst %,-Wl$(COMMA)%,$(LDFLAGS)) -Wl,-Map=$(BUILD_DIR)/$(notdir $(basename $@)).map
 	$(N64_SIZE) -G $@
 
 .SILENT:
 
-all: $(PROJ_NAME).z64
+all: $(PROJ_NAME).elf $(PROJ_NAME).z64 
 
 $(BUILD_DIR)/$(PROJ_NAME).elf: $(OFILES)
 
