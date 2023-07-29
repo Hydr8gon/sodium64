@@ -121,7 +121,11 @@ decode_samples:
     addi sp, sp, -8
     sw   t4, 4(sp)
     sw   t5, 0(sp)
-    sll  t6, t6, 3
+
+    // Get the address of the voice's sample buffer
+    la   t3, cur_samples
+    sll  v1, t6, 3
+    add  v1, v1, t3
 
     // Configure things based on the BRR block header
     sh   t0, cur_addrs(t1)
@@ -155,8 +159,8 @@ filter_1:
     // Apply the old sample, multiplied by 0.9375
     addi t7, t5, 2
     andi t7, t7, 0x6
-    add  t3, t6, t7
-    lh   t7, cur_samples(t3)
+    add  t3, v1, t7
+    lh   t7, (t3)
     add  t0, t0, t7
     sra  t7, t7, 4
     sub  t0, t0, t7
@@ -166,8 +170,8 @@ filter_2:
     // Apply the old sample, multiplied by 1.90625
     addi t7, t5, 2
     andi t7, t7, 0x6
-    add  t3, t6, t7
-    lh   t7, cur_samples(t3)
+    add  t3, v1, t7
+    lh   t7, (t3)
     sll  t3, t7, 1
     add  t0, t0, t3
     sll  t3, t7, 1
@@ -178,8 +182,8 @@ filter_2:
     // Apply the older sample, multiplied by -0.9375
     addi t7, t5, 4
     andi t7, t7, 0x6
-    add  t3, t6, t7
-    lh   t7, cur_samples(t3)
+    add  t3, v1, t7
+    lh   t7, (t3)
     sub  t0, t0, t7
     sra  t3, t7, 4
     add  t0, t0, t3
@@ -189,8 +193,8 @@ filter_3:
     // Apply the old sample, multiplied by 1.796875
     addi t7, t5, 2
     andi t7, t7, 0x6
-    add  t3, t6, t7
-    lh   t7, cur_samples(t3)
+    add  t3, v1, t7
+    lh   t7, (t3)
     sll  t3, t7, 1
     add  t0, t0, t3
     sll  t3, t7, 3
@@ -203,8 +207,8 @@ filter_3:
     // Apply the older sample, multiplied by -0.8125
     addi t7, t5, 4
     andi t7, t7, 0x6
-    add  t3, t6, t7
-    lh   t7, cur_samples(t3)
+    add  t3, v1, t7
+    lh   t7, (t3)
     sub  t0, t0, t7
     sll  t3, t7, 1
     add  t3, t3, t7
@@ -213,18 +217,17 @@ filter_3:
 
 filter_end:
     // Store the sample and loop until all 4 are done
-    add  t3, t6, t5
-    sh   t0, cur_samples(t3)
+    add  t3, v1, t5
+    sh   t0, (t3)
     bnez t5, next_sample
 
     // Restore registers that were used for decoding
     lw   t4, 4(sp)
     lw   t5, 0(sp)
-    srl  t6, t6, 3
     addi sp, sp, 8
 
 mix_sample:
-    // Load the current sample from the voice's cache
+    // Load the current sample from the voice's buffer
     sll  t1, t6, 3
     srl  t3, t2, 11
     andi t3, t3, 0x6

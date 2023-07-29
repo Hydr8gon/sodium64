@@ -152,11 +152,31 @@ cpu_init:
 
 
 set_nz8: // a0: value
-    // Adjust the value for 16-bit logic
-    sll  a0, a0, 8
+    // Set the NZ flags for an 8-bit value
+    andi s4, s4, ~0x82 & 0xFFFF
+    seq  t0, a0, 0
+    sll  t0, t0, 1    // Z
+    or   s4, s4, t0
+    andi t0, a0, 0x80 // N
+    or   s4, s4, t0
+
+    // Run an APU or PPU event once enough cycles have passed
+    ble  s5, s3, apu_execute
+    blez s5, ppu_event
+
+    // Fetch the current opcode
+    move a0, s7
+    MEM_READ8
+
+    // Jump to the opcode's function in the lookup table
+    sll  t0, v0, 2 // Word offset
+    add  t0, t0, s6
+    lw   t0, (t0)
+    jr   t0
+
 
 set_nz16: // a0: value
-    // Set the NZ flags and fall directly back into execution
+    // Set the NZ flags for a 16-bit value
     andi s4, s4, ~0x82 & 0xFFFF
     seq  t0, a0, 0
     sll  t0, t0, 1    // Z
@@ -164,7 +184,6 @@ set_nz16: // a0: value
     srl  t0, a0, 8
     andi t0, t0, 0x80 // N
     or   s4, s4, t0
-
 
 cpu_execute:
     // Run an APU or PPU event once enough cycles have passed
