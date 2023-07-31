@@ -109,7 +109,7 @@ $(BUILD_DIR)/%.o: %.S
 
 .SILENT:
 
-all: $(PROJ_NAME).elf $(PROJ_NAME).z64 
+all: $(PROJ_NAME).z64
 
 $(BUILD_DIR)/$(PROJ_NAME).elf: $(OFILES)
 

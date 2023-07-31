@@ -828,10 +828,8 @@ draw_obj:
     andi t1, t1, 0x10
     beqz t1, next_layer
 
-    // Initialize the OAM count and RDP texture address
+    // Set the OAM count to the first in rotation
     lw   t9, obj_rotate
-    la   a1, 0xA0360000
-    sw   a1, rdp_tile + 4
 
 check_object:
     // Read the 4 object bytes and additional 2 bits
