@@ -856,12 +856,12 @@ check_object:
 
     // Get the object's Y-coordinate, wrapped past line 240
     srl  t3, t1, 24
-    addi t3, t3, 1
-    li   t4, 0xF1
+    li   t4, 240
     slt  t4, t4, t3
     sll  t4, t4, 31
     sra  t4, t4, 23
     or   s8, t3, t4
+    addi s8, s8, 1
 
     // Skip the object if it doesn't occupy any visible scanlines
     add  t4, s8, s1
@@ -987,9 +987,13 @@ decode_object:
     spv  $v02, 0, -0x8, t7
     bnez t5, decode_object
 
-    // DMA the object texture to RDRAM
+    // DMA the texture to alternating RDRAM locations
     la   a0, texture
     la   a1, 0xA0360000
+    andi t0, s0, 0x8
+    sll  t0, t0, 8
+    add  a1, a1, t0
+    sw   a1, rdp_tile + 4
     li   a2, 0x3F
     jal  dma_write
 
