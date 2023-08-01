@@ -567,174 +567,164 @@ styabs_16: ABS; STY_16 // STY nnnn (16-bit)
 
 pha_8: // PHA (8-bit)
     // Push the accumulator to the stack (8-bit)
-    lhu  a0, stack_ptr
+    lhu  s0, stack_ptr
     lbu  a1, accumulator + 1
-    MEM_WRITE8
-    addi t0, a0, -1
-    sh   t0, stack_ptr
+    addi s0, s0, -1
+    MEM_WRITE8 1(s0)
+    sh   s0, stack_ptr
     addi s7, s7, 1
     j    cpu_execute
 
 
 pha_16: // PHA (16-bit)
     // Push the accumulator to the stack (16-bit)
-    lhu  a0, stack_ptr
-    addi a0, a0, -1
+    lhu  s0, stack_ptr
     lhu  a1, accumulator
-    MEM_WRITE16
-    addi t0, a0, -1
-    sh   t0, stack_ptr
+    addi s0, s0, -2
+    MEM_WRITE16 1(s0)
+    sh   s0, stack_ptr
     addi s7, s7, 1
     j    cpu_execute
 
 
 phx_8: // PHX (8-bit)
     // Push register X to the stack (8-bit)
-    lhu  a0, stack_ptr
+    lhu  s0, stack_ptr
     lbu  a1, register_x + 1
-    MEM_WRITE8
-    addi t0, a0, -1
-    sh   t0, stack_ptr
+    addi s0, s0, -1
+    MEM_WRITE8 1(s0)
+    sh   s0, stack_ptr
     addi s7, s7, 1
     j    cpu_execute
 
 
 phx_16: // PHX (16-bit)
     // Push register X to the stack (16-bit)
-    lhu  a0, stack_ptr
-    addi a0, a0, -1
+    lhu  s0, stack_ptr
     lhu  a1, register_x
-    MEM_WRITE16
-    addi t0, a0, -1
-    sh   t0, stack_ptr
+    addi s0, s0, -2
+    MEM_WRITE16 1(s0)
+    sh   s0, stack_ptr
     addi s7, s7, 1
     j    cpu_execute
 
 
 phy_8: // PHY (8-bit)
     // Push register Y to the stack (8-bit)
-    lhu  a0, stack_ptr
+    lhu  s0, stack_ptr
     lbu  a1, register_y + 1
-    MEM_WRITE8
-    addi t0, a0, -1
-    sh   t0, stack_ptr
+    addi s0, s0, -1
+    MEM_WRITE8 1(s0)
+    sh   s0, stack_ptr
     addi s7, s7, 1
     j    cpu_execute
 
 
 phy_16: // PHY (16-bit)
     // Push register Y to the stack (16-bit)
-    lhu  a0, stack_ptr
-    addi a0, a0, -1
+    lhu  s0, stack_ptr
     lhu  a1, register_y
-    MEM_WRITE16
-    addi t0, a0, -1
-    sh   t0, stack_ptr
+    addi s0, s0, -2
+    MEM_WRITE16 1(s0)
+    sh   s0, stack_ptr
     addi s7, s7, 1
     j    cpu_execute
 
 
 php: // PHP
     // Push the flags to the stack
-    lhu  a0, stack_ptr
+    lhu  s0, stack_ptr
     andi a1, s4, 0xFF
-    MEM_WRITE8
-    addi t0, a0, -1
-    sh   t0, stack_ptr
+    addi s0, s0, -1
+    MEM_WRITE8 1(s0)
+    sh   s0, stack_ptr
     addi s7, s7, 1
     j    cpu_execute
 
 
 phb: // PHB
     // Push the data bank to the stack
-    lhu  a0, stack_ptr
+    lhu  s0, stack_ptr
     lbu  a1, data_bank + 1
-    MEM_WRITE8
-    addi t0, a0, -1
-    sh   t0, stack_ptr
+    addi s0, s0, -1
+    MEM_WRITE8 1(s0)
+    sh   s0, stack_ptr
     addi s7, s7, 1
     j    cpu_execute
 
 
 phk: // PHK
     // Push the PC bank to the stack
-    lhu  a0, stack_ptr
+    lhu  s0, stack_ptr
     srl  a1, s7, 16
-    MEM_WRITE8
-    addi t0, a0, -1
-    sh   t0, stack_ptr
+    addi s0, s0, -1
+    MEM_WRITE8 1(s0)
+    sh   s0, stack_ptr
     addi s7, s7, 1
     j    cpu_execute
 
 
 phd: // PHD
     // Push the direct offset to the stack
-    lhu  a0, stack_ptr
-    addi a0, a0, -1
+    lhu  s0, stack_ptr
     move a1, s8
-    MEM_WRITE16
-    addi t0, a0, -1
-    sh   t0, stack_ptr
+    addi s0, s0, -2
+    MEM_WRITE16 1(s0)
+    sh   s0, stack_ptr
     addi s7, s7, 1
     j    cpu_execute
 
 
 pei: // PEI nn
     // Get the 8-bit immediate value added to the direct offset as an address
-    addi a0, s7, 1
-    MEM_READ8
-    add  a0, s8, v0
+    MEM_READ8 1(s7)
+    add  s0, s8, v0
 
     // Load a 16-bit value from memory and push it to the stack
     MEM_READ16
-    lhu  a0, stack_ptr
-    addi a0, a0, -1
+    lhu  s0, stack_ptr
     move a1, v0
-    MEM_WRITE16
-    addi t0, a0, -1
-    sh   t0, stack_ptr
+    addi s0, s0, -2
+    MEM_WRITE16 1(s0)
+    sh   s0, stack_ptr
     addi s7, s7, 2
     j    cpu_execute
 
 
 pea: // PEA #nnnn
     // Push a 16-bit immediate value to the stack
-    addi a0, s7, 1
-    MEM_READ16
-    lhu  a0, stack_ptr
-    addi a0, a0, -1
+    MEM_READ16 1(s7)
+    lhu  s0, stack_ptr
     move a1, v0
-    MEM_WRITE16
-    addi t0, a0, -1
-    sh   t0, stack_ptr
+    addi s0, s0, -2
+    MEM_WRITE16 1(s0)
+    sh   s0, stack_ptr
     addi s7, s7, 3
     j    cpu_execute
 
 
 per: // PER disp16
     // Add a sign-extended 16-bit immediate value to the PC
-    addi a0, s7, 1
-    MEM_READ16
+    MEM_READ16 1(s7)
     sll  t0, v0, 16
     sra  t0, t0, 16
     addi s7, s7, 3
     add  a1, s7, t0
 
     // Push the resulting value to the stack
-    lhu  a0, stack_ptr
-    addi a0, a0, -1
-    MEM_WRITE16
-    addi t0, a0, -1
-    sh   t0, stack_ptr
+    lhu  s0, stack_ptr
+    addi s0, s0, -2
+    MEM_WRITE16 1(s0)
+    sh   s0, stack_ptr
     j    cpu_execute
 
 
 pla_8: // PLA (8-bit)
     // Pop the accumulator from the stack and set flags (8-bit)
-    lhu  a0, stack_ptr
-    addi a0, a0, 1
-    MEM_READ8
-    sh   a0, stack_ptr
+    lhu  s0, stack_ptr
+    MEM_READ8 1(s0)
+    addi t0, s0, 1
+    sh   t0, stack_ptr
     move a0, v0
     sb   a0, accumulator + 1
     addi s7, s7, 1
@@ -743,11 +733,10 @@ pla_8: // PLA (8-bit)
 
 pla_16: // PLA (16-bit)
     // Pop the accumulator from the stack and set flags (16-bit)
-    lhu  a0, stack_ptr
-    addi a0, a0, 1
-    MEM_READ16
-    addi a0, a0, 1
-    sh   a0, stack_ptr
+    lhu  s0, stack_ptr
+    MEM_READ16 1(s0)
+    addi t0, s0, 2
+    sh   t0, stack_ptr
     move a0, v0
     sh   a0, accumulator
     addi s7, s7, 1
@@ -756,10 +745,10 @@ pla_16: // PLA (16-bit)
 
 plx_8: // PLX (8-bit)
     // Pop register X from the stack and set flags (8-bit)
-    lhu  a0, stack_ptr
-    addi a0, a0, 1
-    MEM_READ8
-    sh   a0, stack_ptr
+    lhu  s0, stack_ptr
+    MEM_READ8 1(s0)
+    addi t0, s0, 1
+    sh   t0, stack_ptr
     move a0, v0
     sb   a0, register_x + 1
     addi s7, s7, 1
@@ -768,11 +757,10 @@ plx_8: // PLX (8-bit)
 
 plx_16: // PLX (16-bit)
     // Pop register X from the stack and set flags (16-bit)
-    lhu  a0, stack_ptr
-    addi a0, a0, 1
-    MEM_READ16
-    addi a0, a0, 1
-    sh   a0, stack_ptr
+    lhu  s0, stack_ptr
+    MEM_READ16 1(s0)
+    addi t0, s0, 2
+    sh   t0, stack_ptr
     move a0, v0
     sh   a0, register_x
     addi s7, s7, 1
@@ -781,10 +769,10 @@ plx_16: // PLX (16-bit)
 
 ply_8: // PLY (8-bit)
     // Pop register Y from the stack and set flags (8-bit)
-    lhu  a0, stack_ptr
-    addi a0, a0, 1
-    MEM_READ8
-    sh   a0, stack_ptr
+    lhu  s0, stack_ptr
+    MEM_READ8 1(s0)
+    addi t0, s0, 1
+    sh   t0, stack_ptr
     move a0, v0
     sb   a0, register_y + 1
     addi s7, s7, 1
@@ -793,11 +781,10 @@ ply_8: // PLY (8-bit)
 
 ply_16: // PLY (16-bit)
     // Pop register Y from the stack and set flags (16-bit)
-    lhu  a0, stack_ptr
-    addi a0, a0, 1
-    MEM_READ16
-    addi a0, a0, 1
-    sh   a0, stack_ptr
+    lhu  s0, stack_ptr
+    MEM_READ16 1(s0)
+    addi t0, s0, 2
+    sh   t0, stack_ptr
     move a0, v0
     sh   a0, register_y
     addi s7, s7, 1
@@ -806,11 +793,10 @@ ply_16: // PLY (16-bit)
 
 pld: // PLD
     // Pop the direct offset from the stack and set flags
-    lhu  a0, stack_ptr
-    addi a0, a0, 1
-    MEM_READ16
-    addi a0, a0, 1
-    sh   a0, stack_ptr
+    lhu  s0, stack_ptr
+    MEM_READ16 1(s0)
+    addi t0, s0, 2
+    sh   t0, stack_ptr
     move a0, v0
     move s8, a0
     addi s7, s7, 1
@@ -819,10 +805,10 @@ pld: // PLD
 
 plb: // PLB
     // Pop the data bank from the stack and set flags
-    lhu  a0, stack_ptr
-    addi a0, a0, 1
-    MEM_READ8
-    sh   a0, stack_ptr
+    lhu  s0, stack_ptr
+    MEM_READ8 1(s0)
+    addi t0, s0, 1
+    sh   t0, stack_ptr
     move a0, v0
     sb   a0, data_bank + 1
     addi s7, s7, 1
@@ -831,10 +817,10 @@ plb: // PLB
 
 plp: // PLP
     // Pop the flags from the stack
-    lhu  a0, stack_ptr
-    addi a0, a0, 1
-    MEM_READ8
-    sh   a0, stack_ptr
+    lhu  s0, stack_ptr
+    MEM_READ8 1(s0)
+    addi t0, s0, 1
+    sh   t0, stack_ptr
     andi s4, s4, 0xFF00
     or   s4, s4, v0
     addi s7, s7, 1
@@ -843,23 +829,19 @@ plp: // PLP
 
 mvp_8: // MVP ss,dd (8-bit)
     // Get the immediate 8-bit value plus register Y as the destination address (8-bit)
-    addi a0, s7, 1
-    MEM_READ8
+    MEM_READ8 1(s7)
     sll  s0, v0, 16
     lbu  t0, register_y + 1
     add  s0, s0, t0
 
     // Get the next immediate 8-bit value plus register Y as the source address (8-bit)
-    addi a0, s7, 2
-    MEM_READ8
+    MEM_READ8 2(s7)
     sll  s1, v0, 16
     lbu  t0, register_x + 1
     add  s1, s1, t0
 
     // Transfer an 8-bit value from the source to the destination
-    move a0, s1
-    MEM_READ8
-    move a0, s0
+    MEM_READ8 0(s1)
     move a1, v0
     MEM_WRITE8
 
@@ -881,23 +863,19 @@ mvp8_cont:
 
 mvp_16: // MVP ss,dd (16-bit)
     // Get the immediate 8-bit value plus register Y as the destination address (16-bit)
-    addi a0, s7, 1
-    MEM_READ8
+    MEM_READ8 1(s7)
     sll  s0, v0, 16
     lhu  t0, register_y
     add  s0, s0, t0
 
     // Get the next immediate 8-bit value plus register Y as the source address (16-bit)
-    addi a0, s7, 2
-    MEM_READ8
+    MEM_READ8 2(s7)
     sll  s1, v0, 16
     lhu  t0, register_x
     add  s1, s1, t0
 
     // Transfer an 8-bit value from the source to the destination
-    move a0, s1
-    MEM_READ8
-    move a0, s0
+    MEM_READ8 0(s1)
     move a1, v0
     MEM_WRITE8
 
@@ -919,23 +897,19 @@ mvp16_cont:
 
 mvn_8: // MVN ss,dd (8-bit)
     // Get the immediate 8-bit value plus register Y as the destination address (8-bit)
-    addi a0, s7, 1
-    MEM_READ8
+    MEM_READ8 1(s7)
     sll  s0, v0, 16
     lbu  t0, register_y + 1
     add  s0, s0, t0
 
     // Get the next immediate 8-bit value plus register Y as the source address (8-bit)
-    addi a0, s7, 2
-    MEM_READ8
+    MEM_READ8 2(s7)
     sll  s1, v0, 16
     lbu  t0, register_x + 1
     add  s1, s1, t0
 
     // Transfer an 8-bit value from the source to the destination
-    move a0, s1
-    MEM_READ8
-    move a0, s0
+    MEM_READ8 0(s1)
     move a1, v0
     MEM_WRITE8
 
@@ -957,23 +931,19 @@ mvn8_cont:
 
 mvn_16: // MVN ss,dd (16-bit)
     // Get the immediate 8-bit value plus register Y as the destination address (16-bit)
-    addi a0, s7, 1
-    MEM_READ8
+    MEM_READ8 1(s7)
     sll  s0, v0, 16
     lhu  t0, register_y
     add  s0, s0, t0
 
     // Get the next immediate 8-bit value plus register Y as the source address (16-bit)
-    addi a0, s7, 2
-    MEM_READ8
+    MEM_READ8 2(s7)
     sll  s1, v0, 16
     lhu  t0, register_x
     add  s1, s1, t0
 
     // Transfer an 8-bit value from the source to the destination
-    move a0, s1
-    MEM_READ8
-    move a0, s0
+    MEM_READ8 0(s1)
     move a1, v0
     MEM_WRITE8
 

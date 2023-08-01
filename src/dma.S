@@ -53,11 +53,12 @@ transfer_modes:
 
 write_mdmaen: // a1: value
     // Push non-temporary registers to the stack
-    addi sp, sp, -16
-    sw   a1, 12(sp)
-    sw   a0, 8(sp)
-    sw   ra, 4(sp)
-    sw   s3, 0(sp)
+    addi sp, sp, -20
+    sw   a1, 16(sp)
+    sw   ra, 12(sp)
+    sw   s3, 8(sp)
+    sw   s1, 4(sp)
+    sw   s0, 0(sp)
 
     // Set the initial enabled channels (s0) and current channel (s1)
     andi s0, a1, 0xFF
@@ -88,7 +89,7 @@ cpu_io:
     // Read a value from the CPU address and adjust
     sll  t0, s1, 2
     lw   a0, a1tbx(t0)
-    MEM_READ8
+    MEM_READ8 0(a0)
     add  a0, a0, s2
     sll  t0, s1, 2
     sh   a0, a1tbx + 2(t0)
@@ -135,7 +136,7 @@ io_cpu:
     sll  t0, s1, 2
     lw   a0, a1tbx(t0)
     move a1, v0
-    MEM_WRITE8
+    MEM_WRITE8 0(a0)
     add  a0, a0, s2
     sll  t0, s1, 2
     sh   a0, a1tbx + 2(t0)
@@ -155,11 +156,12 @@ dma_end:
     bnez s0, dma_start
 
     // Pop non-temporary registers from the stack
-    lw   a1, 12(sp)
-    lw   a0, 8(sp)
-    lw   ra, 4(sp)
-    lw   s3, 0(sp)
-    addi sp, sp, 16
+    lw   a1, 16(sp)
+    lw   ra, 12(sp)
+    lw   s3, 8(sp)
+    sw   s1, 4(sp)
+    sw   s0, 0(sp)
+    addi sp, sp, 20
     jr   ra
 
 

@@ -368,6 +368,7 @@ map_hinone:
 
 tlbl_exception:
     // Look up the EntryLo0 value for the missed address
+    mfc0 a0, $8 // BadVAddr
     srl  k0, a0, 13
     sll  k0, k0, 2
     lw   k1, memory_map(k0)
@@ -486,6 +487,7 @@ tlbl_sram:
 
 tlbs_exception:
     // Look up the EntryLo0 value for the missed address
+    mfc0 a0, $8 // BadVAddr
     srl  k0, a0, 13
     sll  k0, k0, 2
     lw   k1, memory_map(k0)

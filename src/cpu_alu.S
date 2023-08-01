@@ -746,8 +746,7 @@ cpyabs_16: ABS; CPY_16 // CPY nnnn  (16-bit)
 
 bit_8: // BIT #nn (8-bit)
     // Test the accumulator bits against an immediate value (8-bit)
-    add  a0, s7, 1
-    MEM_READ8
+    MEM_READ8 1(s7)
     lbu  t0, accumulator + 1
     and  t0, t0, v0
 
@@ -762,8 +761,7 @@ bit_8: // BIT #nn (8-bit)
 
 bit_16: // BIT #nnnn (16-bit)
     // Test the accumulator bits against an immediate value (16-bit)
-    add  a0, s7, 1
-    MEM_READ16
+    MEM_READ16 1(s7)
     lhu  t0, accumulator
     and  t0, t0, v0
 

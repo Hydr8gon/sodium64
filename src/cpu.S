@@ -135,8 +135,8 @@ opcodes_16: // Lookup table for 16-bit mode
 cpu_init:
     // Set the initial program counter value (s7)
     move s0, ra     // Backup return address
-    li   a0, 0xFFFC // RESET vector
-    MEM_READ16
+    li   s1, 0xFFFC // RESET vector
+    MEM_READ16 0(s1)
     move s7, v0
 
     // Set the initial lookup table (s6), cycle count (s5), status flags (s4), and direct offset (s8)
@@ -164,11 +164,8 @@ set_nz8: // a0: value
     ble  s5, s3, apu_execute
     blez s5, ppu_event
 
-    // Fetch the current opcode
-    move a0, s7
-    MEM_READ8
-
-    // Jump to the opcode's function in the lookup table
+    // Fetch an opcode and jump to its function in the lookup table
+    MEM_READ8 0(s7)
     sll  t0, v0, 2 // Word offset
     add  t0, t0, s6
     lw   t0, (t0)
@@ -190,11 +187,8 @@ cpu_execute:
     ble  s5, s3, apu_execute
     blez s5, ppu_event
 
-    // Fetch the current opcode
-    move a0, s7
-    MEM_READ8
-
-    // Jump to the opcode's function in the lookup table
+    // Fetch an opcode and jump to its function in the lookup table
+    MEM_READ8 0(s7)
     sll  t0, v0, 2 // Word offset
     add  t0, t0, s6
     lw   t0, (t0)
@@ -203,8 +197,8 @@ cpu_execute:
 
 trigger_nmi: // a1: vector offset
     // Check if currently in emulation mode
-    lhu  a0, stack_ptr
     andi s0, s4, 0x100
+    lhu  s1, stack_ptr
     beqz s0, nmi_notemu
 
     // Set the vector to jump to for emulation mode
@@ -219,30 +213,25 @@ nmi_notemu:
 
     // Push the PC bank to the stack
     srl  a1, s7, 16
-    MEM_WRITE8
-    addi a0, a0, -1
+    MEM_WRITE8 0(s1)
+    addi s1, s1, -1
 
 nmi_cont:
-    // Push the PC to the stack
-    addi a0, a0, -1
-    move a1, s7
-    MEM_WRITE16
-
-    // Push the flags to the stack
-    addi a0, a0, -1
-    move a1, s4
-    MEM_WRITE8
-
     // Update the stack pointer
-    addi a0, a0, -1
-    sh   a0, stack_ptr
+    addi s1, s1, -3
+    sh   s1, stack_ptr
 
-    // Change some flags
+    // Push the PC to the stack
+    move a1, s7
+    MEM_WRITE16 2(s1)
+
+    // Push the flags to the stack and modify them
+    move a1, s4
+    MEM_WRITE8 1(s1)
     ori  s4, s4, 0x04           // I
     andi s4, s4, ~0x08 & 0xFFFF // D
 
     // Jump to the NMI vector
-    move a0, s0
     MEM_READ16
     move s7, v0
 
