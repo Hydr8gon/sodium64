@@ -42,6 +42,7 @@ vec_data:
 rdp_init:
     // RDP commands that only need to run once
     .dword 0x3C080E10001C8241 // Set Combine
+    .dword 0x39000000FFFFFFFF // Set Blend Color
     .dword 0x3510810000000000 // Set Tile (palette)
 
 rdp_section:
@@ -105,7 +106,7 @@ tile_jumps:   .word decode_tile4, decode_tile16, decode_tile256
 mode7_bounds: .word 0:4
 mask_ofs:     .byte 0
 
-.space 0x15B
+.space 0x153
 
 // Pointer to active framebuffer; used for text drawing on CPU
 framebuffer: .word 0xA03AE600 // 0xEB8-0xEBB
