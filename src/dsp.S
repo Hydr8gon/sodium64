@@ -252,9 +252,9 @@ mix_sample:
 
 write_sample:
     // Write a sample to the buffer
-    andi t5, t5, 0xFFFF
-    sll  t4, t4, 16
-    or   t0, t5, t4
+    andi t4, t4, 0xFFFF
+    sll  t5, t5, 16
+    or   t0, t4, t5
     lhu  t1, dsp_pointer
     sw   t0, 0x20000000 + dsp_buffer(t1) // Uncached
 
