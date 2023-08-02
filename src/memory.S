@@ -574,9 +574,10 @@ io_read8: // a0: address - v0: value
     lw   t0, read_iomap(t0)
     jr   t0
 
+
 read_unk:
-    // Unknown I/O register read; do nothing
-    li   v0, 0
+    // Unknown I/O register read; use upper address byte to approximate open bus
+    srl  v0, a0, 8
     jr   ra
 
 
@@ -595,6 +596,7 @@ io_write8: // a0: address, a1: value
     sll  t0, t0, 2 // Word offset
     lw   t0, write_iomap(t0)
     jr   t0
+
 
 write_unk:
     // Unknown I/O register write; do nothing
