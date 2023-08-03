@@ -166,8 +166,8 @@ dma_end:
     lw   a1, 16(sp)
     lw   ra, 12(sp)
     lw   s3, 8(sp)
-    sw   s1, 4(sp)
-    sw   s0, 0(sp)
+    lw   s1, 4(sp)
+    lw   s0, 0(sp)
     addi sp, sp, 20
     jr   ra
 

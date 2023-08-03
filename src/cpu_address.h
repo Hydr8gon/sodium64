@@ -147,7 +147,7 @@
     MEM_READ16 1(s7)
     lhu  t0, register_x
     add  t0, t0, v0
-    or   s0, s0, t0
+    add  s0, s0, t0
     addi s7, s7, 4
 .endm
 
@@ -235,6 +235,6 @@
     MEM_READ16
     lhu  t0, register_y
     add  t0, t0, v0
-    or   s0, s1, t0
+    add  s0, s1, t0
     addi s7, s7, 2
 .endm
