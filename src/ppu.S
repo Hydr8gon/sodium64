@@ -27,6 +27,8 @@
 .globl read_mpyl
 .globl read_mpym
 .globl read_mpyh
+.globl read_rdvraml
+.globl read_rdvramh
 .globl read_rdnmi
 .globl read_timeup
 .globl read_hvbjoy
@@ -86,11 +88,12 @@ brightness:  .byte 0x00
 vram_incl:   .byte 0x00
 vram_inch:   .byte 0x00
 
-oam_addr: .hword 0x000
-oam_lsb:  .byte  0x00
-bg_old:   .byte  0x00
-m7_old:   .byte  0x00
-cg_lsb:   .byte  0x00
+vram_fetch: .hword 0x0000
+oam_addr:   .hword 0x000
+oam_lsb:    .byte  0x00
+bg_old:     .byte  0x00
+m7_old:     .byte  0x00
+cg_lsb:     .byte  0x00
 
 mpy:      .word  0x000000
 coldata:  .hword 0x0000
@@ -418,6 +421,46 @@ read_mpym: // v0: value
 read_mpyh: // v0: value
     // Read the high byte of the signed multiply result
     lbu  v0, mpy + 1
+    jr   ra
+
+
+read_rdvraml: // v0: value
+    // Read the low byte of the prefetched VRAM data
+    lbu  v0, vram_fetch + 1
+    lbu  t2, vram_incl
+    beqz t2, vraml_end
+
+    // Prefetch a new 16-bit value before increment
+    lhu  t0, vmadd
+    sll  t1, t0, 1
+    lhu  t1, vram(t1)
+    sh   t1, vram_fetch
+
+    // Increment the VRAM address
+    add  t0, t0, t2
+    andi t0, t0, 0x7FFF
+    sh   t0, vmadd
+vraml_end:
+    jr   ra
+
+
+read_rdvramh: // v0: value
+    // Read the low byte of the prefetched VRAM data
+    lbu  v0, vram_fetch
+    lbu  t2, vram_inch
+    beqz t2, vramh_end
+
+    // Prefetch a new 16-bit value before increment
+    lhu  t0, vmadd
+    sll  t1, t0, 1
+    lhu  t1, vram(t1)
+    sh   t1, vram_fetch
+
+    // Increment the VRAM address
+    add  t0, t0, t2
+    andi t0, t0, 0x7FFF
+    sh   t0, vmadd
+vramh_end:
     jr   ra
 
 
@@ -785,6 +828,12 @@ vmain_high:
 write_vmaddl: // a1: value
     // Set the low byte of the VRAM address
     sb   a1, vmadd + 1
+
+    // Prefetch a 16-bit value for reading
+    lhu  t0, vmadd
+    sll  t1, t0, 1
+    lhu  t0, vram(t1)
+    sh   t0, vram_fetch
     jr   ra
 
 
@@ -792,6 +841,12 @@ write_vmaddh: // a1: value
     // Set the high byte of the VRAM address
     andi t0, a1, 0x7F
     sb   t0, vmadd
+
+    // Prefetch a 16-bit value for reading
+    lhu  t0, vmadd
+    sll  t1, t0, 1
+    lhu  t0, vram(t1)
+    sh   t0, vram_fetch
     jr   ra
 
 

@@ -19,6 +19,13 @@
 
 #include "cpu_address.h"
 
+.globl read_dmapx
+.globl read_bbadx
+.globl read_a1txl
+.globl read_a1txh
+.globl read_a1bx
+.globl read_dasxl
+.globl read_dasxh
 .globl write_mdmaen
 .globl write_dmapx
 .globl write_bbadx
@@ -162,6 +169,62 @@ dma_end:
     sw   s1, 4(sp)
     sw   s0, 0(sp)
     addi sp, sp, 20
+    jr   ra
+
+
+read_dmapx: // a0: address - v0: value
+    // Read from one of the DMAPx registers
+    srl  t0, a0, 4
+    andi t0, t0, 0x7
+    lbu  v0, dmapx(t0)
+    jr   ra
+
+
+read_bbadx: // a0: address - v0: value
+    // Get the low byte of one of the I/O addresses
+    srl  t0, a0, 3
+    andi t0, t0, 0x7 << 1
+    lbu  v0, bbadx + 1(t0)
+    jr   ra
+
+
+read_a1txl: // a0: address - v0: value
+    // Get the low byte of one of the CPU addresses
+    srl  t0, a0, 2
+    andi t0, t0, 0x7 << 2
+    lbu  v0, a1tbx + 3(t0)
+    jr   ra
+
+
+read_a1txh: // a0: address - v0: value
+    // Get the high byte of one of the CPU addresses
+    srl  t0, a0, 2
+    andi t0, t0, 0x7 << 2
+    lbu  v0, a1tbx + 2(t0)
+    jr   ra
+
+
+read_a1bx: // a0: address - v0: value
+    // Get the bank of one of the CPU addresses
+    srl  t0, a0, 2
+    andi t0, t0, 0x7 << 2
+    lbu  v0, a1tbx + 1(t0)
+    jr   ra
+
+
+read_dasxl: // a0: address - v0: value
+    // Get the low byte of one of the byte counters
+    srl  t0, a0, 3
+    andi t0, t0, 0x7 << 1
+    lbu  v0, dasx + 1(t0)
+    jr   ra
+
+
+read_dasxh: // a0: address - v0: value
+    // Get the high byte of one of the byte counters
+    srl  t0, a0, 3
+    andi t0, t0, 0x7 << 1
+    lbu  v0, dasx + 0(t0)
     jr   ra
 
 
