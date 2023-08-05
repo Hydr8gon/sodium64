@@ -63,7 +63,8 @@ read_iomap:
     .word read_apuio0, read_apuio1,  read_apuio2,  read_apuio3  // 0x2174-0x2177
     .word read_apuio0, read_apuio1,  read_apuio2,  read_apuio3  // 0x2178-0x217B
     .word read_apuio0, read_apuio1,  read_apuio2,  read_apuio3  // 0x217C-0x217F
-    .word read_unk:(0x4013 - 0x217F)                            // 0x2180-0x4013
+    .word read_wmdata, read_unk,     read_unk,     read_unk     // 0x2180-0x2183
+    .word read_unk:(0x4013 - 0x2183)                            // 0x2184-0x4013
     .word read_unk,    read_unk,     read_joyx,    read_joyx    // 0x4014-0x4017
     .word read_unk:(0x420F - 0x4017)                            // 0x4018-0x420F
     .word read_rdnmi,  read_timeup,  read_hvbjoy,  read_unk     // 0x4210-0x4213
@@ -103,7 +104,7 @@ write_iomap:
     .word write_bg34nba,  write_bg1hofs, write_bg1vofs, write_bg2hofs // 0x210C-0x210F
     .word write_bg2vofs,  write_bg3hofs, write_bg3vofs, write_bg4hofs // 0x2110-0x2113
     .word write_bg4vofs,  write_vmain,   write_vmaddl,  write_vmaddh  // 0x2114-0x2117
-    .word write_vmdatal,  write_vmdatah, write_unk,     write_m7a     // 0x2118-0x211B
+    .word write_vmdatal,  write_vmdatah, write_m7sel,   write_m7a     // 0x2118-0x211B
     .word write_m7b,      write_m7c,     write_m7d,     write_m7x     // 0x211C-0x211F
     .word write_m7y,      write_cgadd,   write_cgdata,  write_unk     // 0x2120-0x2123
     .word write_unk:(0x212B - 0x2123)                                 // 0x2124-0x212B
@@ -609,6 +610,21 @@ read_rand:
     // Stubbed I/O register read; get a "random" value using cycle counts
     addu v0, s5, s3
     andi v0, v0, 0xFF
+    jr   ra
+
+
+read_wmdata: // v0: value
+    // Increment the WRAM address
+    lw   t0, wmadd
+    addi t1, t0, 1
+    li   t2, 0x1FFFF
+    and  t1, t1, t2
+    sw   t1, wmadd
+
+    // Read a byte from WRAM
+    li   a0, 0x7E0000
+    add  a0, a0, t0
+    lbu  v0, (a0)
     jr   ra
 
 

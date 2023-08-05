@@ -106,16 +106,16 @@ tile_jumps:   .word decode_tile4, decode_tile16, decode_tile256
 mode7_bounds: .word 0:4
 mask_ofs:     .byte 0
 
-.space 0x153
+.space 0x14B
 
 // Pointer to active framebuffer; used for text drawing on CPU
-framebuffer: .word 0xA03AE600 // 0xEB8-0xEBB
+framebuffer: .word 0xA03AE600 // 0xEB0-0xEB3
 
 // Extra set of below values; used for mid-frame effects
-split_line: .word  0x00 // 0xEBC-0xEBF
-top_values: .space 0xA0 // 0xEC0-0xF5F
+split_line: .word  0x00 // 0xEB4-0xEB7
+top_values: .space 0xA4 // 0xEB8-0xF5B
 
-// Values updated by CPU; addresses 0xF60-0xFFF
+// Values updated by CPU; addresses 0xF5C-0xFFF
 fb_border:   .word 0x08
 obj_rotate:  .word 0x000
 bg_mode:     .word 0x00
@@ -137,6 +137,7 @@ m7c:         .word 0x0000
 m7d:         .word 0x0000
 m7x:         .word 0x0000
 m7y:         .word 0x0000
+m7_nowrap:   .word 0x00
 fill_color:  .word 0x0000
 
 .text
@@ -174,7 +175,7 @@ draw_frame:
     bge  t0, sp, full_frame
     li   k0, 0         // Section start
     add  k1, t0, 2     // Section end
-    addi s7, k0, -0xA0 // Value offset
+    addi s7, k0, -0xA4 // Value offset
     b    draw_section
 
 full_frame:
@@ -578,7 +579,9 @@ draw_mode7:
 
     // Calculate the min and max X-offsets within a mode 7 tile
     sll  a0, s2, 3
+    sub  a0, a0, s2
     sll  a1, s4, 3
+    sub  a1, a1, s4
     add  a2, a0, a1
     jal  min_max
     sw   v0, mode7_bounds + 0
@@ -586,7 +589,9 @@ draw_mode7:
 
     // Calculate the min and max Y-offsets within a mode 7 tile
     sll  a0, s5, 3
+    sub  a0, a0, s5
     sll  a1, s6, 3
+    sub  a1, a1, s6
     add  a2, a0, a1
     jal  min_max
     sw   v0, mode7_bounds + 8
@@ -635,14 +640,14 @@ next_tile7:
     // Calculate the S-offset of the top-left tile within the texture
     lw   t0, mode7_bounds + 0
     sra  t1, t8, 11
-    add  t0, t0, t8
-    sra  t0, t0, 11
+    add  t2, t0, t8
+    sra  t0, t2, 11
     sub  s8, t1, t0
 
     // Calculate how many tiles wide the texture should be
     lw   t0, mode7_bounds + 4
-    add  t0, t0, t8
-    sra  t0, t0, 11
+    add  t3, t0, t8
+    sra  t0, t3, 11
     sub  v0, t0, t1
     add  v0, v0, s8
     addi v0, v0, 1
@@ -653,19 +658,37 @@ calc_tofs:
     // Calculate the T-offset of the top-left tile within the texture
     lw   t0, mode7_bounds + 8
     sra  t1, t9, 11
-    add  t0, t0, t9
-    sra  t0, t0, 11
+    add  t4, t0, t9
+    sra  t0, t4, 11
     sub  gp, t1, t0 // Offset T
 
     // Calculate how many tiles high the texture should be
     lw   t0, mode7_bounds + 12
-    add  t0, t0, t9
-    sra  t0, t0, 11
+    add  t5, t0, t9
+    sra  t0, t5, 11
     sub  v1, t0, t1
     add  v1, v1, gp
     addi v1, v1, 1
-    ble  v1, 4, set_texels
+    ble  v1, 4, check_wrap
     li   v1, 4 // Max
+
+check_wrap:
+    // Check if tiles should wrap out of bounds
+    lw   t0, m7_nowrap(s7)
+    beqz t0, set_texels
+    li   t1, 0x3FFFF
+
+    // Skip the tile if it's out of X-bounds without wrap
+    sltu t2, t1, t2
+    sltu t3, t1, t3
+    and  t0, t2, t3
+    bnez t0, finish_tile7
+
+    // Skip the tile if it's out of Y-bounds without wrap
+    sltu t4, t1, t4
+    sltu t5, t1, t5
+    and  t0, t4, t5
+    bnez t0, finish_tile7
 
 set_texels:
     // Update the amount of texels the RDP should load to TMEM
@@ -695,35 +718,46 @@ set_texels:
     sll  t4, t9, 12
     sh   t4, rdp_tile + 74 // T-coordinate (frac)
 
-    // Calculate the VRAM address of the texture's first BG entry
+    // Set some values for loading BG entries
     la   a0, scrn_data
-    la   a1, 0xA03F0000 // VRAM
-    sra  t0, t9, 11
-    andi t0, t0, 0x7F
-    sub  t0, t0, gp
-    sll  t0, t0, 8
-    add  a1, a1, t0
-    sra  t0, t8, 11
-    andi t6, t0, 0x7F
-    sub  t6, t6, s8
-    sll  t6, t6, 1
-    add  a1, a1, t6
-    li   a2, 0xF
-    andi a3, a1, 0x7
+    la   t1, 0xA03F0000 // VRAM
+    li   a2, 0x7
+    move t5, v1
 
-    // Load a row of entries for every tile row in the texture
-    move t1, v1
-    b    entry_start
+    // Calculate the Y-offset for the texture's first tile row
+    sra  t2, t9, 3
+    sll  t0, gp, 8
+    sub  t2, t2, t0
+    andi t2, t2, 0x7F00
+
+    // Calculate the X-offsets for the texture's first tile row
+    sra  t3, t8, 10
+    sll  t0, s8, 1
+    sub  t3, t3, t0
+    andi t3, t3, 0xFE
+    addi t6, t3, 0x8
+    andi t6, t6, 0xFE
+
 entry_row:
-    addi a0, a0, 0x10
-    addi a1, a1, 0x100
-entry_start:
+    // Load a row of BG entries for a tile row in the texture
+    add  a3, t1, t2
+    add  a1, a3, t3
     jal  dma_read
-    addi t1, t1, -1
-    bnez t1, entry_row
+    addi a0, a0, 0x8
+    add  a1, a3, t6
+    jal  dma_read
 
-    // Backup the width so it can be restored for each row
-    move t5, v0
+    // Move to the next row and loop until complete
+    addi a0, a0, 0x8
+    addi t2, t2, 0x100
+    andi t2, t2, 0x7F00
+    addi t5, t5, -1
+    bnez t5, entry_row
+
+    // Set some values for building the texture
+    andi a3, t3, 0x7 // DMA offset
+    move t5, v0      // Row width
+    sll  t3, v1, 8   // Texture size
 
 next_subrow:
     // Move to the next row within the texture
@@ -775,7 +809,7 @@ decode_tile7:
     sll  t0, t0, 8
     add  a1, a1, t0
     sw   a1, rdp_tile + 4
-    li   a2, 0x3FF
+    addi a2, t3, -1
     jal  dma_write
 
     // Run the RDP to draw a tile
@@ -783,6 +817,7 @@ decode_tile7:
     la   a1, layer_chart
     jal  rdp_send
 
+finish_tile7:
     // Move to the next tile, adjusting the VRAM coordinates
     addi s0, s0, 8
     sll  t0, s2, 3

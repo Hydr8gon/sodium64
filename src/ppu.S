@@ -57,6 +57,7 @@
 .globl write_vmaddh
 .globl write_vmdatal
 .globl write_vmdatah
+.globl write_m7sel
 .globl write_m7a
 .globl write_m7b
 .globl write_m7c
@@ -108,12 +109,11 @@ rdnmi:    .byte  0x00
 timeup:   .byte  0x00
 hvbjoy:   .byte  0x00
 
-
 // Extra set of below values; used for mid-frame effects
-split_line: .word  0x00 // 0xEBC-0xEBF
-top_values: .space 0xA0 // 0xEC0-0xF5F
+split_line: .word  0x00 // 0xEB4-0xEB7
+top_values: .space 0xA4 // 0xEB8-0xF5B
 
-// Mirrors of RSP values; addresses 0xF60-0xFFF
+// Mirrors of RSP values; addresses 0xF5C-0xFFF
 fb_border:   .word 0x08
 obj_rotate:  .word 0x000
 bg_mode:     .word 0x00
@@ -135,6 +135,7 @@ m7c:         .word 0x0000
 m7d:         .word 0x0000
 m7x:         .word 0x0000
 m7y:         .word 0x0000
+m7_nowrap:   .word 0x00
 fill_color:  .word 0x0000
 
 // Possible offsets for additional screens past the base
@@ -283,7 +284,7 @@ no_rotate:
     // Update the RSP's register values in DMEM
     la   t0, split_line
     la   t1, scrn_ofsh
-    la   t2, 0xA4000EBC
+    la   t2, 0xA4000EB4
 reg_loop:
     lw   t3, (t0)
     addi t0, t0, 4
@@ -362,7 +363,7 @@ vcount_irq:
     la   t1, scrn_ofsh
 val_loop:
     lw   t3, (t0)
-    addi t2, t0, -0xA0
+    addi t2, t0, -0xA4
     sw   t3, (t2)
     addi t0, t0, 4
     bne  t0, t1, val_loop
@@ -875,6 +876,14 @@ write_vmdatah: // a1: value
     add  t0, t0, t1
     andi t0, t0, 0x7FFF
     sh   t0, vmadd
+    jr   ra
+
+
+write_m7sel: // a1: value
+    // Set whether mode 7 should wrap out of bounds or not
+    // TODO: use the rest of the bits
+    srl  t0, a1, 7
+    sw   t0, m7_nowrap
     jr   ra
 
 
