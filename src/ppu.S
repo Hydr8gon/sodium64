@@ -85,6 +85,7 @@ vram:  .byte  0:0x10000
 fps_emulate: .byte 0x00
 fps_display: .byte 0x00
 frame_count: .byte 0x00
+frame_done:  .byte 0x00
 brightness:  .byte 0x00
 vram_incl:   .byte 0x00
 vram_inch:   .byte 0x00
@@ -166,18 +167,120 @@ vblank_start:
     li   t0, 0x80
     sb   t0, rdnmi
 
-rsp_wait:
+    // Skip handling the frame if it was already done
+    lbu  t0, frame_done
+    bnez t0, skip_frame
+    jal  rsp_frame
+skip_frame:
+    sb   zero, frame_done
+
+    // Reload the OAM address
+    lhu  t1, oamadd
+    sll  t0, t1, 1
+    andi t0, t0, 0x3FE
+    sh   t0, oam_addr
+
+    // Trigger an NMI if enabled
+    lbu  t0, nmitimen
+    andi t0, t0, 0x80 // NMI enable
+    beqz t0, sched_end
+    li   a1, 0
+    jal  trigger_nmi
+
+sched_end:
+    // Schedule the V-blank end event
+    li   a0, 341 * 37 * 4 // V-blank period
+    la   a1, vblank_end
+    j    sched_next
+
+
+vblank_end:
+    // Clear the V-blank and NMI flags
+    lbu  t0, hvbjoy
+    andi t0, t0, ~0x80 & 0xFF
+    sb   t0, hvbjoy
+    sb   zero, rdnmi
+
+    // Reset the frame split
+    sw   zero, split_line
+
+    // Schedule a V-count event if the time is valid
+    // TODO: support V-count during V-blank
+    lhu  t0, vtime
+    bge  t0, 225, no_count
+    li   t1, 341 * 4
+    mult t0, t1
+    mflo a0
+    la   a1, vcount_irq
+    j    sched_next
+
+no_count:
+    // Schedule the V-blank start event
+    li   a0, 341 * 225 * 4
+    la   a1, vblank_start
+    j    sched_next
+
+
+vcount_irq:
+    // Trigger a V-count IRQ if enabled
+    lbu  t0, nmitimen
+    andi t0, t0, 0x20 // V-IRQ enable
+    beqz t0, sched_start
+    andi t1, s4, 0x04 // IRQ disable
+    bnez t1, sched_start
+    li   a1, 4
+    jal  trigger_nmi
+
+    // Set the V-count IRQ flag
+    li   t0, 0x80
+    sb   t0, timeup
+
+    // Some games use V-count near the end of frame as an early V-blank
+    // If this is the case, handle the frame now instead of V-blank
+    lhu  t0, vtime
+    ble  t0, 210, make_sect
+    sb   t0, frame_done
+    la   ra, sched_start
+    j    rsp_frame
+
+make_sect:
+    // Save values for the previous frame section
+    sw   t0, split_line
+    la   t0, fb_border
+    la   t1, scrn_ofsh
+val_loop:
+    lw   t3, (t0)
+    addi t2, t0, -0xA4
+    sw   t3, (t2)
+    addi t0, t0, 4
+    bne  t0, t1, val_loop
+
+sched_start:
+    // Schedule the V-blank start event
+    lhu  t0, vtime
+    li   t1, 225
+    sub  t0, t1, t0
+    li   t1, 341 * 4
+    mult t0, t1
+    mflo a0
+    la   a1, vblank_start
+    j    sched_next
+
+
+rsp_frame:
     // Wait until the RSP is finished rendering
     lw   t0, 0xA4040010 // SP_STATUS_REG
     andi t0, t0, 0x0001 // Halt
-    beqz t0, rsp_wait
+    beqz t0, rsp_frame
 
     // Draw the FPS counter on the finished frame
     lbu  t0, fps_toggle
     beqz t0, count_frame
     lbu  a0, fps_display
     li   a1, 24 * 560 + 44 * 2
+    move s0, ra
     jal  draw_value
+    move ra, s0
 
 count_frame:
     // Increment the frame counters with VI interrupts disabled
@@ -276,11 +379,6 @@ vram_loop:
 no_rotate:
     sw   t0, obj_rotate
 
-    // Reload the OAM address
-    sll  t0, t1, 1
-    andi t0, t0, 0x3FE
-    sh   t0, oam_addr
-
     // Update the RSP's register values in DMEM
     la   t0, split_line
     la   t1, scrn_ofsh
@@ -300,84 +398,7 @@ frame_wait:
     // Unhalt the RSP so it can render the next frame
     li   t0, 0x0001     // Clear halt
     sw   t0, 0xA4040010 // SP_STATUS_REG
-
-    // Trigger an NMI if enabled
-    lbu  t0, nmitimen
-    andi t0, t0, 0x80 // NMI enable
-    beqz t0, sched_end
-    li   a1, 0
-    jal  trigger_nmi
-
-sched_end:
-    // Schedule the V-blank end event
-    li   a0, 341 * 37 * 4 // V-blank period
-    la   a1, vblank_end
-    j    sched_next
-
-
-vblank_end:
-    // Clear the V-blank and NMI flags
-    lbu  t0, hvbjoy
-    andi t0, t0, ~0x80 & 0xFF
-    sb   t0, hvbjoy
-    sb   zero, rdnmi
-
-    // Reset the frame split
-    sw   zero, split_line
-
-    // Schedule a V-count event if the time is valid
-    // TODO: support V-count during V-blank
-    lhu  t0, vtime
-    bge  t0, 225, no_count
-    li   t1, 341 * 4
-    mult t0, t1
-    mflo a0
-    la   a1, vcount_irq
-    j    sched_next
-
-no_count:
-    // Schedule the V-blank start event
-    li   a0, 341 * 225 * 4
-    la   a1, vblank_start
-    j    sched_next
-
-
-vcount_irq:
-    // Trigger a V-count IRQ if enabled
-    lbu  t0, nmitimen
-    andi t0, t0, 0x20 // V-IRQ enable
-    beqz t0, sched_start
-    andi t1, s4, 0x04 // IRQ disable
-    bnez t1, sched_start
-    li   a1, 4
-    jal  trigger_nmi
-
-    // Set the V-count IRQ flag
-    li   t0, 0x80
-    sb   t0, timeup
-
-    // Save values for the previous frame section
-    lhu  t0, vtime
-    sw   t0, split_line
-    la   t0, fb_border
-    la   t1, scrn_ofsh
-val_loop:
-    lw   t3, (t0)
-    addi t2, t0, -0xA4
-    sw   t3, (t2)
-    addi t0, t0, 4
-    bne  t0, t1, val_loop
-
-sched_start:
-    // Schedule the V-blank start event
-    lhu  t0, vtime
-    li   t1, 225
-    sub  t0, t1, t0
-    li   t1, 341 * 4
-    mult t0, t1
-    mflo a0
-    la   a1, vblank_start
-    j    sched_next
+    jr   ra
 
 
 sched_next: // a0: cycles, a1: function
