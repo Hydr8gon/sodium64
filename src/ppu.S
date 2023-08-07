@@ -201,8 +201,10 @@ vblank_end:
     sb   t0, hvbjoy
     sb   zero, rdnmi
 
-    // Reset the frame split
+    // Reset the frame split and trigger HDMA once per frame
+    // Per-scanline changes aren't supported, but this at least initializes values
     sw   zero, split_line
+    jal  trigger_hdma
 
     // Schedule a V-count event if the time is valid
     // TODO: support V-count during V-blank

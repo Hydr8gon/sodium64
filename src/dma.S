@@ -19,6 +19,8 @@
 
 #include "cpu_address.h"
 
+.globl trigger_hdma
+.globl write_mdmaen
 .globl read_dmapx
 .globl read_bbadx
 .globl read_a1txl
@@ -26,7 +28,8 @@
 .globl read_a1bx
 .globl read_dasxl
 .globl read_dasxh
-.globl write_mdmaen
+.globl read_dasbx
+.globl write_hdmaen
 .globl write_dmapx
 .globl write_bbadx
 .globl write_a1txl
@@ -34,13 +37,15 @@
 .globl write_a1bx
 .globl write_dasxl
 .globl write_dasxh
+.globl write_dasbx
 
 .data
 
-dmapx: .byte  0x00:8
-bbadx: .hword 0x2100:8
-a1tbx: .word  0x000000:8
-dasx:  .hword 0x0000:8
+hdmaen: .byte  0x00
+dmapx:  .byte  0x00:8
+bbadx:  .hword 0x2100:8
+a1tbx:  .word  0x000000:8
+dastbx: .word  0x000000:8
 
 // Possible CPU address steps
 address_steps: .byte 1, 0, -1, 0
@@ -56,7 +61,103 @@ transfer_modes:
     .byte 0, 0, 0, 0
     .byte 0, 0, 1, 1
 
+// Lengths of a unit for each transfer mode
+unit_lengths: .byte 1, 2, 2, 4, 4, 4, 2, 4
+
 .text
+
+trigger_hdma:
+    // Push non-temporary registers to the stack
+    addi sp, sp, -12
+    sw   ra, 8(sp)
+    sw   s4, 4(sp)
+    sw   s3, 0(sp)
+
+    // Set the initial enabled channels (s0) and current channel (s1)
+    lbu  s0, hdmaen
+    li   s1, 0
+
+hdma_start:
+    // Check if the current HDMA channel is enabled
+    andi t0, s0, 1
+    beqz t0, hdma_end
+    lbu  t0, dmapx(s1)
+
+    // Get the channel's I/O transfer mode (s3) and unit length (s4)
+    andi t1, t0, 0x7
+    sll  t2, t1, 2
+    la   s3, transfer_modes
+    add  s3, s3, t2
+    lbu  s4, unit_lengths(t1)
+
+    // Get the table entry address (s2) and check for indirect mode
+    sll  t1, s1, 2
+    lw   s2, a1tbx(t1)
+    addi s2, s2, 1
+    andi t1, t0, 0x40
+    beqz t1, hdma_ready
+
+    // Use the table entry as a pointer to data in indirect mode
+    MEM_READ16 0(s2)
+    sll  t2, s1, 2
+    lbu  t1, dastbx + 1(t2)
+    sll  t1, t1, 16
+    or   s2, t1, v0
+    sw   s2, dastbx(t2)
+
+hdma_ready:
+    // Check the channel's transfer direction
+    lbu  t0, dmapx(s1)
+    andi t0, t0, 0x80
+    bnez t0, hio_cpu
+
+hcpu_io:
+    // Copy a value from memory to an I/O register
+    MEM_READ8 0(s2)
+    sll  t0, s1, 1
+    lhu  a0, bbadx(t0)
+    lbu  t0, (s3)
+    add  a0, a0, t0
+    move a1, v0
+    jal  io_write8
+
+    // Move to the next byte until a unit has been transferred
+    addi s2, s2, 1
+    addi s3, s3, 1
+    addi s4, s4, -1
+    bnez s4, hcpu_io
+    b    hdma_end
+
+hio_cpu:
+    // Copy a value from an I/O register to memory
+    sll  t0, s1, 1
+    lhu  a0, bbadx(t0)
+    lbu  t0, (s3)
+    add  a0, a0, t0
+    jal  io_read8
+    move a1, v0
+    MEM_WRITE8 0(s2)
+
+    // Move to the next byte until a unit has been transferred
+    addi s2, s2, 1
+    addi s3, s3, 1
+    addi s4, s4, -1
+    bnez s4, hio_cpu
+    b    hdma_end
+
+hdma_end:
+    // Move to the next channel until no more are enabled
+    srl  s0, s0, 1
+    addi s1, s1, 1
+    bnez s0, hdma_start
+
+    // Pop non-temporary registers from the stack
+    lw   ra, 8(sp)
+    lw   s4, 4(sp)
+    lw   s3, 0(sp)
+    addi sp, sp, 12
+    jr   ra
+
 
 write_mdmaen: // a1: value
     // Push non-temporary registers to the stack
@@ -117,10 +218,10 @@ cpu_io:
     add  s3, s3, t0
 
     // Decrement byte counter and continue until it hits zero
-    sll  t0, s1, 1
-    lhu  t1, dasx(t0)
+    sll  t0, s1, 2
+    lhu  t1, dastbx + 2(t0)
     addi t1, t1, -1
-    sh   t1, dasx(t0)
+    sh   t1, dastbx + 2(t0)
     bnez t1, cpu_io
     b    dma_end
 
@@ -149,12 +250,11 @@ io_cpu:
     sh   a0, a1tbx + 2(t0)
 
     // Decrement byte counter and continue until it hits zero
-    sll  t0, s1, 1
-    lhu  t1, dasx(t0)
+    sll  t0, s1, 2
+    lhu  t1, dastbx + 2(t0)
     addi t1, t1, -1
-    sh   t1, dasx(t0)
+    sh   t1, dastbx + 2(t0)
     bnez t1, io_cpu
-    b    dma_end
 
 dma_end:
     // Move to the next channel until no more are enabled
@@ -169,6 +269,12 @@ dma_end:
     lw   s1, 4(sp)
     lw   s0, 0(sp)
     addi sp, sp, 20
+    jr   ra
+
+
+write_hdmaen: // a1: value
+    // Write to the HDMAEN register
+    sb   a1, hdmaen
     jr   ra
 
 
@@ -214,17 +320,25 @@ read_a1bx: // a0: address - v0: value
 
 read_dasxl: // a0: address - v0: value
     // Get the low byte of one of the byte counters
-    srl  t0, a0, 3
-    andi t0, t0, 0x7 << 1
-    lbu  v0, dasx + 1(t0)
+    srl  t0, a0, 2
+    andi t0, t0, 0x7 << 2
+    lbu  v0, dastbx + 3(t0)
     jr   ra
 
 
 read_dasxh: // a0: address - v0: value
     // Get the high byte of one of the byte counters
-    srl  t0, a0, 3
-    andi t0, t0, 0x7 << 1
-    lbu  v0, dasx + 0(t0)
+    srl  t0, a0, 2
+    andi t0, t0, 0x7 << 2
+    lbu  v0, dastbx + 2(t0)
+    jr   ra
+
+
+read_dasbx: // a0: address - v0: value
+    // Get the bank of one of the indirect HDMA addresses
+    srl  t0, a0, 2
+    andi t0, t0, 0x7 << 2
+    lbu  v0, dastbx + 1(t0)
     jr   ra
 
 
@@ -270,15 +384,23 @@ write_a1bx: // a0: address, a1: value
 
 write_dasxl: // a0: address, a1: value
     // Set the low byte of one of the byte counters
-    srl  t0, a0, 3
-    andi t0, t0, 0x7 << 1
-    sb   a1, dasx + 1(t0)
+    srl  t0, a0, 2
+    andi t0, t0, 0x7 << 2
+    sb   a1, dastbx + 3(t0)
     jr   ra
 
 
 write_dasxh: // a0: address, a1: value
     // Set the high byte of one of the byte counters
-    srl  t0, a0, 3
-    andi t0, t0, 0x7 << 1
-    sb   a1, dasx + 0(t0)
+    srl  t0, a0, 2
+    andi t0, t0, 0x7 << 2
+    sb   a1, dastbx + 2(t0)
+    jr   ra
+
+
+write_dasbx: // a0: address, a1: value
+    // Set the bank of one of the indirect HDMA addresses
+    srl  t0, a0, 2
+    andi t0, t0, 0x7 << 2
+    sb   a1, dastbx + 1(t0)
     jr   ra
