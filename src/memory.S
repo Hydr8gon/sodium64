@@ -31,6 +31,7 @@
 
 .data
 
+.align 8
 sram:  .byte 0:0x8000
 .byte 0:0x1000 // Alignment
 wram:  .byte 0:0x20000
