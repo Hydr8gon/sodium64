@@ -109,20 +109,20 @@ bss_loop:
     // Initialize the stack below the ROM buffer
     la   sp, 0x80160000
 
-    // Read SRAM from the cart to memory
-    li   t0, 0xA8000000
-    la   t1, sram
-    andi t2, t1, 0xFFF // 4KB-aligned
-    sub  t1, t1, t2
-    li   t2, 0x8000    // 32KB size
-    add  t2, t2, t1
-read_sram:
-    lw   t3, (t0)
-    addi t0, t0, 4
-    jal  sram_wait
-    sw   t3, (t1)
-    addi t1, t1, 4
-    bne  t1, t2, read_sram
+    // Use DMA to copy SRAM from the cart to memory
+    lui  t0, 0xA460     // PI register upper address
+    la   t1, sram       // Local SRAM
+    sw   t1, 0x0000(t0) // PI_DRAM_ADDR
+    la   t1, 0x8000000  // Cart SRAM
+    sw   t1, 0x0004(t0) // PI_CART_ADDR
+    li   t1, 0x7FFF     // 32KB size
+    sw   t1, 0x000C(t0) // PI_WR_LEN
+
+pi_wait1:
+    // Wait for the DMA to complete
+    lw   t1, 0x0010(t0) // PI_STATUS
+    andi t1, t1, 0x1    // DMA busy
+    bnez t1, pi_wait1
 
     // Clear the framebuffers and VRAM (hardcoded for RSP access)
     li   t0, 0xA038D900
@@ -197,13 +197,13 @@ exception_vector:
 
 exception_handler:
     // Jump to the appropriate handler for supported exceptions
-    mfc0 k0, $13          // Cause
+    mfc0 k0, $13      // Cause
     andi k0, k0, 0x7C
-    addi k1, k0, -0x8     // TLB load miss
+    addi k1, k0, -0x8 // TLB load miss
     beqz k1, tlbl_exception
-    addi k1, k0, -0xC     // TLB store miss
+    addi k1, k0, -0xC // TLB store miss
     beqz k1, tlbs_exception
-    addi k1, k0, -0x4     // TLB modification
+    addi k1, k0, -0x4 // TLB modification
     beqz k1, tlbm_exception
 
     // Jump to the appropriate handler for supported interrupts
@@ -238,6 +238,27 @@ update_fps:
     sb   zero, (k0)
     la   k0, fps_display
     sb   k1, (k0)
+
+    // Check if SRAM is dirty
+    la   k0, sram_dirty
+    lbu  k1, (k0)
+    beqz k1, check_frame
+    sb   zero, (k0)
+
+    // Use DMA to copy SRAM from memory to the cart
+    lui  k0, 0xA460     // PI register upper address
+    la   k1, sram       // Local SRAM
+    sw   k1, 0x0000(k0) // PI_DRAM_ADDR
+    la   k1, 0x8000000  // Cart SRAM
+    sw   k1, 0x0004(k0) // PI_CART_ADDR
+    li   k1, 0x7FFF     // 32KB size
+    sw   k1, 0x0008(k0) // PI_RD_LEN
+
+pi_wait2:
+    // Wait for the DMA to complete
+    lw   k1, 0x0010(k0) // PI_STATUS
+    andi k1, k1, 0x1    // DMA busy
+    bnez k1, pi_wait2
 
 check_frame:
     // Continue if the next frame is ready, otherwise just update input
@@ -277,33 +298,6 @@ reset_interrupt:
     li   t0, 0x0001     // Use RDRAM
     sw   t0, 0xA410000C // DP_STATUS
 
-    // Reset the TLB to ensure unmapped SRAM is updated
-    jal  reset_tlb
-
-    // Write SRAM from memory to the cart
-    li   t0, 0xA8000000
-    la   t1, sram
-    andi t2, t1, 0xFFF // 4KB-aligned
-    sub  t1, t1, t2
-    li   t2, 0x8000    // 32KB size
-    add  t2, t2, t1
-write_sram:
-    lw   t3, (t1)
-    addi t1, t1, 4
-    jal  sram_wait
-    sw   t3, (t0)
-    addi t0, t0, 4
-    bne  t1, t2, write_sram
-
 loop:
     // Wait until the system resets
     b    loop
-
-
-sram_wait:
-    // Wait a while between SRAM accesses
-    li   t4, 0x200
-sram_loop:
-    addi t4, t4, -1
-    bnez t4, sram_loop
-    jr   ra

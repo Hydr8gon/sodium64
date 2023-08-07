@@ -20,6 +20,7 @@
 #include "cpu_address.h"
 
 .globl sram
+.globl sram_dirty
 
 .globl memory_init
 .globl tlbl_exception
@@ -30,8 +31,8 @@
 
 .data
 
-.byte 0:0x1000 // Alignment
 sram:  .byte 0:0x8000
+.byte 0:0x1000 // Alignment
 wram:  .byte 0:0x20000
 empty: .byte 0:0x2000
 
@@ -39,6 +40,7 @@ memory_map:  .word 0:0x800
 rom_addrs:   .word 0:0x100
 rom_entries: .word 0:0x100
 rom_pointer: .byte 0x00
+sram_dirty:  .byte 0x00
 
 wmadd: .word 0x000000
 
@@ -239,20 +241,10 @@ losram_area:
     li   t5, 0x8000
     bge  t4, t5, lorom_area // 0x8000-0xFFFF: WS1/WS2 LoROM
 
-    // Special case SRAM smaller than 8KB
+    // Special case SRAM so writes can be tracked
     beqz t9, loempty_area
-    li   t5, 0x1FFF
-    bge  t9, t5, losram_map
     sll  t3, t9, 2 // Valid not set
     b    map_lonone
-
-losram_map:
-    // Get a pointer to a SRAM block mapped as LoROM
-    and  t4, t4, t9
-    la   t3, sram
-    add  t3, t3, t4 // 0x0000-0x7FFF: 2KB-32KB SRAM
-    ori  t3, t3, 1  // Write bit
-    b    map_loblock
 
 loio_area:
     // Set no pointer; this will fall back to I/O registers
@@ -343,20 +335,10 @@ hirom_area:
     b    map_hinone
 
 hisram_area:
-    // Special case SRAM smaller than 8KB
+    // Special case SRAM so writes can be tracked
     beqz t9, hiempty_area
-    li   t5, 0x1FFF
-    bge  t9, t5, hisram_map
     sll  t3, t9, 2 // Valid not set
     b    map_hinone
-
-hisram_map:
-    // Get a pointer to a SRAM block mapped as HiROM
-    and  t4, t0, t9
-    la   t3, sram
-    add  t3, t3, t4 // 2KB-32KB SRAM
-    ori  t3, t3, 1  // Write bit
-    b    map_hiblock
 
 hiio_area:
     // Set no pointer; this will fall back to I/O registers
@@ -573,21 +555,15 @@ tlbm_exception:
 
 sram_read8: // t0: address - v0: value
     // Read an 8-bit value from SRAM
-    la   t1, sram
-    andi t2, t1, 0xFFF // 4KB-aligned
-    sub  t1, t1, t2
-    add  t0, t0, t1
-    lbu  v0, (t0)
+    lbu  v0, sram(t0)
     jr   ra
 
 
 sram_write8: // t0: address, a1: value
-    // Write an 8-bit value to SRAM
-    la   t1, sram
-    andi t2, t1, 0xFFF // 4KB-aligned
-    sub  t1, t1, t2
-    add  t0, t0, t1
-    sb   a1, (t0)
+    // Write an 8-bit value to SRAM and mark it as dirty
+    sb   a1, sram(t0)
+    li   t0, 1
+    sb   t0, sram_dirty
     jr   ra
 
 
