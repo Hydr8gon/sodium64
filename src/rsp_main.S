@@ -165,16 +165,16 @@ draw_frame:
     // Set the max Y-bound based on 224 or 239-line mode
     lw   t0, fb_border
     li   sp, 224
-    sll  t0, t0, 1
-    xori t0, t0, 0x10
-    add  sp, sp, t0
+    bnez t0, check_split
+    li   sp, 239
 
+check_split:
     // Set values for the first frame section if split
     lw   t0, split_line
     beqz t0, full_frame
     bge  t0, sp, full_frame
     li   k0, 0         // Section start
-    add  k1, t0, 2     // Section end
+    addi k1, t0, 1     // Section end
     addi s7, k0, -0xA4 // Value offset
     b    draw_section
 
@@ -264,8 +264,9 @@ clear_cache:
     // Get the horizontal and vertical offsets within the BG
     sll  s2, t3, 2
     add  s2, s2, s7
-    lw   s6, bghofs(s2)
     lw   s5, bgvofs(s2)
+    lw   s6, bghofs(s2)
+    addi s5, s5, 1
 
     // Set the initial tile Y-coordinate and character number
     andi t0, s5, 0x7
@@ -550,6 +551,7 @@ draw_mode7:
     lh   t3, m7y + 2(s7)
     add  t1, t1, s1
     sub  t1, t1, t3
+    addi t1, t1, 1
 
     // Calculate the initial VRAM X-coordinate
     lh    s2, m7a + 2
@@ -895,7 +897,6 @@ check_object:
     sll  t4, t4, 31
     sra  t4, t4, 23
     or   s8, t3, t4
-    addi s8, s8, 1
 
     // Skip the object if it doesn't occupy any visible scanlines
     add  t4, s8, s1
