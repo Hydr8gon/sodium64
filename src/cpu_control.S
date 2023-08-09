@@ -555,7 +555,7 @@ cld: // CLD
     // Clear the decimal flag
     andi s4, s4, ~0x08 & 0xFFFF
     addi s7, s7, 1
-    j    cpu_execute
+    j    update_mode
 
 
 clv: // CLV
@@ -583,7 +583,7 @@ sed: // SED
     // Set the decimal flag
     ori  s4, s4, 0x08
     addi s7, s7, 1
-    j    cpu_execute
+    j    update_mode
 
 
 rep: // REP #nn

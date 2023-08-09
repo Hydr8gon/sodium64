@@ -14,7 +14,8 @@ Place SNES ROMs with extension `.sfc`/`.smc` in the same folder as `sodium64.z64
 Although sodium64 is written in assembly, it relies on [libdragon](https://github.com/DragonMinded/libdragon.git) for its build system. When you have that set up, you can simply run `make` in the project root directory to compile.
 
 ### References
-* [Fullsnes](https://problemkaputt.de/fullsnes.htm) by Martin Korth
+* [Fullsnes](https://problemkaputt.de/fullsnes.htm) by Martin Korth - My main source of information on SNES hardware
+* [Decimal Mode](http://6502.org/tutorials/decimal_mode.html) by Bruce Clark - Covers the CPU's barely-documented BCD mode
 
 ### Other Links
 * [Hydra's Lair](https://hydr8gon.github.io) - Blog where I may or may not write about things

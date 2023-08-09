@@ -139,6 +139,36 @@
 .globl adcidl_16
 .globl adcily_8
 .globl adcily_16
+.globl adc_8d
+.globl adc_16d
+.globl adcdir_8d
+.globl adcdir_16d
+.globl adcdrx_8d
+.globl adcdrx_16d
+.globl adcdrs_8d
+.globl adcdrs_16d
+.globl adcabs_8d
+.globl adcabs_16d
+.globl adcabx_8d
+.globl adcabx_16d
+.globl adcaby_8d
+.globl adcaby_16d
+.globl adclng_8d
+.globl adclng_16d
+.globl adclnx_8d
+.globl adclnx_16d
+.globl adcind_8d
+.globl adcind_16d
+.globl adcidx_8d
+.globl adcidx_16d
+.globl adcidy_8d
+.globl adcidy_16d
+.globl adcisy_8d
+.globl adcisy_16d
+.globl adcidl_8d
+.globl adcidl_16d
+.globl adcily_8d
+.globl adcily_16d
 .globl sbc_8
 .globl sbc_16
 .globl sbcdir_8
@@ -169,6 +199,36 @@
 .globl sbcidl_16
 .globl sbcily_8
 .globl sbcily_16
+.globl sbc_8d
+.globl sbc_16d
+.globl sbcdir_8d
+.globl sbcdir_16d
+.globl sbcdrx_8d
+.globl sbcdrx_16d
+.globl sbcdrs_8d
+.globl sbcdrs_16d
+.globl sbcabs_8d
+.globl sbcabs_16d
+.globl sbcabx_8d
+.globl sbcabx_16d
+.globl sbcaby_8d
+.globl sbcaby_16d
+.globl sbclng_8d
+.globl sbclng_16d
+.globl sbclnx_8d
+.globl sbclnx_16d
+.globl sbcind_8d
+.globl sbcind_16d
+.globl sbcidx_8d
+.globl sbcidx_16d
+.globl sbcidy_8d
+.globl sbcidy_16d
+.globl sbcisy_8d
+.globl sbcisy_16d
+.globl sbcidl_8d
+.globl sbcidl_16d
+.globl sbcily_8d
+.globl sbcily_16d
 .globl cmp_8
 .globl cmp_16
 .globl cmpdir_8
@@ -456,7 +516,7 @@ eoridl_16: IDL; EOR_16 // EOR [nn]     (16-bit)
 eorily_16: ILY; EOR_16 // EOR [nn],Y   (16-bit)
 
 
-.macro ADC_8 // ADC op (8-bit) TODO: decimal mode
+.macro ADC_8 // ADC op (8-bit)
     // Add a value with carry to the accumulator (8-bit)
     MEM_READ8
     lbu  t0, accumulator + 1
@@ -496,7 +556,7 @@ adcidl_8: IDL; ADC_8 // ADC [nn]     (8-bit)
 adcily_8: ILY; ADC_8 // ADC [nn],Y   (8-bit)
 
 
-.macro ADC_16 // ADC op (16-bit) TODO: decimal mode
+.macro ADC_16 // ADC op (16-bit)
     // Add a value with carry to the accumulator (16-bit)
     MEM_READ16
     lhu  t0, accumulator
@@ -536,7 +596,167 @@ adcidl_16: IDL; ADC_16 // ADC [nn]     (16-bit)
 adcily_16: ILY; ADC_16 // ADC [nn],Y   (16-bit)
 
 
-.macro SBC_8 // SBC op (8-bit) TODO: decimal mode
+.macro ADC_8D num // ADC op (8-bit BCD)
+    // Load values for decimal addition (8-bit)
+    MEM_READ8
+    lbu  t0, accumulator + 1
+    and  t1, s4, 0x01 // C
+
+    // Add the first decimal digit with carry
+    andi t2, t0, 0xF
+    andi t3, v0, 0xF
+    add  a0, t2, t3
+    add  a0, a0, t1
+
+    // Adjust the first digit on overflow
+    blt  a0, 0xA, adc8_dec2\num
+    addi a0, a0, 0x6
+    andi a0, a0, 0xF
+    addi a0, a0, 0x10
+
+adc8_dec2\num:
+    // Add the last decimal digit (8-bit), unsigned (a0) and signed (a1)
+    andi t1, t0, 0xF0
+    sll  t3, t1, 24
+    sra  t3, t3, 24
+    andi t2, v0, 0xF0
+    sll  t4, t2, 24
+    sra  t4, t4, 24
+    add  t3, t3, t4
+    add  a1, a0, t3
+    add  t1, t1, t2
+    add  a0, a0, t1
+
+    // Adjust the last digit on overflow (8-bit)
+    blt  a0, 0xA0, adc8_end\num
+    addi a0, a0, 0x60
+
+adc8_end\num:
+    // Store the result and set flags for decimal addition (8-bit)
+    sb   a0, accumulator + 1
+    andi s4, s4, ~0x41 & 0xFFFF
+    sgt  t1, a0, 0xFF // C
+    or   s4, s4, t1
+    slti t0, a1, -128
+    sgt  t1, a1, 127
+    or   t1, t1, t0
+    sll  t1, t1, 6    // V
+    or   s4, s4, t1
+    andi a0, a0, 0xFF
+    j    set_nz8
+.endm
+
+adc_8d:    IM8; ADC_8D 1 // ADC #nn      (8-bit BCD)
+adcdir_8d: DIR; ADC_8D 2 // ADC nn       (8-bit)
+adcdrx_8d: DRX; ADC_8D 3 // ADC nn,X     (8-bit)
+adcdrs_8d: DRS; ADC_8D 4 // ADC nn,S     (8-bit)
+adcabs_8d: ABS; ADC_8D 5 // ADC nnnn     (8-bit)
+adcabx_8d: ABX; ADC_8D 6 // ADC nnnn,X   (8-bit)
+adcaby_8d: ABY; ADC_8D 7 // ADC nnnn,Y   (8-bit)
+adclng_8d: LNG; ADC_8D 8 // ADC nnnnnn   (8-bit)
+adclnx_8d: LNX; ADC_8D 9 // ADC nnnnnn,X (8-bit)
+adcind_8d: IND; ADC_8D A // ADC (nn)     (8-bit)
+adcidx_8d: IDX; ADC_8D B // ADC (nn,X)   (8-bit)
+adcidy_8d: IDY; ADC_8D C // ADC (nn),Y   (8-bit)
+adcisy_8d: ISY; ADC_8D D // ADC (nn,S),Y (8-bit)
+adcidl_8d: IDL; ADC_8D E // ADC [nn]     (8-bit)
+adcily_8d: ILY; ADC_8D F // ADC [nn],Y   (8-bit)
+
+
+.macro ADC_16D num // ADC op (16-bit BCD)
+    // Load values for decimal addition (16-bit)
+    MEM_READ16
+    lhu  t0, accumulator
+    and  t1, s4, 0x01 // C
+
+    // Add the first decimal digit with carry
+    andi t2, t0, 0xF
+    andi t3, v0, 0xF
+    add  a0, t2, t3
+    add  a0, a0, t1
+
+    // Adjust the first digit on overflow
+    blt  a0, 0xA, adc16_dec2\num
+    addi a0, a0, 0x6
+    andi a0, a0, 0xF
+    addi a0, a0, 0x10
+
+adc16_dec2\num:
+    // Add the second decimal digit
+    andi t2, t0, 0xF0
+    andi t3, v0, 0xF0
+    add  t2, t2, t3
+    add  a0, a0, t2
+
+    // Adjust the second digit on overflow
+    blt  a0, 0xA0, adc16_dec3\num
+    addi a0, a0, 0x60
+    andi a0, a0, 0xFF
+    addi a0, a0, 0x100
+
+adc16_dec3\num:
+    // Add the third decimal digit
+    andi t2, t0, 0xF00
+    andi t3, v0, 0xF00
+    add  t2, t2, t3
+    add  a0, a0, t2
+
+    // Adjust the third digit on overflow
+    blt  a0, 0xA00, adc16_dec4\num
+    addi a0, a0, 0x600
+    andi a0, a0, 0xFFF
+    addi a0, a0, 0x1000
+
+adc16_dec4\num:
+    // Add the last decimal digit (16-bit), unsigned (a0) and signed (a1)
+    andi t1, t0, 0xF000
+    sll  t3, t1, 16
+    sra  t3, t3, 16
+    andi t2, v0, 0xF000
+    sll  t4, t2, 16
+    sra  t4, t4, 16
+    add  t3, t3, t4
+    add  a1, a0, t3
+    add  t1, t1, t2
+    add  a0, a0, t1
+
+    // Adjust the last digit on overflow (16-bit)
+    blt  a0, 0xA000, adc16_end\num
+    addi a0, a0, 0x6000
+
+adc16_end\num:
+    // Store the result and set flags for decimal addition (16-bit)
+    sh   a0, accumulator
+    andi s4, s4, ~0x41 & 0xFFFF
+    sgt  t1, a0, 0xFFFF // C
+    or   s4, s4, t1
+    slti t0, a1, -128 << 8
+    sgt  t1, a1, 127 << 8
+    or   t1, t1, t0
+    sll  t1, t1, 6      // V
+    or   s4, s4, t1
+    andi a0, a0, 0xFFFF
+    j    set_nz16
+.endm
+
+adc_16d:    I16; ADC_16D 1 // ADC #nnnn    (16-bit BCD)
+adcdir_16d: DIR; ADC_16D 2 // ADC nn       (16-bit BCD)
+adcdrx_16d: DRX; ADC_16D 3 // ADC nn,X     (16-bit BCD)
+adcdrs_16d: DRS; ADC_16D 4 // ADC nn,S     (16-bit BCD)
+adcabs_16d: ABS; ADC_16D 5 // ADC nnnn     (16-bit BCD)
+adcabx_16d: ABX; ADC_16D 6 // ADC nnnn,X   (16-bit BCD)
+adcaby_16d: ABY; ADC_16D 7 // ADC nnnn,Y   (16-bit BCD)
+adclng_16d: LNG; ADC_16D 8 // ADC nnnnnn   (16-bit BCD)
+adclnx_16d: LNX; ADC_16D 9 // ADC nnnnnn,X (16-bit BCD)
+adcind_16d: IND; ADC_16D A // ADC (nn)     (16-bit BCD)
+adcidx_16d: IDX; ADC_16D B // ADC (nn,X)   (16-bit BCD)
+adcidy_16d: IDY; ADC_16D C // ADC (nn),Y   (16-bit BCD)
+adcisy_16d: ISY; ADC_16D D // ADC (nn,S),Y (16-bit BCD)
+adcidl_16d: IDL; ADC_16D E // ADC [nn]     (16-bit BCD)
+adcily_16d: ILY; ADC_16D F // ADC [nn],Y   (16-bit BCD)
+
+
+.macro SBC_8 // SBC op (8-bit)
     // Subtract a value with carry from the accumulator (8-bit)
     MEM_READ8
     lbu  t0, accumulator + 1
@@ -616,6 +836,162 @@ sbcidy_16: IDY; SBC_16 // SBC (nn),Y   (16-bit)
 sbcisy_16: ISY; SBC_16 // SBC (nn,S),Y (16-bit)
 sbcidl_16: IDL; SBC_16 // SBC [nn]     (16-bit)
 sbcily_16: ILY; SBC_16 // SBC [nn],Y   (16-bit)
+
+
+.macro SBC_8D num // SBC op (8-bit BCD)
+    // Load values for decimal subtraction (8-bit)
+    MEM_READ8
+    lbu  t0, accumulator + 1
+    and  t1, s4, 0x01 // C
+    xori t1, t1, 0x01
+
+    // Subtract the first decimal digit with carry
+    andi t2, t0, 0xF
+    andi t3, v0, 0xF
+    sub  a0, t2, t3
+    sub  a0, a0, t1
+
+    // Adjust the first digit on overflow
+    bgez a0, sbc8_dec2\num
+    addi a0, a0, -0x6
+    andi a0, a0, 0xF
+    addi a0, a0, -0x10
+
+sbc8_dec2\num:
+    // Subtract the last decimal digit (8-bit)
+    andi t2, t0, 0xF0
+    andi t3, v0, 0xF0
+    sub  t2, t2, t3
+    add  a0, a0, t2
+
+    // Adjust the last digit on overflow (8-bit)
+    bgez a0, sbc8_end\num
+    addi a0, a0, -0x60
+
+sbc8_end\num:
+    // Store the result and set flags for decimal subtraction (8-bit)
+    sb   a0, accumulator + 1
+    andi s4, s4, ~0x41 & 0xFFFF
+    sub  a1, t0, v0
+    sub  a1, a1, t1
+    sleu t1, a1, t0   // C
+    or   s4, s4, t1
+    xor  t1, t0, v0
+    xor  t2, t0, a1
+    and  t1, t1, t2
+    srl  t1, t1, 1
+    andi t1, t1, 0x40 // V
+    or   s4, s4, t1
+    andi a0, a0, 0xFF
+    j    set_nz8
+.endm
+
+sbc_8d:    IM8; SBC_8D 1 // SBC #nn      (8-bit BCD)
+sbcdir_8d: DIR; SBC_8D 2 // SBC nn       (8-bit BCD)
+sbcdrx_8d: DRX; SBC_8D 3 // SBC nn,X     (8-bit BCD)
+sbcdrs_8d: DRS; SBC_8D 4 // SBC nn,S     (8-bit BCD)
+sbcabs_8d: ABS; SBC_8D 5 // SBC nnnn     (8-bit BCD)
+sbcabx_8d: ABX; SBC_8D 6 // SBC nnnn,X   (8-bit BCD)
+sbcaby_8d: ABY; SBC_8D 7 // SBC nnnn,Y   (8-bit BCD)
+sbclng_8d: LNG; SBC_8D 8 // SBC nnnnnn   (8-bit BCD)
+sbclnx_8d: LNX; SBC_8D 9 // SBC nnnnnn,X (8-bit BCD)
+sbcind_8d: IND; SBC_8D A // SBC (nn)     (8-bit BCD)
+sbcidx_8d: IDX; SBC_8D B // SBC (nn,X)   (8-bit BCD)
+sbcidy_8d: IDY; SBC_8D C // SBC (nn),Y   (8-bit BCD)
+sbcisy_8d: ISY; SBC_8D D // SBC (nn,S),Y (8-bit BCD)
+sbcidl_8d: IDL; SBC_8D E // SBC [nn]     (8-bit BCD)
+sbcily_8d: ILY; SBC_8D F // SBC [nn],Y   (8-bit BCD)
+
+
+.macro SBC_16D num // SBC op (16-bit BCD)
+    // Load values for decimal subtraction (16-bit)
+    MEM_READ16
+    lhu  t0, accumulator
+    and  t1, s4, 0x01 // C
+    xori t1, t1, 0x01
+
+    // Subtract the first decimal digit with carry
+    andi t2, t0, 0xF
+    andi t3, v0, 0xF
+    sub  a0, t2, t3
+    sub  a0, a0, t1
+
+    // Adjust the first digit on overflow
+    bgez a0, sbc16_dec2\num
+    addi a0, a0, -0x6
+    andi a0, a0, 0xF
+    addi a0, a0, -0x10
+
+sbc16_dec2\num:
+    // Subtract the second decimal digit
+    andi t2, t0, 0xF0
+    andi t3, v0, 0xF0
+    sub  t2, t2, t3
+    add  a0, a0, t2
+
+    // Adjust the second digit on overflow
+    bgez a0, sbc16_dec3\num
+    addi a0, a0, -0x60
+    andi a0, a0, 0xFF
+    addi a0, a0, -0x100
+
+sbc16_dec3\num:
+    // Subtract the third decimal digit
+    andi t2, t0, 0xF00
+    andi t3, v0, 0xF00
+    sub  t2, t2, t3
+    add  a0, a0, t2
+
+    // Adjust the third digit on overflow
+    bgez a0, sbc16_dec4\num
+    addi a0, a0, -0x600
+    andi a0, a0, 0xFFF
+    addi a0, a0, -0x1000
+
+sbc16_dec4\num:
+    // Subtract the last decimal digit (16-bit)
+    andi t2, t0, 0xF000
+    andi t3, v0, 0xF000
+    sub  t2, t2, t3
+    add  a0, a0, t2
+
+    // Adjust the last digit on overflow (16-bit)
+    bgez a0, sbc16_end\num
+    addi a0, a0, -0x6000
+
+sbc16_end\num:
+    // Store the result and set flags for decimal subtraction (16-bit)
+    sh   a0, accumulator
+    andi s4, s4, ~0x41 & 0xFFFF
+    sub  a1, t0, v0
+    sub  a1, a1, t1
+    sleu t1, a1, t0   // C
+    or   s4, s4, t1
+    xor  t1, t0, v0
+    xor  t2, t0, a1
+    and  t1, t1, t2
+    srl  t1, t1, 9
+    andi t1, t1, 0x40 // V
+    or   s4, s4, t1
+    andi a0, a0, 0xFFFF
+    j    set_nz16
+.endm
+
+sbc_16d:    I16; SBC_16D 1 // SBC #nnnn    (16-bit BCD)
+sbcdir_16d: DIR; SBC_16D 2 // SBC nn       (16-bit BCD)
+sbcdrx_16d: DRX; SBC_16D 3 // SBC nn,X     (16-bit BCD)
+sbcdrs_16d: DRS; SBC_16D 4 // SBC nn,S     (16-bit BCD)
+sbcabs_16d: ABS; SBC_16D 5 // SBC nnnn     (16-bit BCD)
+sbcabx_16d: ABX; SBC_16D 6 // SBC nnnn,X   (16-bit BCD)
+sbcaby_16d: ABY; SBC_16D 7 // SBC nnnn,Y   (16-bit BCD)
+sbclng_16d: LNG; SBC_16D 8 // SBC nnnnnn   (16-bit BCD)
+sbclnx_16d: LNX; SBC_16D 9 // SBC nnnnnn,X (16-bit BCD)
+sbcind_16d: IND; SBC_16D A // SBC (nn)     (16-bit BCD)
+sbcidx_16d: IDX; SBC_16D B // SBC (nn,X)   (16-bit BCD)
+sbcidy_16d: IDY; SBC_16D C // SBC (nn),Y   (16-bit BCD)
+sbcisy_16d: ISY; SBC_16D D // SBC (nn,S),Y (16-bit BCD)
+sbcidl_16d: IDL; SBC_16D E // SBC [nn]     (16-bit BCD)
+sbcily_16d: ILY; SBC_16D F // SBC [nn],Y   (16-bit BCD)
 
 
 .macro CMP_8 // CMP op (8-bit)
