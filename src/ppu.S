@@ -78,9 +78,10 @@
 
 event_func: .word vblank_start
 
-cgram: .hword 0:0x100
-oam:   .byte  0:0x220
-vram:  .byte  0:0x10000
+cgram:      .hword 0:0x100
+oam:        .byte  0:0x220
+vram:       .byte  0:0x10000
+vram_table: .byte  0:0x400
 
 fps_emulate: .byte 0x00
 fps_display: .byte 0x00
@@ -350,26 +351,43 @@ update_dpal:
 
     // Update the RSP's copy of OAM in DMEM
     la   t0, oam
-    la   t1, oam + 0x220
-    la   t2, 0xA4000400
+    la   t1, 0xA4000840
+    li   t2, 0x220
 oam_loop:
+    addi t2, t2, -4
     lw   t3, (t0)
     addi t0, t0, 4
-    sw   t3, (t2)
-    addi t2, t2, 4
-    bne  t0, t1, oam_loop
+    sw   t3, (t1)
+    addi t1, t1, 4
+    bnez t2, oam_loop
+
+    // Update the RSP's VRAM dirty table with bits that were set this frame
+    la   t0, vram_table
+    la   t1, 0xA4000440
+    li   t2, 0x400
+table_loop:
+    addi t2, t2, -4
+    lw   t3, (t0)
+    lw   t4, (t1)
+    sw   zero, (t0)
+    addi t0, t0, 4
+    or   t3, t3, t4
+    sw   t3, (t1)
+    addi t1, t1, 4
+    bnez t2, table_loop
 
 update_vram:
     // Update the RSP's copy of VRAM
     la   t0, vram
-    la   t1, vram + 0x10000
-    la   t2, 0xA03F0000
+    la   t1, 0xA03F0000
+    li   t2, 0x10000
 vram_loop:
+    addi t2, t2, -4
     lw   t3, (t0)
     addi t0, t0, 4
-    sw   t3, (t2)
-    addi t2, t2, 4
-    bne  t0, t1, vram_loop
+    sw   t3, (t1)
+    addi t1, t1, 4
+    bnez t2, vram_loop
 
     // Set the RSP's OAM priority rotation value
     lhu  t1, oamadd
@@ -880,6 +898,11 @@ write_vmdatal: // a1: value
     sll  t1, t0, 1
     sb   a1, 1 + vram(t1)
 
+    // Set each layer's dirty bit for the modified VRAM block
+    srl  t1, t1, 6
+    li   t2, 0x1F
+    sb   t2, vram_table(t1)
+
     // Increment the VRAM address
     lbu  t1, vram_incl
     add  t0, t0, t1
@@ -893,6 +916,11 @@ write_vmdatah: // a1: value
     lhu  t0, vmadd
     sll  t1, t0, 1
     sb   a1, vram(t1)
+
+    // Set each layer's dirty bit for the modified VRAM block
+    srl  t1, t1, 6
+    li   t2, 0x1F
+    sb   t2, vram_table(t1)
 
     // Increment the VRAM address
     lbu  t1, vram_inch

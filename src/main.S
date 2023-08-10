@@ -40,13 +40,13 @@ main:
     li   t0, 8
     sw   t0, 0xBFC007FC
 
-    // Initialize the .bss area with zeroes
-    la   t0, __bss_start
-    la   t1, __bss_end
-bss_loop:
-    sw   zero, (t0)
-    addi t0, t0, 4
-    bltu t0, t1, bss_loop
+    // Clear framebuffers and other PPU data (hardcoded for RSP access)
+    li   t0, 0xA0378000
+    li   t1, 0xA0400000
+clear_vram:
+    sd   zero, (t0)
+    addi t0, t0, 8
+    bne  t0, t1, clear_vram
 
     // Initialize the VI to display a 16-bit 256x224 framebuffer
     lui  t0, 0xA440     // VI register upper address
@@ -107,7 +107,7 @@ bss_loop:
     cache 0x10, 0x0180(t0)
 
     // Initialize the stack below the ROM buffer
-    la   sp, 0x80160000
+    la   sp, 0x80130000
 
     // Use DMA to copy SRAM from the cart to memory
     lui  t0, 0xA460     // PI register upper address
@@ -123,14 +123,6 @@ pi_wait1:
     lw   t1, 0x0010(t0) // PI_STATUS
     andi t1, t1, 0x1    // DMA busy
     bnez t1, pi_wait1
-
-    // Clear the framebuffers and VRAM (hardcoded for RSP access)
-    li   t0, 0xA038D900
-    li   t1, 0xA0400000
-clear_vram:
-    sw   zero, (t0)
-    addi t0, t0, 4
-    bne  t0, t1, clear_vram
 
     // Initialize the emulator
     jal  reset_tlb

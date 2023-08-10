@@ -22,21 +22,23 @@
 // Define data addresses as numerical constants
 // This allows loads/stores without a hidden opcode to set the upper address
 #define TEXTURE      0x000
-#define OAM          0x400
-#define SCRN_DATA    0x620
-#define CHAR_DATA    0x6A0
-#define TILE_TABLE   0x720
-#define VEC_DATA     0xB20
-#define RDP_INIT     0xBA0
-#define RDP_SECTION  0xBB8
-#define RDP_FRAME    0xBC0
-#define RDP_MODE7    0xBF8
-#define RDP_TILE     0xC00
-#define LAYER_CHART  0xC78
-#define TILE_PARAMS  0xD08
-#define TILE_JUMPS   0xD48
-#define MODE7_BOUNDS 0xD54
-#define MASK_OFS     0xD64
+#define TILE_TABLE   0x040
+#define VRAM_TABLE   0x440
+#define OAM          0x840
+#define SCRN_DATA    0xA60
+#define CHAR_DATA    0xAE0
+#define VEC_DATA     0xB60
+#define RDP_INIT     0xBE0
+#define RDP_SECTION  0xBF8
+#define RDP_FRAME    0xC00
+#define RDP_MODE7    0xC38
+#define RDP_TILE     0xC40
+#define LAYER_CHART  0xCB8
+#define TILE_PARAMS  0xD48
+#define TILE_JUMPS   0xD88
+#define CACHE_BASES  0xD94
+#define MODE7_BOUNDS 0xDA8
+#define MASK_OFS     0xDB8
 #define FRAMEBUFFER  0xEB0
 #define SPLIT_LINE   0xEB4
 #define TOP_VALUES   0xEB8
@@ -68,11 +70,12 @@
 
 .data
 
-texture:    .byte 0:0x400
+texture:    .byte 0:0x40
+tile_table: .byte 0:0x400
+vram_table: .byte 0:0x400
 oam:        .byte 0:0x220
 scrn_data:  .byte 0:0x80
 char_data:  .byte 0:0x80
-tile_table: .byte 0:0x400
 
 vec_data:
     .hword 0x8000, 0x4000, 0x2000, 0x1000, 0x0800, 0x0400, 0x0200, 0x0100 // Mask
@@ -110,7 +113,7 @@ rdp_mode7:
 
 rdp_tile:
     // RDP commands that run when a tile is being drawn
-    .dword 0x3D480007A0360000 // Set Texture Image (texture)
+    .dword 0x3D480007A0330000 // Set Texture Image (texture)
     .dword 0x2800000000000000 // Sync Tile
     .dword 0x340000000101F01F // Load Tile (texture)
     .dword 0x0A81000000000000 // Texture Triangle 1
@@ -148,10 +151,11 @@ tile_params:
     .word 0x00700070, 0xFFF00000, 0x0000FFF0, 0 // XY-mirror
 
 tile_jumps:   .word decode_tile4, decode_tile16, decode_tile256
+cache_bases:  .word 0:5
 mode7_bounds: .word 0:4
 mask_ofs:     .byte 0
 
-.space 0x14B
+.space 0xF7
 
 // Pointer to active framebuffer; used for text drawing on CPU
 framebuffer: .word 0xA03AE600 // 0xEB0-0xEB3
@@ -283,8 +287,8 @@ draw_bg:
     add  t1, t1, s7
     lw   t1, SUB_MASK(t1)
     li   t2, 1
-    andi t3, t0, 0x03 // Index
-    sll  t2, t2, t3
+    andi a3, t0, 0x03 // Index
+    sll  t2, t2, a3
     and  t1, t1, t2
     beqz t1, next_layer
 
@@ -297,18 +301,36 @@ draw_bg:
     andi gp, t0, 0x40           // Priority
     sll  gp, gp, 7
 
-    // Reset the tile cache for a new BG
+    // Check if the BG type or character base changed
+    sll  t3, a3, 2
+    add  s2, t3, s7
+    lw   t0, BGCHARBASE(s2)
+    or   t0, t0, s4
+    lw   t1, CACHE_BASES(t3)
+    beq  t0, t1, load_cache
+    sw   t0, CACHE_BASES(t3)
+
+    // Reset the tile cache if something changed
     la   t0, TILE_TABLE
-    la   t2, VEC_DATA
+    la   t1, VRAM_TABLE
 clear_cache:
     sqv  $v31, 0, 0x00, t0
     sqv  $v31, 0, 0x10, t0
     addi t0, t0, 0x20
-    bne  t0, t2, clear_cache
+    bne  t0, t1, clear_cache
+    b    get_offsets
 
+load_cache:
+    // Load the previous cache status if it's still valid
+    la   a0, TILE_TABLE
+    la   a1, 0xA0378000
+    sll  t0, a3, 10
+    add  a1, a1, t0
+    li   a2, 0x3FF
+    jal  dma_read
+
+get_offsets:
     // Get the horizontal and vertical offsets within the BG
-    sll  s2, t3, 2
-    add  s2, s2, s7
     lw   s5, BGVOFS(s2)
     lw   s6, BGHOFS(s2)
     addi s5, s5, 1
@@ -358,9 +380,8 @@ load_screen:
     sll  t0, t0, 2
     addi t1, t0, 8 << 2
     sh   t1, RDP_TILE + 26 // y3
-    sll  t1, t0, 16
-    or   t0, t0, t1
-    sw   t0, RDP_TILE + 28 // y2, y1
+    sh   t0, RDP_TILE + 28 // y2
+    sh   t0, RDP_TILE + 30 // y1
 
 next_tile:
     // Get the BG entry for the current tile
@@ -396,22 +417,39 @@ next_tile:
     beq  t0, v1, skip_upload
     move v1, t0
 
-    // Skip decoding if the tile is already cached with the same palette
+    // Check if the tile's VRAM is dirty for the current BG
     andi s8, t6, 0x3FF // Character number
+    lw   t0, BGCHARBASE(s2)
+    sll  t1, s8, s4
+    add  t3, t0, t1
+    srl  t0, t3, 6
+    lbu  t2, VRAM_TABLE(t0)
+    li   t1, 1
+    sll  t1, t1, a3
+    and  t4, t2, t1
+    beqz t4, check_cache
+
+    // Clear the VRAM dirty bit and reset affected cache entries
+    xori t1, t1, 0x1F
+    and  t2, t2, t1
+    sb   t2, VRAM_TABLE(t0)
+    andi t1, s8, 0x3
+    sub  t1, s8, t1
+    sw   zero, TILE_TABLE(t1)
+
+check_cache:
+    // Skip decoding if the tile is already cached with the same palette
     lbu  t1, TILE_TABLE(s8)
-    srl  a3, t6, 5
-    andi a3, a3, 0xE0  // Palette offset
-    ori  t0, a3, 0x01  // Cache bit
+    srl  t2, t6, 5
+    andi t2, t2, 0xE0  // Palette offset
+    ori  t0, t2, 0x01  // Cache bit
     beq  t0, t1, skip_decode
     sb   t0, TILE_TABLE(s8)
 
     // Load the tile's character data from VRAM
     la   a0, CHAR_DATA
     la   a1, 0xA03F0000 // VRAM
-    lw   t0, BGCHARBASE(s2)
-    add  a1, a1, t0
-    sll  t0, s8, s4
-    add  a1, a1, t0
+    add  a1, a1, t3
     li   a2, 0x3F
     jal  dma_read
 
@@ -422,7 +460,7 @@ next_tile:
 
 decode_tile4:
     // Set the 4-color palette offset
-    sll  t0, a3, 5
+    sll  t0, t2, 5
     mtc2 t0, $v05, 0 // Palette offset
 
 loop_tile4:
@@ -452,7 +490,7 @@ loop_tile4:
 
 decode_tile16:
     // Set the 16-color palette offset
-    sll  t0, a3, 7
+    sll  t0, t2, 7
     mtc2 t0, $v05, 0 // Palette offset
 
 loop_tile16:
@@ -530,8 +568,10 @@ decode_tile256:
 cache_tile:
     // DMA the texture to the tile cache in RDRAM
     la   a0, TEXTURE
-    la   a1, 0xA0360000
-    sll  t0, s8, 7
+    la   a1, 0xA0330000
+    sll  t0, a3, 16
+    add  a1, a1, t0
+    sll  t0, s8, 6
     add  a1, a1, t0
     sw   a1, RDP_TILE + 4
     li   a2, 0x3F
@@ -551,12 +591,22 @@ finish_tile:
     // Move to the next row of the BG until finished
     addi s1, s1, 8
     blt  s1, k1, draw_row
+
+    // Update the BG's tile cache status when finished
+    la   a0, TILE_TABLE
+    la   a1, 0xA0378000
+    sll  t0, a3, 10
+    add  a1, a1, t0
+    li   a2, 0x3FF
+    jal  dma_write
     b    next_layer
 
 skip_decode:
     // Update the RDP texture address and draw a cached tile
-    la   a1, 0xA0360000
-    sll  t0, s8, 7
+    la   a1, 0xA0330000
+    sll  t0, a3, 16
+    add  a1, a1, t0
+    sll  t0, s8, 6
     add  a1, a1, t0
     sw   a1, RDP_TILE + 4
     b    draw_tile
@@ -851,7 +901,7 @@ decode_tile7:
 
     // DMA the texture to alternating RDRAM locations
     la   a0, TEXTURE
-    la   a1, 0xA0360000
+    la   a1, 0xA0380000
     andi t0, s0, 0x8
     sll  t0, t0, 8
     add  a1, a1, t0
@@ -913,6 +963,29 @@ draw_obj:
 
     // Set the OAM count to the first in rotation
     lw   t9, OBJ_ROTATE
+
+    // Check if the object character base changed
+    lw   t0, OBJCHARBASE
+    lw   t2, CACHE_BASES + 16
+    beq  t0, t2, load_objcache
+    sw   t0, CACHE_BASES + 16
+
+    // Reset the tile cache if something changed
+    la   t0, TILE_TABLE
+    la   t2, VRAM_TABLE
+clear_objcache:
+    sqv  $v31, 0, 0x00, t0
+    sqv  $v31, 0, 0x10, t0
+    addi t0, t0, 0x20
+    bne  t0, t2, clear_objcache
+    b    check_object
+
+load_objcache:
+    // Load the previous cache status if it's still valid
+    la   a0, TILE_TABLE
+    la   a1, 0xA0379000
+    li   a2, 0x1FF
+    jal  dma_read
 
 check_object:
     // Read the 4 object bytes and additional 2 bits
@@ -977,9 +1050,9 @@ check_object:
     sll  t3, t1, 3
     andi t3, t3, 0x7000
     addi t3, t3, 0x8000
-    mtc2 t3, $v05, 0 // Palette offset
-    move s4, s0      // X-size reload
-    li   s5, 0       // Character offset
+    mtc2 t3, $v05, 0   // Palette offset
+    move s4, s0        // X-size reload
+    andi s5, t1, 0x1FF // Character number
 
     // Set initial values based on horizontal mirroring
     andi t7, t1, 0x4000 // X-mirror
@@ -1007,9 +1080,8 @@ next_objy:
     sll  t7, t7, 2
     addi t6, t7, 8 << 2
     sh   t6, RDP_TILE + 26 // y3
-    sll  t3, t7, 16
-    or   t3, t3, t7
-    sw   t3, RDP_TILE + 28 // y2, y1
+    sh   t7, RDP_TILE + 28 // y2
+    sh   t7, RDP_TILE + 30 // y1
 
 next_objx:
     // Update the RDP draw command with the object's X-coordinate
@@ -1019,15 +1091,35 @@ next_objx:
     addi t7, t7, 8
     sh   t7, RDP_TILE + 32 // x1
 
+    // Check if the tile's VRAM is dirty for objects
+    lw   t0, OBJCHARBASE
+    sll  t4, s5, 5
+    add  t5, t0, t4
+    srl  t0, t5, 6
+    lbu  t2, VRAM_TABLE(t0)
+    andi t4, t2, 0x10
+    beqz t4, check_objcache
+
+    // Clear the VRAM dirty bit and reset affected cache entries
+    andi t2, t2, 0xF
+    sb   t2, VRAM_TABLE(t0)
+    andi t1, s5, 0x1
+    sub  t1, s5, t1
+    sh   zero, TILE_TABLE(t1)
+
+check_objcache:
+    // Skip decoding if the tile is already cached with the same palette
+    lbu  t2, TILE_TABLE(s5)
+    srl  t4, t3, 7
+    andi t4, t4, 0xE0 // Palette offset
+    ori  t0, t4, 0x01 // Cache bit
+    beq  t0, t2, skip_objdecode
+    sb   t0, TILE_TABLE(s5)
+
     // Load the tile's character data from VRAM
     la   a0, CHAR_DATA
     la   a1, 0xA03F0000 // VRAM
-    lw   t4, OBJCHARBASE
-    add  a1, a1, t4
-    andi t4, t1, 0x1FF
-    sll  t4, t4, 5
-    add  a1, a1, t4
-    add  a1, a1, s5
+    add  a1, a1, t5
     li   a2, 0x1F
     jal  dma_read
 
@@ -1067,33 +1159,35 @@ decode_object:
     spv  $v02, 0, -0x8, t7
     bnez t5, decode_object
 
-    // DMA the texture to alternating RDRAM locations
+    // DMA the texture to the tile cache in RDRAM
     la   a0, TEXTURE
-    la   a1, 0xA0360000
-    andi t0, s0, 0x8
-    sll  t0, t0, 8
+    la   a1, 0xA0370000
+    sll  t0, s5, 6
     add  a1, a1, t0
     sw   a1, RDP_TILE + 4
     li   a2, 0x3F
     jal  dma_write
 
+draw_objtile:
     // Run the RDP to draw an object tile
     la   a0, RDP_TILE
     la   a1, LAYER_CHART
     jal  rdp_send
-
+proot:
     // Loop through object tiles in the X-direction
     addi s0, s0, -8
     add  s2, s2, s6
-    addi s5, s5, 0x20
+    addi s5, s5, 1
+    andi s5, s5, 0x1FF
     bnez s0, next_objx
 
     // Loop through object tiles in the Y-direction
     move s0, s4
     sub  s2, s2, v0
-    sll  t7, s0, 2
+    srl  t7, s0, 3
     sub  s5, s5, t7
-    addi s5, s5, 0x200
+    addi s5, s5, 16
+    andi s5, s5, 0x1FF
     addi s1, s1, -8
     add  s8, s8, gp
     bnez s1, next_objy
@@ -1104,7 +1198,21 @@ next_object:
     lw   t0, OBJ_ROTATE
     andi t9, t9, 0x1FC
     bne  t9, t0, check_object
+
+    // Update the object tile cache status when finished
+    la   a0, TILE_TABLE
+    la   a1, 0xA0379000
+    li   a2, 0x1FF
+    jal  dma_write
     b    next_layer
+
+skip_objdecode:
+    // Update the RDP texture address and draw a cached tile
+    la   a1, 0xA0370000
+    sll  t0, s5, 6
+    add  a1, a1, t0
+    sw   a1, RDP_TILE + 4
+    b    draw_objtile
 
 
 next_frame:
