@@ -76,7 +76,8 @@
 
 .data
 
-event_func: .word vblank_start
+event_func:  .word vblank_start
+section_ptr: .word 0xA037C000
 
 cgram:      .hword 0:0x100
 oam:        .byte  0:0x220
@@ -87,6 +88,7 @@ fps_emulate: .byte 0x00
 fps_display: .byte 0x00
 frame_count: .byte 0x00
 frame_done:  .byte 0x00
+fb_border:   .byte 0x00
 brightness:  .byte 0x00
 vram_incl:   .byte 0x00
 vram_inch:   .byte 0x00
@@ -100,7 +102,6 @@ cg_lsb:     .byte  0x00
 
 mpy:      .word  0x000000
 coldata:  .hword 0x0000
-oamadd:   .hword 0x0000
 vmadd:    .hword 0x0000
 cgadd:    .hword 0x0000
 vtime:    .hword 0x0000
@@ -111,34 +112,30 @@ rdnmi:    .byte  0x00
 timeup:   .byte  0x00
 hvbjoy:   .byte  0x00
 
-// Extra set of below values; used for mid-frame effects
-split_line: .word  0x00 // 0xEB4-0xEB7
-top_values: .space 0xA4 // 0xEB8-0xF5B
-
-// Mirrors of RSP values; addresses 0xF5C-0xFFF
-fb_border:   .word 0x08
-obj_rotate:  .word 0x000
-bg_mode:     .word 0x00
-sub_mask:    .word 0x00
-main_mask:   .word 0x00
-obj_size:    .word 0x10100808
-objcharbase: .word 0x0000
-bgscrnbase:  .word 0x0000:4
-bgbaseofsh:  .word 0x0000:4
-bgbaseofsv:  .word 0x0000:4
-bgcharbase:  .word 0x0000:4
-bghofs:      .word 0x0000:4
-bgvofs:      .word 0x0000:4
-m7hofs:      .word 0x0000
-m7vofs:      .word 0x0000
-m7a:         .word 0x0000
-m7b:         .word 0x0000
-m7c:         .word 0x0000
-m7d:         .word 0x0000
-m7x:         .word 0x0000
-m7y:         .word 0x0000
-m7_nowrap:   .word 0x00
-fill_color:  .word 0x0000
+// RSP values that are saved for each section (0x50 bytes)
+obj_size:    .word  0x10100808
+objcharbase: .hword 0x0000
+oamadd:      .hword 0x0000
+bgscrnbase:  .hword 0x0000:4
+bgbaseofsh:  .hword 0x0000:4
+bgbaseofsv:  .hword 0x0000:4
+bgcharbase:  .hword 0x0000:4
+bghofs:      .hword 0x0000:4
+bgvofs:      .hword 0x0000:4
+m7hofs:      .hword 0x0000
+m7vofs:      .hword 0x0000
+m7a:         .hword 0x0000
+m7b:         .hword 0x0000
+m7c:         .hword 0x0000
+m7d:         .hword 0x0000
+m7x:         .hword 0x0000
+m7y:         .hword 0x0000
+bg_mode:     .byte  0x00
+sub_mask:    .byte  0x00
+main_mask:   .byte  0x00
+m7_nowrap:   .byte  0x00
+split_line:  .byte  0x00
+filler:      .byte  0x00:3
 
 // Possible offsets for additional screens past the base
 scrn_ofsh: .hword 0x0000, 0x0800, 0x0000, 0x0800
@@ -202,9 +199,7 @@ vblank_end:
     sb   t0, hvbjoy
     sb   zero, rdnmi
 
-    // Reset the frame split and trigger HDMA once per frame
-    // Per-scanline changes aren't supported, but this at least initializes values
-    sw   zero, split_line
+    // Trigger HDMA once per frame to at least initialize values
     jal  trigger_hdma
 
     // Schedule a V-count event if the time is valid
@@ -247,16 +242,23 @@ vcount_irq:
     j    rsp_frame
 
 make_sect:
-    // Save values for the previous frame section
-    sw   t0, split_line
-    la   t0, fb_border
-    la   t1, scrn_ofsh
-val_loop:
+    // Check if the section limit has been hit
+    lw   t1, section_ptr
+    andi t2, t1, 0x1FFF
+    beq  t2, 0x50 * 7, sched_start
+
+    // Copy values for a new frame section
+    sb   t0, split_line
+    la   t0, obj_size
+    li   t2, 0x50
+sect_loop:
+    addi t2, t2, -4
     lw   t3, (t0)
-    addi t2, t0, -0xA4
-    sw   t3, (t2)
     addi t0, t0, 4
-    bne  t0, t1, val_loop
+    sw   t3, (t1)
+    addi t1, t1, 4
+    bnez t2, sect_loop
+    sw   t1, section_ptr
 
 sched_start:
     // Schedule the V-blank start event
@@ -347,7 +349,7 @@ update_dpal:
     sh   t3, 0xA038C006(t1)
     bnez t9, update_dpal
     sh   t8, cgram
-    sw   t3, fill_color
+    sw   t3, 0xA4000FF4 // Fill color
 
     // Update the RSP's copy of OAM in DMEM
     la   t0, oam
@@ -389,26 +391,34 @@ vram_loop:
     addi t1, t1, 4
     bnez t2, vram_loop
 
-    // Set the RSP's OAM priority rotation value
-    lhu  t1, oamadd
-    andi t0, t1, 0x8000
-    beqz t0, no_rotate
-    sll  t0, t1, 2
-    addi t0, t0, -4
-    andi t0, t0, 0x1FC
-no_rotate:
-    sw   t0, obj_rotate
+    // Set the frame end based on the framebuffer border
+    lbu  t0, fb_border
+    xori t1, t0, 0x8
+    sw   t1, 0xA4000FF0 // Framebuffer border
+    sll  t0, t0, 1
+    addi t0, t0, 223
+    sb   t0, split_line
 
-    // Update the RSP's register values in DMEM
-    la   t0, split_line
-    la   t1, scrn_ofsh
-    la   t2, 0xA4000EB4
-reg_loop:
+    // Copy values for the final frame section
+    la   t0, obj_size
+    lw   t1, section_ptr
+    li   t2, 0x50
+end_loop:
+    addi t2, t2, -4
     lw   t3, (t0)
     addi t0, t0, 4
-    sw   t3, (t2)
-    addi t2, t2, 4
-    bne  t0, t1, reg_loop
+    sw   t3, (t1)
+    addi t1, t1, 4
+    bnez t2, end_loop
+
+    // Reset and swap section pointers with the RSP
+    li   t0, 0xA037E000
+    blt  t1, t0, set_ptrs
+    xori t0, t0, 0x2000
+set_ptrs:
+    sw   t0, section_ptr
+    xori t0, t0, 0x2000
+    sw   t0, 0xA4000FF8 // Section pointer
 
 frame_wait:
     // Wait for a framebuffer to be available
@@ -552,7 +562,7 @@ write_obsel: // a1: value
     // TODO: use the gap setting
     andi t0, a1, 0x3
     sll  t0, t0, 14
-    sw   t0, objcharbase
+    sh   t0, objcharbase
 
     // Update the OBJ small and large sizes in DMEM
     andi t0, a1, 0xE0
@@ -633,13 +643,13 @@ write_bgmode: // a1: value
     andi t0, a1, 0x0F
     beq  t0, 0x09, high_prio
     andi t0, t0, 0x07
-    sw   t0, bg_mode
+    sb   t0, bg_mode
     jr   ra
 
 high_prio:
     // Set a special mode when mode 1 is set with the BG3 priority bit
     li   t0, 8
-    sw   t0, bg_mode
+    sb   t0, bg_mode
     jr   ra
 
 
@@ -647,17 +657,17 @@ write_bg1sc: // a1: value
     // Update BG1's screen base address in DMEM
     andi t0, a1, 0x7C
     sll  t0, t0, 9
-    sw   t0, bgscrnbase + 0
+    sh   t0, bgscrnbase + 0
 
     // Update BG1's horizontal base offset in DMEM
     andi t1, a1, 0x03
     sll  t1, t1, 1
     lhu  t0, scrn_ofsh(t1)
-    sw   t0, bgbaseofsh + 0
+    sh   t0, bgbaseofsh + 0
 
     // Update BG1's vertical base offset in DMEM
     lhu  t0, scrn_ofsv(t1)
-    sw   t0, bgbaseofsv + 0
+    sh   t0, bgbaseofsv + 0
     jr   ra
 
 
@@ -665,17 +675,17 @@ write_bg2sc: // a1: value
     // Update BG2's screen base address in DMEM
     andi t0, a1, 0x7C
     sll  t0, t0, 9
-    sw   t0, bgscrnbase + 4
+    sh   t0, bgscrnbase + 2
 
     // Update BG2's horizontal base offset in DMEM
     andi t1, a1, 0x03
     sll  t1, t1, 1
     lhu  t0, scrn_ofsh(t1)
-    sw   t0, bgbaseofsh + 4
+    sh   t0, bgbaseofsh + 2
 
     // Update BG2's vertical base offset in DMEM
     lhu  t0, scrn_ofsv(t1)
-    sw   t0, bgbaseofsv + 4
+    sh   t0, bgbaseofsv + 2
     jr   ra
 
 
@@ -683,17 +693,17 @@ write_bg3sc: // a1: value
     // Update BG3's screen base address in DMEM
     andi t0, a1, 0x7C
     sll  t0, t0, 9
-    sw   t0, bgscrnbase + 8
+    sh   t0, bgscrnbase + 4
 
     // Update BG3's horizontal base offset in DMEM
     andi t1, a1, 0x03
     sll  t1, t1, 1
     lhu  t0, scrn_ofsh(t1)
-    sw   t0, bgbaseofsh + 8
+    sh   t0, bgbaseofsh + 4
 
     // Update BG3's vertical base offset in DMEM
     lhu  t0, scrn_ofsv(t1)
-    sw   t0, bgbaseofsv + 8
+    sh   t0, bgbaseofsv + 4
     jr   ra
 
 
@@ -701,17 +711,17 @@ write_bg4sc: // a1: value
     // Update BG4's screen base address in DMEM
     andi t0, a1, 0x7C
     sll  t0, t0, 9
-    sw   t0, bgscrnbase + 12
+    sh   t0, bgscrnbase + 6
 
     // Update BG4's horizontal base offset in DMEM
     andi t1, a1, 0x03
     sll  t1, t1, 1
     lhu  t0, scrn_ofsh(t1)
-    sw   t0, bgbaseofsh + 12
+    sh   t0, bgbaseofsh + 6
 
     // Update BG4's vertical base offset in DMEM
     lhu  t0, scrn_ofsv(t1)
-    sw   t0, bgbaseofsv + 12
+    sh   t0, bgbaseofsv + 6
     jr   ra
 
 
@@ -719,12 +729,12 @@ write_bg12nba: // a1: value
     // Update BG1's character base address in DMEM
     andi t0, a1, 0x07
     sll  t0, t0, 13
-    sw   t0, bgcharbase + 0
+    sh   t0, bgcharbase + 0
 
     // Update BG2's character base address in DMEM
     andi t0, a1, 0x70
     sll  t0, t0, 9
-    sw   t0, bgcharbase + 4
+    sh   t0, bgcharbase + 2
     jr   ra
 
 
@@ -732,12 +742,12 @@ write_bg34nba: // a1: value
     // Update BG3's character base address in DMEM
     andi t0, a1, 0x07
     sll  t0, t0, 13
-    sw   t0, bgcharbase + 8
+    sh   t0, bgcharbase + 4
 
     // Update BG4's character base address in DMEM
     andi t0, a1, 0x70
     sll  t0, t0, 9
-    sw   t0, bgcharbase + 12
+    sh   t0, bgcharbase + 6
     jr   ra
 
 
@@ -748,7 +758,7 @@ write_bg1hofs: // a1: value
     sll  t1, t1, 8
     or   t0, t0, t1
     sb   a1, bg_old
-    sw   t0, bghofs + 0
+    sh   t0, bghofs + 0
 
     // Update M7HOFS with a 13-bit value from the old and new bytes
     lbu  t0, m7_old
@@ -757,7 +767,7 @@ write_bg1hofs: // a1: value
     sb   a1, m7_old
     sll  t0, t0, 18
     sra  t0, t0, 18
-    sw   t0, m7hofs
+    sh   t0, m7hofs
     jr   ra
 
 
@@ -768,7 +778,7 @@ write_bg1vofs: // a1: value
     sll  t1, t1, 8
     or   t0, t0, t1
     sb   a1, bg_old
-    sw   t0, bgvofs + 0
+    sh   t0, bgvofs + 0
 
     // Update M7VOFS with a 13-bit value from the old and new bytes
     lbu  t0, m7_old
@@ -777,7 +787,7 @@ write_bg1vofs: // a1: value
     sb   a1, m7_old
     sll  t0, t0, 18
     sra  t0, t0, 18
-    sw   t0, m7vofs
+    sh   t0, m7vofs
     jr   ra
 
 
@@ -788,7 +798,7 @@ write_bg2hofs: // a1: value
     sll  t1, t1, 8
     or   t0, t0, t1
     sb   a1, bg_old
-    sw   t0, bghofs + 4
+    sh   t0, bghofs + 2
     jr   ra
 
 
@@ -799,7 +809,7 @@ write_bg2vofs: // a1: value
     sll  t1, t1, 8
     or   t0, t0, t1
     sb   a1, bg_old
-    sw   t0, bgvofs + 4
+    sh   t0, bgvofs + 2
     jr   ra
 
 
@@ -810,7 +820,7 @@ write_bg3hofs: // a1: value
     sll  t1, t1, 8
     or   t0, t0, t1
     sb   a1, bg_old
-    sw   t0, bghofs + 8
+    sh   t0, bghofs + 4
     jr   ra
 
 
@@ -821,7 +831,7 @@ write_bg3vofs: // a1: value
     sll  t1, t1, 8
     or   t0, t0, t1
     sb   a1, bg_old
-    sw   t0, bgvofs + 8
+    sh   t0, bgvofs + 4
     jr   ra
 
 
@@ -832,7 +842,7 @@ write_bg4hofs: // a1: value
     sll  t1, t1, 8
     or   t0, t0, t1
     sb   a1, bg_old
-    sw   t0, bghofs + 12
+    sh   t0, bghofs + 6
     jr   ra
 
 
@@ -843,7 +853,7 @@ write_bg4vofs: // a1: value
     sll  t1, t1, 8
     or   t0, t0, t1
     sb   a1, bg_old
-    sw   t0, bgvofs + 12
+    sh   t0, bgvofs + 6
     jr   ra
 
 
@@ -934,7 +944,7 @@ write_m7sel: // a1: value
     // Set whether mode 7 should wrap out of bounds or not
     // TODO: use the rest of the bits
     srl  t0, a1, 7
-    sw   t0, m7_nowrap
+    sb   t0, m7_nowrap
     jr   ra
 
 
@@ -944,11 +954,11 @@ write_m7a: // a1: value
     sll  t1, a1, 8
     or   t0, t0, t1
     sb   a1, m7_old
-    sw   t0, m7a
+    sh   t0, m7a
 
     // Update the signed multiply result
-    lh   t0, m7a + 2
-    lb   t1, m7b + 2
+    lh   t0, m7a
+    lb   t1, m7b
     mult t0, t1
     mflo t0
     sw   t0, mpy
@@ -961,11 +971,11 @@ write_m7b: // a1: value
     sll  t1, a1, 8
     or   t0, t0, t1
     sb   a1, m7_old
-    sw   t0, m7b
+    sh   t0, m7b
 
     // Update the signed multiply result
-    lh   t0, m7a + 2
-    lb   t1, m7b + 2
+    lh   t0, m7a
+    lb   t1, m7b
     mult t0, t1
     mflo t0
     sw   t0, mpy
@@ -978,7 +988,7 @@ write_m7c: // a1: value
     sll  t1, a1, 8
     or   t0, t0, t1
     sb   a1, m7_old
-    sw   t0, m7c
+    sh   t0, m7c
     jr   ra
 
 
@@ -988,7 +998,7 @@ write_m7d: // a1: value
     sll  t1, a1, 8
     or   t0, t0, t1
     sb   a1, m7_old
-    sw   t0, m7d
+    sh   t0, m7d
     jr   ra
 
 
@@ -1000,7 +1010,7 @@ write_m7x: // a1: value
     sb   a1, m7_old
     sll  t0, t0, 18
     sra  t0, t0, 18
-    sw   t0, m7x
+    sh   t0, m7x
     jr   ra
 
 
@@ -1012,7 +1022,7 @@ write_m7y: // a1: value
     sb   a1, m7_old
     sll  t0, t0, 18
     sra  t0, t0, 18
-    sw   t0, m7y
+    sh   t0, m7y
     jr   ra
 
 
@@ -1050,9 +1060,9 @@ write_tm: // a1: value
     sb   a1, tm
     lbu  t0, ts
     xori t1, a1, 0x1F
-    sw   a1, main_mask
+    sb   a1, main_mask
     and  t0, t0, t1
-    sw   t0, sub_mask
+    sb   t0, sub_mask
     jr   ra
 
 
@@ -1062,7 +1072,7 @@ write_ts: // a1: value
     lbu  t0, tm
     xori t0, t0, 0x1F
     and  t0, t0, a1
-    sw   t0, sub_mask
+    sb   t0, sub_mask
     jr   ra
 
 
@@ -1097,8 +1107,7 @@ write_setini: // a1: value
     // TODO: use the rest of the bits
     andi t0, a1, 0x4
     sll  t0, t0, 1
-    xori t0, t0, 0x8
-    sw   t0, fb_border
+    sb   t0, fb_border
     jr   ra
 
 

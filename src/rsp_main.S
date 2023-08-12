@@ -36,35 +36,36 @@
 #define LAYER_CHART  0xCB8
 #define TILE_PARAMS  0xD48
 #define TILE_JUMPS   0xD88
-#define CACHE_BASES  0xD94
-#define MODE7_BOUNDS 0xDA8
-#define MASK_OFS     0xDB8
-#define FRAMEBUFFER  0xEB0
-#define SPLIT_LINE   0xEB4
-#define TOP_VALUES   0xEB8
-#define FB_BORDER    0xF5C
-#define OBJ_ROTATE   0xF60
-#define BG_MODE      0xF64
-#define SUB_MASK     0xF68
-#define MAIN_MASK    0xF6C
-#define OBJ_SIZE     0xF70
-#define OBJCHARBASE  0xF74
-#define BGSCRNBASE   0xF78
-#define BGBASEOFSH   0xF88
-#define BGBASEOFSV   0xF98
-#define BGCHARBASE   0xFA8
-#define BGHOFS       0xFB8
-#define BGVOFS       0xFC8
-#define M7HOFS       0xFD8
-#define M7VOFS       0xFDC
-#define M7A          0xFE0
-#define M7B          0xFE4
-#define M7C          0xFE8
-#define M7D          0xFEC
-#define M7X          0xFF0
-#define M7Y          0xFF4
-#define M7_NOWRAP    0xFF8
-#define FILL_COLOR   0xFFC
+#define MODE7_BOUNDS 0xD94
+#define CACHE_BASES  0xDA4
+#define MASK_OFS     0xDAE
+#define OBJ_SIZE     0xDB0
+#define OBJCHARBASE  0xDB4
+#define OAMADD       0xDB6
+#define BGSCRNBASE   0xDB8
+#define BGBASEOFSH   0xDC0
+#define BGBASEOFSV   0xDC8
+#define BGCHARBASE   0xDD0
+#define BGHOFS       0xDD8
+#define BGVOFS       0xDE0
+#define M7HOFS       0xDE8
+#define M7VOFS       0xDEA
+#define M7A          0xDEC
+#define M7B          0xDEE
+#define M7C          0xDF0
+#define M7D          0xDF2
+#define M7X          0xDF4
+#define M7Y          0xDF6
+#define BG_MODE      0xDF8
+#define SUB_MASK     0xDF9
+#define MAIN_MASK    0xDFA
+#define M7_NOWRAP    0xDFB
+#define SPLIT_LINE   0xDFC
+#define FILLER       0xDFD
+#define FB_BORDER    0xFF0
+#define FILL_COLOR   0xFF4
+#define SECTION_PTR  0xFF8
+#define FRAMEBUFFER  0xFFC
 
 .set reorder
 
@@ -99,7 +100,7 @@ rdp_section:
 
 rdp_frame:
     // RDP commands that run at the start of a frame
-    .dword 0x3F100117A03AE600 // Set Color Image
+    .dword 0x3F100117A03CF300 // Set Color Image
     .dword 0x3700000000000000 // Set Fill Color
     .dword 0x2F3888FF00040001 // Set Other Modes (fill)
     .dword 0x3642F3C000030000 // Fill Rectangle
@@ -150,44 +151,43 @@ tile_params:
     .word 0x00000070, 0x00100000, 0x0000FFF0, 0 // Y-mirror
     .word 0x00700070, 0xFFF00000, 0x0000FFF0, 0 // XY-mirror
 
-tile_jumps:   .word decode_tile4, decode_tile16, decode_tile256
-cache_bases:  .word 0:5
-mode7_bounds: .word 0:4
-mask_ofs:     .byte 0
+tile_jumps:   .word  decode_tile4, decode_tile16, decode_tile256
+mode7_bounds: .word  0:4
+cache_bases:  .hword 0:5
+mask_ofs:     .byte  0
 
-.space 0xF7
+// Values that are reloaded for each section (0x50 bytes)
+obj_size:    .word  0x10100808
+objcharbase: .hword 0x0000
+oamadd:      .hword 0x0000
+bgscrnbase:  .hword 0x0000:4
+bgbaseofsh:  .hword 0x0000:4
+bgbaseofsv:  .hword 0x0000:4
+bgcharbase:  .hword 0x0000:4
+bghofs:      .hword 0x0000:4
+bgvofs:      .hword 0x0000:4
+m7hofs:      .hword 0x0000
+m7vofs:      .hword 0x0000
+m7a:         .hword 0x0000
+m7b:         .hword 0x0000
+m7c:         .hword 0x0000
+m7d:         .hword 0x0000
+m7x:         .hword 0x0000
+m7y:         .hword 0x0000
+bg_mode:     .byte  0x00
+sub_mask:    .byte  0x00
+main_mask:   .byte  0x00
+m7_nowrap:   .byte  0x00
+split_line:  .byte  0x00
+filler:      .byte  0x00:3
 
-// Pointer to active framebuffer; used for text drawing on CPU
-framebuffer: .word 0xA03AE600 // 0xEB0-0xEB3
+.space 0x1F0
 
-// Extra set of below values; used for mid-frame effects
-split_line: .word  0x00 // 0xEB4-0xEB7
-top_values: .space 0xA4 // 0xEB8-0xF5B
-
-// Values updated by CPU; addresses 0xF5C-0xFFF
-fb_border:   .word 0x08
-obj_rotate:  .word 0x000
-bg_mode:     .word 0x00
-sub_mask:    .word 0x00
-main_mask:   .word 0x00
-obj_size:    .word 0x10100808
-objcharbase: .word 0x0000
-bgscrnbase:  .word 0x0000:4
-bgbaseofsh:  .word 0x0000:4
-bgbaseofsv:  .word 0x0000:4
-bgcharbase:  .word 0x0000:4
-bghofs:      .word 0x0000:4
-bgvofs:      .word 0x0000:4
-m7hofs:      .word 0x0000
-m7vofs:      .word 0x0000
-m7a:         .word 0x0000
-m7b:         .word 0x0000
-m7c:         .word 0x0000
-m7d:         .word 0x0000
-m7x:         .word 0x0000
-m7y:         .word 0x0000
-m7_nowrap:   .word 0x00
-fill_color:  .word 0x0000
+// Values with hardcoded addresses for easy CPU access
+fb_border:   .word 0x08       // 0xFF0
+fill_color:  .word 0x0000     // 0xFF4
+section_ptr: .word 0xA037E000 // 0xFF8
+framebuffer: .word 0xA03CF300 // 0xFFC
 
 .text
 
@@ -211,30 +211,27 @@ main:
     jal  rdp_send
 
 draw_frame:
-    // Set the max Y-bound based on 224 or 239-line mode
-    lw   t0, FB_BORDER
-    li   sp, 224
-    bnez t0, check_split
-    li   sp, 239
+    // Set the initial section bound
+    li   k1, 0
 
-check_split:
-    // Set values for the first frame section if split
-    lw   t0, SPLIT_LINE
-    beqz t0, full_frame
-    bge  t0, sp, full_frame
-    li   k0, 0         // Section start
-    addi k1, t0, 1     // Section end
-    addi s7, k0, -0xA4 // Value offset
-    b    draw_section
+next_section:
+    // Finish the frame after the last section is done
+    bge  k1, 224, next_frame
 
-full_frame:
-    // Set values for the full frame if not split
-    li   k0, 0  // Section start
-    move k1, sp // Section end
-    li   s7, 0  // Value offset
+    // Load values for the next section
+    la   a0, OBJ_SIZE
+    lw   a1, section_ptr
+    li   a2, 0x4F
+    jal  dma_read
+    addi a1, a1, 0x50
+    sw   a1, section_ptr
 
-draw_section:
-    // Update the RDP scissor command for a frame section
+    // Set the section bounds
+    move k0, k1
+    lbu  k1, SPLIT_LINE
+    addi k1, k1, 1
+
+    // Update the RDP scissor command for the section
     lw   t0, FB_BORDER
     add  t1, t0, k0
     sll  t1, t1, 2
@@ -249,7 +246,7 @@ draw_section:
     jal  rdp_send
 
     // Set the initial layer lookup offset
-    lw   s3, BG_MODE(s7)
+    lbu  s3, BG_MODE
     sll  s3, s3, 4
     sb   zero, MASK_OFS
 
@@ -267,29 +264,20 @@ next_layer:
     // After the sub screen layers are done, draw the main screen layers on top
     // Blending isn't implemented, but this at least allows using screens to reorder layers
     bnez t1, next_section
-    lw   s3, BG_MODE(s7)
+    lbu  s3, BG_MODE
     sll  s3, s3, 4
-    li   t1, 4
+    li   t1, 1
     sb   t1, MASK_OFS
     b    next_layer
-
-next_section:
-    // Set values for the second frame section if split
-    beqz s7, next_frame
-    move k0, k1 // Section start
-    move k1, sp // Section end
-    li   s7, 0  // Value offset
-    b    draw_section
 
 
 draw_bg:
     // Skip the layer if the BG is disabled
-    add  t1, t1, s7
-    lw   t1, SUB_MASK(t1)
+    lbu  t1, SUB_MASK(t1)
     li   t2, 1
-    andi a3, t0, 0x03 // Index
-    sll  t2, t2, a3
-    and  t1, t1, t2
+    andi t3, t0, 0x03 // Index
+    sll  a3, t2, t3   // Mask
+    and  t1, t1, a3
     beqz t1, next_layer
 
     // Set parameters based on the BG type
@@ -302,13 +290,12 @@ draw_bg:
     sll  gp, gp, 7
 
     // Check if the BG type or character base changed
-    sll  t3, a3, 2
-    add  s2, t3, s7
-    lw   t0, BGCHARBASE(s2)
+    sll  s2, t3, 1
+    lhu  t0, BGCHARBASE(s2)
     or   t0, t0, s4
-    lw   t1, CACHE_BASES(t3)
+    lhu  t1, CACHE_BASES(s2)
     beq  t0, t1, load_cache
-    sw   t0, CACHE_BASES(t3)
+    sh   t0, CACHE_BASES(s2)
 
     // Reset the tile cache if something changed
     la   t0, TILE_TABLE
@@ -324,15 +311,15 @@ load_cache:
     // Load the previous cache status if it's still valid
     la   a0, TILE_TABLE
     la   a1, 0xA0378000
-    sll  t0, a3, 10
+    sll  t0, s2, 9
     add  a1, a1, t0
     li   a2, 0x3FF
     jal  dma_read
 
 get_offsets:
     // Get the horizontal and vertical offsets within the BG
-    lw   s5, BGVOFS(s2)
-    lw   s6, BGHOFS(s2)
+    lhu  s5, BGVOFS(s2)
+    lhu  s6, BGHOFS(s2)
     addi s5, s5, 1
 
     // Set the initial tile Y-coordinate and character number
@@ -350,14 +337,14 @@ draw_row:
     // Get the base screen address for the BG
     la   a0, SCRN_DATA
     la   a1, 0xA03F0000 // VRAM
-    lw   t0, BGSCRNBASE(s2)
+    lhu  t0, BGSCRNBASE(s2)
     add  a1, a1, t0
 
     // Apply the vertical base offset if past the bounds of the first screen
     add  t1, s5, s1
     andi t0, t1, 0x100
     beqz t0, load_screen
-    lw   t0, BGBASEOFSV(s2)
+    lhu  t0, BGBASEOFSV(s2)
     add  a1, a1, t0
 
 load_screen:
@@ -370,7 +357,7 @@ load_screen:
 
     // Load a row of BG entries from the second horizontal screen
     addi a0, a0, 0x40
-    lw   t0, BGBASEOFSH(s2)
+    lhu  t0, BGBASEOFSH(s2)
     add  a1, a1, t0
     jal  dma_read
 
@@ -419,18 +406,16 @@ next_tile:
 
     // Check if the tile's VRAM is dirty for the current BG
     andi s8, t6, 0x3FF // Character number
-    lw   t0, BGCHARBASE(s2)
+    lhu  t0, BGCHARBASE(s2)
     sll  t1, s8, s4
     add  t3, t0, t1
     srl  t0, t3, 6
     lbu  t2, VRAM_TABLE(t0)
-    li   t1, 1
-    sll  t1, t1, a3
-    and  t4, t2, t1
+    and  t4, t2, a3
     beqz t4, check_cache
 
     // Clear the VRAM dirty bit and reset affected cache entries
-    xori t1, t1, 0x1F
+    xori t1, a3, 0x1F
     and  t2, t2, t1
     sb   t2, VRAM_TABLE(t0)
     andi t1, s8, 0x3
@@ -569,7 +554,7 @@ cache_tile:
     // DMA the texture to the tile cache in RDRAM
     la   a0, TEXTURE
     la   a1, 0xA0330000
-    sll  t0, a3, 16
+    sll  t0, s2, 15
     add  a1, a1, t0
     sll  t0, s8, 6
     add  a1, a1, t0
@@ -595,7 +580,7 @@ finish_tile:
     // Update the BG's tile cache status when finished
     la   a0, TILE_TABLE
     la   a1, 0xA0378000
-    sll  t0, a3, 10
+    sll  t0, s2, 9
     add  a1, a1, t0
     li   a2, 0x3FF
     jal  dma_write
@@ -604,7 +589,7 @@ finish_tile:
 skip_decode:
     // Update the RDP texture address and draw a cached tile
     la   a1, 0xA0330000
-    sll  t0, a3, 16
+    sll  t0, s2, 15
     add  a1, a1, t0
     sll  t0, s8, 6
     add  a1, a1, t0
@@ -621,8 +606,7 @@ skip_upload:
 
 draw_mode7:
     // Skip the layer if the BG is disabled
-    add  t1, t1, s7
-    lw   t1, SUB_MASK(t1)
+    lbu  t1, SUB_MASK(t1)
     andi t1, t1, 0x1
     beqz t1, next_layer
 
@@ -637,38 +621,38 @@ draw_mode7:
     sub  s1, k0, t0
 
     // Calculate the initial screen X-coordinate
-    lh   t0, M7HOFS + 2(s7)
-    lh   t2, M7X + 2(s7)
+    lh   t0, M7HOFS
+    lh   t2, M7X
     sub  t0, t0, t2
 
     // Calculate the initial screen Y-coordinate
-    lh   t1, M7VOFS + 2(s7)
-    lh   t3, M7Y + 2(s7)
+    lh   t1, M7VOFS
+    lh   t3, M7Y
     add  t1, t1, s1
     sub  t1, t1, t3
     addi t1, t1, 1
 
     // Calculate the initial VRAM X-coordinate
-    lh    s2, M7A + 2
+    lh    s2, M7A
     sll   t2, t2, 8
     move  a0, t0
     move  a1, s2
     jal   multiply
     add   t2, t2, v0
-    lh    s4, M7B + 2
+    lh    s4, M7B
     move  a0, t1
     move  a1, s4
     jal   multiply
     add   t8, t2, v0
 
     // Calculate the initial VRAM Y-coordinate
-    lh    s5, M7C + 2
+    lh    s5, M7C
     sll   t3, t3, 8
     move  a0, t0
     move  a1, s5
     jal   multiply
     add   t3, t3, v0
-    lh    s6, M7D + 2
+    lh    s6, M7D
     move  a0, t1
     move  a1, s6
     jal   multiply
@@ -771,7 +755,7 @@ calc_tofs:
 
 check_wrap:
     // Check if tiles should wrap out of bounds
-    lw   t0, M7_NOWRAP(s7)
+    lbu  t0, M7_NOWRAP
     beqz t0, set_texels
     li   t1, 0x3FFFF
 
@@ -955,20 +939,26 @@ finish_tile7:
 
 draw_obj:
     // Skip the layer if objects are disabled
-    add  t1, t1, s7
-    lw   t1, SUB_MASK(t1)
+    lbu  t1, SUB_MASK(t1)
     andi a3, t0, 0x03 // Priority
     andi t1, t1, 0x10
     beqz t1, next_layer
 
     // Set the OAM count to the first in rotation
-    lw   t9, OBJ_ROTATE
+    lhu  t9, OAMADD
+    andi v1, t9, 0x8000
+    beqz v1, no_rotate
+    sll  v1, t9, 1
+    addi v1, v1, -4
+    andi v1, v1, 0x1FC
+no_rotate:
+    move t9, v1
 
     // Check if the object character base changed
-    lw   t0, OBJCHARBASE
-    lw   t2, CACHE_BASES + 16
+    lhu  t0, OBJCHARBASE
+    lhu  t2, CACHE_BASES + 8
     beq  t0, t2, load_objcache
-    sw   t0, CACHE_BASES + 16
+    sh   t0, CACHE_BASES + 8
 
     // Reset the tile cache if something changed
     la   t0, TILE_TABLE
@@ -1092,7 +1082,7 @@ next_objx:
     sh   t7, RDP_TILE + 32 // x1
 
     // Check if the tile's VRAM is dirty for objects
-    lw   t0, OBJCHARBASE
+    lhu  t0, OBJCHARBASE
     sll  t4, s5, 5
     add  t5, t0, t4
     srl  t0, t5, 6
@@ -1195,9 +1185,8 @@ proot:
 next_object:
     // Move to the next object until all have been drawn
     addi t9, t9, -4
-    lw   t0, OBJ_ROTATE
     andi t9, t9, 0x1FC
-    bne  t9, t0, check_object
+    bne  t9, v1, check_object
 
     // Update the object tile cache status when finished
     la   a0, TILE_TABLE

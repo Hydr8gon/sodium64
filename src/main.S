@@ -138,10 +138,6 @@ pi_wait1:
     la   a1, rsp_main_data_start
     jal  rsp_upload
 
-    // Start the RSP
-    li   t0, 0x0001     // Clear halt
-    sw   t0, 0xA4040010 // SP_STATUS_REG
-
     // Enable VI interrupts and nothing else
     li   t0, 0x0595     // Set VI mask
     sw   t0, 0xA430000C // MI_MASK_REG

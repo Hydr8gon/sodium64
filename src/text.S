@@ -135,7 +135,7 @@ char_9:
 
 draw_value: // a0: value, a1: top-right offset
     // Apply the offset within the current rendered frame
-    lw   t0, 0xA4000EB0
+    lw   t0, 0xA4000FFC // Framebuffer
     add  a1, a1, t0
     li   t1, 10
 
