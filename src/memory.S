@@ -556,13 +556,13 @@ tlbm_exception:
 
 sram_read8: // t0: address - v0: value
     // Read an 8-bit value from SRAM
-    lbu  v0, sram(t0)
+    lbu  v0, sram + 0x20000000(t0) // Uncached
     jr   ra
 
 
 sram_write8: // t0: address, a1: value
     // Write an 8-bit value to SRAM and mark it as dirty
-    sb   a1, sram(t0)
+    sb   a1, sram + 0x20000000(t0) // Uncached
     li   t0, 1
     sb   t0, sram_dirty
     jr   ra
