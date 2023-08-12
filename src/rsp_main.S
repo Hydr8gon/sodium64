@@ -949,9 +949,9 @@ draw_obj:
     andi v1, t9, 0x8000
     beqz v1, no_rotate
     sll  v1, t9, 1
+no_rotate:
     addi v1, v1, -4
     andi v1, v1, 0x1FC
-no_rotate:
     move t9, v1
 
     // Check if the object character base changed
