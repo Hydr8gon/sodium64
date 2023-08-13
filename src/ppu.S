@@ -130,12 +130,13 @@ m7c:         .hword 0x0000
 m7d:         .hword 0x0000
 m7x:         .hword 0x0000
 m7y:         .hword 0x0000
+fill_color:  .hword 0x0000
+force_blank: .byte  0x00
 bg_mode:     .byte  0x00
 sub_mask:    .byte  0x00
 main_mask:   .byte  0x00
 m7_nowrap:   .byte  0x00
 split_line:  .byte  0x00
-filler:      .byte  0x00:3
 
 // Possible offsets for additional screens past the base
 scrn_ofsh: .hword 0x0000, 0x0800, 0x0000, 0x0800
@@ -233,32 +234,14 @@ vcount_irq:
     li   t0, 0x80
     sb   t0, timeup
 
-    // Some games use V-count near the end of frame as an early V-blank
-    // If this is the case, handle the frame now instead of V-blank
-    lhu  t0, vtime
-    ble  t0, 210, make_sect
-    sb   t0, frame_done
-    la   ra, sched_start
-    j    rsp_frame
-
-make_sect:
     // Check if the section limit has been hit
     lw   t1, section_ptr
     andi t2, t1, 0x1FFF
     beq  t2, 0x50 * 7, sched_start
 
-    // Copy values for a new frame section
-    sb   t0, split_line
-    la   t0, obj_size
-    li   t2, 0x50
-sect_loop:
-    addi t2, t2, -4
-    lw   t3, (t0)
-    addi t0, t0, 4
-    sw   t3, (t1)
-    addi t1, t1, 4
-    bnez t2, sect_loop
-    sw   t1, section_ptr
+    // Make a new frame section at the V-count line
+    lhu  a0, vtime
+    jal  make_section
 
 sched_start:
     // Schedule the V-blank start event
@@ -272,20 +255,77 @@ sched_start:
     j    sched_next
 
 
+make_section: // a0: line
+    // Use the sub screen backdrop color if set; otherwise use the main color
+    // Blending isn't implemented, but this fixes the backdrop in some cases
+    lbu  t0, brightness
+    lhu  t1, coldata
+    li   t3, 0x0001 // Alpha
+    bnez t1, set_backdrop
+    lhu  t1, cgram
+
+set_backdrop:
+    // Apply brightness to the red component and shift for N64 format
+    andi t2, t1, 0x1F
+    mult t2, t0
+    mflo t2
+    srl  t2, t2, 4
+    sll  t2, t2, 11
+    or   t3, t3, t2
+
+    // Apply brightness to the green component and shift for N64 format
+    srl  t2, t1, 5
+    andi t2, t2, 0x1F
+    mult t2, t0
+    mflo t2
+    srl  t2, t2, 4
+    sll  t2, t2, 6
+    or   t3, t3, t2
+
+    // Apply brightness to the blue component and shift for N64 format
+    srl  t2, t1, 10
+    andi t2, t2, 0x1F
+    mult t2, t0
+    mflo t2
+    srl  t2, t2, 4
+    sll  t2, t2, 1
+    or   t3, t3, t2
+
+    // Set the backdrop color and section bounds
+    sh   t3, fill_color
+    sb   a0, split_line
+
+    // Copy values for a new frame section
+    la   t0, obj_size
+    lw   t1, section_ptr
+    li   t2, 0x50
+sect_loop:
+    addi t2, t2, -4
+    lw   t3, (t0)
+    addi t0, t0, 4
+    sw   t3, (t1)
+    addi t1, t1, 4
+    bnez t2, sect_loop
+    sw   t1, section_ptr
+    jr   ra
+
+
 rsp_frame:
     // Wait until the RSP is finished rendering
     lw   t0, 0xA4040010 // SP_STATUS_REG
     andi t0, t0, 0x0001 // Halt
     beqz t0, rsp_frame
 
+    // Push the return address to the stack
+    addi sp, sp, -4
+    sw   ra, 0(sp)
+
     // Draw the FPS counter on the finished frame
     lbu  t0, fps_toggle
     beqz t0, count_frame
     lbu  a0, fps_display
     li   a1, 24 * 560 + 44 * 2
-    move s0, ra
     jal  draw_value
-    move ra, s0
 
 count_frame:
     // Increment the frame counters with VI interrupts disabled
@@ -300,20 +340,16 @@ count_frame:
     li   t0, 1 << 7     // Set VI mask
     sw   t0, 0xA430000C // MI_INTR_MASK_REG
 
-    // Use the sub screen background color if it's set
-    // Blending isn't implemented, but this fixes the backdrop in some cases
+    // Set initial values for palette conversion
     lbu  t0, brightness
-    lhu  t8, cgram
-    li   t9, 0x200
-    lhu  t1, coldata
-    beqz t1, update_dpal
-    sh   t1, cgram
+    la   t8, 0xA038C7F8
+    li   t9, 0x1FE
 
 update_dpal:
     // Move to the next palette color
-    addi t9, t9, -2
     lhu  t1, cgram(t9)
-    sltu t3, zero, t9 // Set alpha unless index 0
+    addi t9, t9, -2
+    li   t3, 0x0001 // Alpha
 
     // Apply brightness to the red component and shift for N64 format
     andi t2, t1, 0x1F
@@ -342,14 +378,13 @@ update_dpal:
     or   t3, t3, t2
 
     // Update a value in the RDP's palette and loop until finished
-    sll  t1, t9, 2
-    sh   t3, 0xA038C000(t1)
-    sh   t3, 0xA038C002(t1)
-    sh   t3, 0xA038C004(t1)
-    sh   t3, 0xA038C006(t1)
+    sll  t2, t3, 16
+    or   t3, t3, t2
+    sw   t3, 0(t8)
+    sw   t3, 4(t8)
+    addi t8, t8, -8
     bnez t9, update_dpal
-    sh   t8, cgram
-    sw   t3, 0xA4000FF4 // Fill color
+    sd   zero, (t8) // Index 0
 
     // Update the RSP's copy of OAM in DMEM
     la   t0, oam
@@ -391,25 +426,13 @@ vram_loop:
     addi t1, t1, 4
     bnez t2, vram_loop
 
-    // Set the frame end based on the framebuffer border
+    // Make a final frame section based on the framebuffer border
     lbu  t0, fb_border
     xori t1, t0, 0x8
-    sw   t1, 0xA4000FF0 // Framebuffer border
+    sw   t1, 0xA4000FF4 // Framebuffer border
     sll  t0, t0, 1
-    addi t0, t0, 223
-    sb   t0, split_line
-
-    // Copy values for the final frame section
-    la   t0, obj_size
-    lw   t1, section_ptr
-    li   t2, 0x50
-end_loop:
-    addi t2, t2, -4
-    lw   t3, (t0)
-    addi t0, t0, 4
-    sw   t3, (t1)
-    addi t1, t1, 4
-    bnez t2, end_loop
+    addi a0, t0, 223
+    jal  make_section
 
     // Reset and swap section pointers with the RSP
     li   t0, 0xA037E000
@@ -428,6 +451,10 @@ frame_wait:
     // Unhalt the RSP so it can render the next frame
     li   t0, 0x0001     // Clear halt
     sw   t0, 0xA4040010 // SP_STATUS_REG
+
+    // Pop the return address from the stack
+    lw   ra, 0(sp)
+    addi sp, sp, 4
     jr   ra
 
 
@@ -540,19 +567,24 @@ read_hvbjoy: // v0: value
 
 
 write_inidisp: // a1: value
-    // Check for zero values and the force blank bit
-    beqz a1, blank
+    // Set the force blank bit
     andi t0, a1, 0x80
-    beqz t0, no_blank
+    sb   t0, force_blank
 
-blank:
-    // Force the screen blank
-    sb   zero, brightness
-    jr   ra
+    // Some games use mid-frame events to achieve a longer V-blank period
+    // If force blank is set mid-frame, handle the frame now to accommodate this
+    beqz t0, set_bright
+    lbu  t1, hvbjoy
+    andi t1, t1, 0x80
+    bnez t1, set_bright
+    sb   t0, frame_done
+    b    rsp_frame
 
-no_blank:
+set_bright:
     // Set the master brightness
-    addi t0, a1, 1
+    andi t0, a1, 0x0F
+    sgtu t1, t0, zero
+    add  t0, t0, t1
     sb   t0, brightness
     jr   ra
 

@@ -29,8 +29,8 @@
 #define CHAR_DATA    0xAE0
 #define VEC_DATA     0xB60
 #define RDP_INIT     0xBE0
-#define RDP_SECTION  0xBF8
-#define RDP_FRAME    0xC00
+#define RDP_FRAME    0xBF8
+#define RDP_SECTION  0xC10
 #define RDP_MODE7    0xC38
 #define RDP_TILE     0xC40
 #define LAYER_CHART  0xCB8
@@ -56,14 +56,14 @@
 #define M7D          0xDF2
 #define M7X          0xDF4
 #define M7Y          0xDF6
-#define BG_MODE      0xDF8
-#define SUB_MASK     0xDF9
-#define MAIN_MASK    0xDFA
-#define M7_NOWRAP    0xDFB
-#define SPLIT_LINE   0xDFC
-#define FILLER       0xDFD
-#define FB_BORDER    0xFF0
-#define FILL_COLOR   0xFF4
+#define FILL_COLOR   0xDF8
+#define FORCE_BLANK  0xDFA
+#define BG_MODE      0xDFB
+#define SUB_MASK     0xDFC
+#define MAIN_MASK    0xDFD
+#define M7_NOWRAP    0xDFE
+#define SPLIT_LINE   0xDFF
+#define FB_BORDER    0xFF4
 #define SECTION_PTR  0xFF8
 #define FRAMEBUFFER  0xFFC
 
@@ -94,19 +94,19 @@ rdp_init:
     .dword 0x39000000FFFFFFFF // Set Blend Color
     .dword 0x3510810000000000 // Set Tile (palette)
 
-rdp_section:
-    // RDP commands that run when changing the frame section
-    .dword 0x2D030020004303A0 // Set Scissor
-
 rdp_frame:
     // RDP commands that run at the start of a frame
     .dword 0x3F100117A03CF300 // Set Color Image
-    .dword 0x3700000000000000 // Set Fill Color
-    .dword 0x2F3888FF00040001 // Set Other Modes (fill)
-    .dword 0x3642F3C000030000 // Fill Rectangle
-    .dword 0x2F0888FF00040001 // Set Other Modes (1 cycle)
     .dword 0x3D100000A038C000 // Set Texture Image (palette)
     .dword 0x3300000000400000 // Load Block (palette)
+
+rdp_section:
+    // RDP commands that run when changing the frame section
+    .dword 0x2D030020004303A0 // Set Scissor
+    .dword 0x3700000000000000 // Set Fill Color
+    .dword 0x2F3888FF00040001 // Set Other Modes (fill)
+    .dword 0x3642F3A000030020 // Fill Rectangle
+    .dword 0x2F0888FF00040001 // Set Other Modes (1 cycle)
 
 rdp_mode7:
     // RDP commands that run when changing to/from mode 7
@@ -174,18 +174,18 @@ m7c:         .hword 0x0000
 m7d:         .hword 0x0000
 m7x:         .hword 0x0000
 m7y:         .hword 0x0000
+fill_color:  .hword 0x0000
+force_blank: .byte  0x00
 bg_mode:     .byte  0x00
 sub_mask:    .byte  0x00
 main_mask:   .byte  0x00
 m7_nowrap:   .byte  0x00
 split_line:  .byte  0x00
-filler:      .byte  0x00:3
 
-.space 0x1F0
+.space 0x1F4
 
 // Values with hardcoded addresses for easy CPU access
-fb_border:   .word 0x08       // 0xFF0
-fill_color:  .word 0x0000     // 0xFF4
+fb_border:   .word 0x08       // 0xFF4
 section_ptr: .word 0xA037E000 // 0xFF8
 framebuffer: .word 0xA03CF300 // 0xFFC
 
@@ -231,19 +231,34 @@ next_section:
     lbu  k1, SPLIT_LINE
     addi k1, k1, 1
 
-    // Update the RDP scissor command for the section
+    // Update the RDP scissor and fill bounds for the section
     lw   t0, FB_BORDER
     add  t1, t0, k0
     sll  t1, t1, 2
     sh   t1, RDP_SECTION + 2
+    sh   t1, RDP_SECTION + 30
     add  t2, t0, k1
     sll  t2, t2, 2
     sh   t2, RDP_SECTION + 6
+    ori  t2, t2, 0xF000
+    sh   t2, RDP_SECTION + 26
+
+    // Update the RDP fill color for the section
+    lbu  t1, FORCE_BLANK
+    li   t0, 0
+    bnez t1, blank_set
+    lhu  t0, FILL_COLOR
+blank_set:
+    sh   t0, RDP_SECTION + 12
+    sh   t0, RDP_SECTION + 14
 
     // Run the RDP to prepare the section
     la   a0, RDP_SECTION
-    la   a1, RDP_FRAME
+    la   a1, RDP_MODE7
     jal  rdp_send
+
+    // Don't draw any layers if force blank is set
+    bnez t1, next_section
 
     // Set the initial layer lookup offset
     lbu  s3, BG_MODE
@@ -1163,7 +1178,7 @@ draw_objtile:
     la   a0, RDP_TILE
     la   a1, LAYER_CHART
     jal  rdp_send
-proot:
+
     // Loop through object tiles in the X-direction
     addi s0, s0, -8
     add  s2, s2, s6
@@ -1209,17 +1224,6 @@ next_frame:
     li   t0, 0x0002 // Set halt
     mtc0 t0, COP0_SP_STATUS
 
-    // Update the RDP scissor command for 224 or 239-line mode
-    lw   t0, FB_BORDER
-    li   t1, 0x0020
-    li   t2, 0x03A0
-    bnez t0, set_border
-    li   t1, 0x0000
-    li   t2, 0x03C0
-set_border:
-    sh   t1, RDP_SECTION + 2
-    sh   t2, RDP_SECTION + 6
-
     // Update the RDP color buffer command with the next buffer address
     lw   t0, FRAMEBUFFER
     li   t1, 0x20D00 // Buffer size
@@ -1231,14 +1235,9 @@ set_buffer:
     sw   t0, RDP_FRAME + 4
     sw   t0, FRAMEBUFFER
 
-    // Update the RDP fill color command with palette color 0
-    lw   t0, FILL_COLOR
-    sh   t0, RDP_FRAME + 12
-    sh   t0, RDP_FRAME + 14
-
     // Run the RDP to prepare the next frame
-    la   a0, RDP_SECTION
-    la   a1, RDP_TILE
+    la   a0, RDP_FRAME
+    la   a1, RDP_SECTION
     jal  rdp_send
     b    draw_frame
 
