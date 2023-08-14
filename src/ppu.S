@@ -433,6 +433,7 @@ vram_loop:
     sll  t0, t0, 1
     addi a0, t0, 223
     jal  make_section
+    sb   zero, split_line
 
     // Reset and swap section pointers with the RSP
     li   t0, 0xA037E000
@@ -572,11 +573,13 @@ write_inidisp: // a1: value
     sb   t0, force_blank
 
     // Some games use mid-frame events to achieve a longer V-blank period
-    // If force blank is set mid-frame, handle the frame now to accommodate this
+    // If force blank is set after a certain line, handle the frame now
     beqz t0, set_bright
     lbu  t1, hvbjoy
     andi t1, t1, 0x80
     bnez t1, set_bright
+    lbu  t1, split_line
+    ble  t1, 210, set_bright
     sb   t0, frame_done
     b    rsp_frame
 
