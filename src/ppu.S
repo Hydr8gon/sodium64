@@ -79,10 +79,11 @@
 event_func:  .word vblank_start
 section_ptr: .word 0xA037C000
 
-cgram:      .hword 0:0x100
-oam:        .byte  0:0x220
+.align 8
 vram:       .byte  0:0x10000
 vram_table: .byte  0:0x400
+oam:        .byte  0:0x220
+cgram:      .hword 0:0x100
 
 fps_emulate: .byte 0x00
 fps_display: .byte 0x00
@@ -419,11 +420,11 @@ update_vram:
     la   t1, 0xA03F0000
     li   t2, 0x10000
 vram_loop:
-    addi t2, t2, -4
-    lw   t3, (t0)
-    addi t0, t0, 4
-    sw   t3, (t1)
-    addi t1, t1, 4
+    addi t2, t2, -8
+    ld   t3, (t0)
+    addi t0, t0, 8
+    sd   t3, (t1)
+    addi t1, t1, 8
     bnez t2, vram_loop
 
     // Make a final frame section based on the framebuffer border
