@@ -419,6 +419,14 @@ update_vram:
     la   t0, vram
     la   t1, 0xA03F0000
     li   t2, 0x10000
+    // Make sure the copy is an 8 byte multiple, before starting the 8byte optimized copy.
+    andi t3, t2, 7
+    beq  t3, 0, vram_loop
+    addi t2, t2, -4
+    lw   t3, (t0)
+    addi t0, t0, 4
+    sw   t3, (t1)
+    addi t1, t1, 4
 vram_loop:
     addi t2, t2, -8
     ld   t3, (t0)
