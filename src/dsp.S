@@ -117,11 +117,6 @@ end_voice:
     b    next_voice
 
 decode_samples:
-    // Backup registers that will be used for decoding
-    addi sp, sp, -8
-    sw   t4, 4(sp)
-    sw   t5, 0(sp)
-
     // Get the address of the voice's sample buffer
     la   t3, cur_samples
     sll  v1, t6, 3
@@ -139,16 +134,16 @@ decode_samples:
     andi t3, t3, 0x6
     add  t0, t0, t3
     lbu  t3, apu_ram + 1(t0)
-    lbu  t4, apu_ram + 2(t0)
+    lbu  s0, apu_ram + 2(t0)
     sll  t3, t3, 8
-    or   t4, t4, t3
-    li   t5, 8
+    or   s0, s0, t3
+    li   s1, 8
 
 next_sample:
     // Pass the next sample, sign-extended and shifted, to the filter
-    addi t5, t5, -2
-    sll  t3, t5, 1
-    srl  t0, t4, t3
+    addi s1, s1, -2
+    sll  t3, s1, 1
+    srl  t0, s0, t3
     sll  t0, t0, 28
     sra  t0, t0, 28
     sll  t0, t0, t1
@@ -157,7 +152,7 @@ next_sample:
 
 filter_1:
     // Apply the old sample, multiplied by 0.9375
-    addi t7, t5, 2
+    addi t7, s1, 2
     andi t7, t7, 0x6
     add  t3, v1, t7
     lh   t7, (t3)
@@ -168,7 +163,7 @@ filter_1:
 
 filter_2:
     // Apply the old sample, multiplied by 1.90625
-    addi t7, t5, 2
+    addi t7, s1, 2
     andi t7, t7, 0x6
     add  t3, v1, t7
     lh   t7, (t3)
@@ -180,7 +175,7 @@ filter_2:
     sub  t0, t0, t3
 
     // Apply the older sample, multiplied by -0.9375
-    addi t7, t5, 4
+    addi t7, s1, 4
     andi t7, t7, 0x6
     add  t3, v1, t7
     lh   t7, (t3)
@@ -191,7 +186,7 @@ filter_2:
 
 filter_3:
     // Apply the old sample, multiplied by 1.796875
-    addi t7, t5, 2
+    addi t7, s1, 2
     andi t7, t7, 0x6
     add  t3, v1, t7
     lh   t7, (t3)
@@ -205,7 +200,7 @@ filter_3:
     sub  t0, t0, t3
 
     // Apply the older sample, multiplied by -0.8125
-    addi t7, t5, 4
+    addi t7, s1, 4
     andi t7, t7, 0x6
     add  t3, v1, t7
     lh   t7, (t3)
@@ -217,14 +212,9 @@ filter_3:
 
 filter_end:
     // Store the sample and loop until all 4 are done
-    add  t3, v1, t5
+    add  t3, v1, s1
     sh   t0, (t3)
-    bnez t5, next_sample
-
-    // Restore registers that were used for decoding
-    lw   t4, 4(sp)
-    lw   t5, 0(sp)
-    addi sp, sp, 8
+    bnez s1, next_sample
 
 mix_sample:
     // Load the current sample from the voice's buffer
