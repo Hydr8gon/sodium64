@@ -107,6 +107,8 @@ read_iomap:
     .word read_a1bx, read_dasxl, read_dasxh, read_dasbx // 0x4374-0x4377
     .word read_a2axl, read_a2axh, read_ntrlx, read_unusedx // 0x4378-0x437B
     .word read_unk, read_unk, read_unk, read_unusedx // 0x437C-0x437F
+    .word read_unk:(0x5FFF - 0x437F)                            // 0x4378-0x5FFF
+    .word read_extension:(0x7FB0 - 0x5FFF)                      // 0x6000-0x7FAF
 
 .align 4
 write_iomap:
@@ -178,6 +180,8 @@ write_iomap:
     .word write_a1bx, write_dasxl, write_dasxh, write_dasbx // 0x4374-0x4377
     .word write_a2axl, write_a2axh, write_ntrlx, write_unusedx // 0x4378-0x437B
     .word write_unk, write_unk, write_unk, write_unusedx // 0x437C-0x437F
+    .word write_unk:(0x5FFF - 0x437F)                                 // 0x4378-0x5FFF
+    .word write_extension:(0x7FB0 - 0x5FFF)                           // 0x6000-0x7FAF
 
 .text
 
@@ -501,7 +505,7 @@ tlbl_io:
     // Look up and return to an I/O read function if no memory is mapped
     andi a0, a0, 0xFFFF
     addi t0, a0, -0x2100
-    bgeu t0, 0x4380 - 0x2100, tlbl_unk
+    bgeu t0, 0x7FB0 - 0x2100, tlbl_unk
     sll t0, t0, 2
     lw k0, read_iomap(t0)
     mtc0 k0, $14 // EPC
@@ -569,7 +573,7 @@ tlbs_io:
     // Look up and return to an I/O write function if no memory is mapped
     andi a0, a0, 0xFFFF
     addi t0, a0, -0x2100
-    bgeu t0, 0x4380 - 0x2100, tlbs_unk
+    bgeu t0, 0x7FB0 - 0x2100, tlbs_unk
     sll t0, t0, 2
     lw k0, write_iomap(t0)
     mtc0 k0, $14 // EPC
@@ -611,6 +615,11 @@ tlbm_exception:
     eret
 
 .align 5
+read_extension:
+    lhu  v0, 0xAA008400(t0)
+    jr   ra
+
+.align 5
 read_unk:
     // Unknown I/O register read; use upper address byte to approximate open bus
     srl v0, a0, 8
@@ -632,8 +641,17 @@ read_wmdata: // v0: value
     jr ra
 
 .align 5
+write_extension: // a1: value, t0: address
+    sb   a1, 0xAA008400(t0) // (0x2100 << 2) = 0x8400 this is added to t0 as t0 is lowered by 0x2100.
+    lui  t2, 0xA460     // PI register upper address
+write_extension_wait1:
+    // Wait for the IO to complete
+    lw   t1, 0x0010(t2) // PI_STATUS
+    andi t1, t1, 0x1    // DMA busy
+    bnez t1, write_extension_wait1
+    jr   ra
+
 write_unk:
-    // Unknown I/O register write; do nothing
     jr ra
 
 .align 5

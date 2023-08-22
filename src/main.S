@@ -113,8 +113,18 @@ clear_vram:
     cache 0x10, 0x0100(t0)
     cache 0x10, 0x0180(t0)
 
+    // Setup SRAM signal speed to something consistent but safe.
+    lui  t0, 0xA460       // PI register upper address
+    li   t1, 0x06
+    sw   t1, 0x0024(t0)   // LAT
+    li   t1, 0x0B
+    sw   t1, 0x0028(t0)   // PWD
+    li   t1, 0x07
+    sw   t1, 0x002C(t0)   // PGS
+    li   t1, 0x03
+    sw   t1, 0x0030(t0)   // RLS
+
     // Use DMA to copy SRAM from the cart to memory
-    lui t0, 0xA460 // PI register upper address
     la t1, sram // Local SRAM
     sw t1, 0x0000(t0) // PI_DRAM_ADDR
     li t1, 0x08000000 // Cart SRAM
