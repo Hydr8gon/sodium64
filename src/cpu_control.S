@@ -436,7 +436,20 @@ beq: // BEQ disp8
     sll  t0, v0, 24
     sra  t0, t0, 24
     add  s7, s7, t0
+
+    // Check for a basic type of idle loop
+    bne  v0, 0xFC, beq_end // -4
+    MEM_READ8 6(s7)
+    bne  v0, 0x58, beq_end // CLI
+    MEM_READ8 2(s7)
+    bne  v0, 0xA5, beq_end // LDA
+
+    // Halt the CPU until the next interrupt
+    ori  s4, s4, 0x200 // Halted
+    li   s5, 0
+
 beq_end:
+    // Move to the next opcode
     addi s7, s7, 2
     j    cpu_execute
 
@@ -633,7 +646,7 @@ xba: // XBA
 
 
 wai: // WAI
-    // Halt the CPU until the next PPU event
+    // Halt the CPU until the next interrupt
     ori  s4, s4, 0x200 // Halted
     li   s5, 0
     addi s7, s7, 1

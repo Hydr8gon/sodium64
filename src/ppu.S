@@ -114,6 +114,7 @@ timeup:   .byte  0x00
 hvbjoy:   .byte  0x00
 
 // RSP values that are saved for each section (0x50 bytes)
+.align 8
 obj_size:    .word  0x10100808
 objcharbase: .hword 0x0000
 oamadd:      .hword 0x0000
@@ -301,11 +302,11 @@ set_backdrop:
     lw   t1, section_ptr
     li   t2, 0x50
 sect_loop:
-    addi t2, t2, -4
-    lw   t3, (t0)
-    addi t0, t0, 4
-    sw   t3, (t1)
-    addi t1, t1, 4
+    addi t2, t2, -8
+    ld   t3, (t0)
+    addi t0, t0, 8
+    sd   t3, (t1)
+    addi t1, t1, 8
     bnez t2, sect_loop
     sw   t1, section_ptr
     jr   ra
