@@ -10,6 +10,8 @@ Automatic builds of the latest sodium64 commit are provided via GitHub Actions; 
 ### Usage
 Place SNES ROMs with extension `.sfc`/`.smc` in the same folder as `sodium64.z64` and `rom-converter.py`. Run `rom-converter.py` using [Python](https://www.python.org) to convert the SNES ROMs to N64 ROMs. The output ROMs will be in a new folder called `out`.
 
+Alternatively, some flashcarts support loading ROMs directly with a supplied emulator. If you have an EverDrive, copy `sodium64.z64` to the `ED64/emu` folder on your SD card and rename it to `smc.v64`. SNES ROMs must be in headerless `.smc` format to work this way; `rom-converter.py` can optionally convert input ROMs for this.
+
 ### Compiling
 Although sodium64 is written in assembly, it relies on [libdragon](https://github.com/DragonMinded/libdragon.git) for its build system. When you have that set up, you can simply run `make` in the project root directory to compile.
 
