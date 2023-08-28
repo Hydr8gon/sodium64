@@ -22,6 +22,7 @@ for filename in os.listdir("."):
             inFile.seek(0x200) # Skip header
         outFile = open("out/" + filename[:-4] + ".z64", "wb")
         outFile.write(baseFile.read())
+        outFile.seek(0x200000, 0)
         outFile.write(inFile.read())
 
 print("Done!")
