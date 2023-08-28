@@ -167,7 +167,7 @@ write_iomap:
 memory_init:
     // Detect HiROM headers with a rudimentary checksum check
     // TODO: improve this?
-    lw   t0, 0xB0113FDC
+    lw   t0, 0xB020FFDC
     andi t1, t0, 0xFFFF
     srl  t0, t0, 16
     xor  t0, t0, t1
