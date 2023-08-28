@@ -183,7 +183,7 @@ map_lorom:
     li   t2, 0x002000 // Block size (8KB)
 
     // Set the SRAM mask using the header size
-    lw   t9, 0xB010BFD8
+    lw   t9, 0xB0207FD8
     srl  t9, t9, 24
     beqz t9, build_lomap
     li   t3, 0x400
@@ -288,7 +288,7 @@ map_hirom:
     li   t2, 0x002000 // Block size (8KB)
 
     // Set the SRAM mask using the header size
-    lw   t9, 0xB0113FD8
+    lw   t9, 0xB020FFD8
     srl  t9, t9, 24
     beqz t9, build_himap
     li   t3, 0x400
