@@ -226,7 +226,7 @@ lowram_area:
 
 lorom_area:
     // Special case LoROM; the exception handler will dynamically load blocks
-    la   t3, 0x10104000 // ROM appended to file
+    la   t3, 0x10200000 // ROM appended to file
     li   t4, 0x7F0000
     and  t4, t4, t0     // Mirrored bank
     srl  t4, t4, 1      // 32KB every 64KB bank
@@ -329,7 +329,7 @@ hiwram_area:
 
 hirom_area:
     // Special case HiROM; the exception handler will dynamically load blocks
-    la   t3, 0x10104000 // ROM appended to file
+    la   t3, 0x10200000 // ROM appended to file
     li   t4, 0x3FFFFF   // ROM mask
     and  t4, t4, t0
     add  t3, t3, t4
