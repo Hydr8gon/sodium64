@@ -167,7 +167,7 @@ write_iomap:
 memory_init:
     // Detect HiROM headers with a rudimentary checksum check
     // TODO: improve this?
-    lw   t0, 0xB0113FDC
+    lw   t0, 0xB020FFDC
     andi t1, t0, 0xFFFF
     srl  t0, t0, 16
     xor  t0, t0, t1
@@ -183,7 +183,7 @@ map_lorom:
     li   t2, 0x002000 // Block size (8KB)
 
     // Set the SRAM mask using the header size
-    lw   t9, 0xB010BFD8
+    lw   t9, 0xB0207FD8
     srl  t9, t9, 24
     beqz t9, build_lomap
     li   t3, 0x400
@@ -226,7 +226,7 @@ lowram_area:
 
 lorom_area:
     // Special case LoROM; the exception handler will dynamically load blocks
-    la   t3, 0x10104000 // ROM appended to file
+    la   t3, 0x10200000 // ROM appended to file
     li   t4, 0x7F0000
     and  t4, t4, t0     // Mirrored bank
     srl  t4, t4, 1      // 32KB every 64KB bank
@@ -288,7 +288,7 @@ map_hirom:
     li   t2, 0x002000 // Block size (8KB)
 
     // Set the SRAM mask using the header size
-    lw   t9, 0xB0113FD8
+    lw   t9, 0xB020FFD8
     srl  t9, t9, 24
     beqz t9, build_himap
     li   t3, 0x400
@@ -329,7 +329,7 @@ hiwram_area:
 
 hirom_area:
     // Special case HiROM; the exception handler will dynamically load blocks
-    la   t3, 0x10104000 // ROM appended to file
+    la   t3, 0x10200000 // ROM appended to file
     li   t4, 0x3FFFFF   // ROM mask
     and  t4, t4, t0
     add  t3, t3, t4
