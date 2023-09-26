@@ -148,6 +148,14 @@
 .globl apu_set5
 .globl apu_set6
 .globl apu_set7
+.globl apu_not1
+.globl apu_mov1a
+.globl apu_mov1b
+.globl apu_or1a
+.globl apu_or1b
+.globl apu_and1a
+.globl apu_and1b
+.globl apu_eor1
 .globl apu_clrc
 .globl apu_setc
 .globl apu_notc
@@ -909,6 +917,107 @@ apu_set4: SET1 0x10 // SET1 aa.4
 apu_set5: SET1 0x20 // SET1 aa.5
 apu_set6: SET1 0x40 // SET1 aa.6
 apu_set7: SET1 0x80 // SET1 aa.7
+
+
+apu_not1: // NOT1 aaa.b
+    // Invert a bit in a memory value
+    DRB
+    jal  apu_read8
+    xor  a1, a1, v0
+    jal  apu_write8
+    j    cpu_execute
+
+
+apu_mov1a: // MOV1 aaa.b,C
+    // Set a bit in a memory value to the carry flag
+    DRB
+    jal  apu_read8
+    lbu  t0, apu_flags
+    xori t1, a1, 0xFF
+    and  v0, v0, t1
+    andi t0, t0, 0x01
+    sub  t0, zero, t0
+    and  t0, t0, a1
+    or   a1, v0, t0
+    jal  apu_write8
+    j    cpu_execute
+
+
+apu_mov1b: // MOV1 C,aaa.b
+    // Set the carry flag to a bit from a memory value
+    DRB
+    jal  apu_read8
+    lbu  t0, apu_flags
+    and  t1, v0, a1
+    sltu t1, zero, t1
+    andi t0, t0, 0xFE
+    or   t0, t0, t1
+    sb   t0, apu_flags
+    j    cpu_execute
+
+
+apu_or1a: // OR1 C,aaa.b
+    // Bitwise or the carry flag with a bit from a memory value
+    DRB
+    jal  apu_read8
+    lbu  t0, apu_flags
+    and  t1, v0, a1
+    sltu t1, zero, t1
+    or   t0, t0, t1
+    sb   t0, apu_flags
+    j    cpu_execute
+
+
+apu_or1b: // OR1 C,/aaa.b
+    // Bitwise or the carry flag with a negated bit from a memory value
+    DRB
+    jal  apu_read8
+    lbu  t0, apu_flags
+    xori v0, v0, 0xFF
+    and  t1, v0, a1
+    sltu t1, zero, t1
+    or   t0, t0, t1
+    sb   t0, apu_flags
+    j    cpu_execute
+
+
+apu_and1a: // AND1 C,aaa.b
+    // Bitwise and the carry flag with a bit from a memory value
+    DRB
+    jal  apu_read8
+    lbu  t0, apu_flags
+    and  t1, v0, a1
+    sltu t1, zero, t1
+    ori  t1, t1, 0xFE
+    and  t0, t0, t1
+    sb   t0, apu_flags
+    j    cpu_execute
+
+
+apu_and1b: // AND1 C,/aaa.b
+    // Bitwise and the carry flag with a negated bit from a memory value
+    DRB
+    jal  apu_read8
+    lbu  t0, apu_flags
+    xori v0, v0, 0xFF
+    and  t1, v0, a1
+    sltu t1, zero, t1
+    ori  t1, t1, 0xFE
+    and  t0, t0, t1
+    sb   t0, apu_flags
+    j    cpu_execute
+
+
+apu_eor1: // EOR1 C,aaa.b
+    // Bitwise exclusive or the carry flag with a bit from a memory value
+    DRB
+    jal  apu_read8
+    lbu  t0, apu_flags
+    and  t1, v0, a1
+    sltu t1, zero, t1
+    xor  t0, t0, t1
+    sb   t0, apu_flags
+    j    cpu_execute
 
 
 apu_clrc: // CLRC

@@ -244,6 +244,26 @@
     andi a0, a0, 0xFFFF
 .endm
 
+.macro DRB inc=3 // aaa.b
+    // Increment the program counter
+    addi t0, s0, \inc
+    sh   t0, apu_count
+
+    // Get the 16-bit immediate value
+    addi a0, s0, 2
+    jal  apu_read8
+    sll  s1, v0, 8
+    addi a0, s0, 1
+    jal  apu_read8
+    or   t0, v0, s1
+
+    // Return aaa as an address and b as a bitmask
+    andi a0, t0, 0x1FFF
+    li   a1, 1
+    srl  t0, t0, 13
+    sll  a1, a1, t0
+.endm
+
 .macro DRI inc=3 // aa,#nn
     // Increment the program counter
     addi t0, s0, \inc
