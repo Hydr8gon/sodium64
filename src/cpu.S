@@ -238,7 +238,7 @@ cpu_init:
 
     // Set the initial lookup table (s6), cycle count (s5), status flags (s4), and direct offset (s8)
     la   s6, opcodes_e
-    li   s5, 341 * 225 * 4
+    li   s5, 341 * 4
     li   s4, 0x134
     li   s8, 0
 

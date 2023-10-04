@@ -26,8 +26,6 @@
 #define APU_TIMER2  336 // 21477000Hz / 64000Hz = 335.578125
 
 .globl apu_ram
-.globl apu_cycle1
-.globl apu_cycle2
 .globl apu_reg_x
 .globl apu_reg_y
 .globl apu_accum
@@ -39,8 +37,7 @@
 .globl apu_set_nz
 .globl apu_read8
 .globl apu_write8
-.globl update_overflows
-.globl update_timers
+.globl offset_timers
 .globl read_apuio0
 .globl read_apuio1
 .globl read_apuio2
@@ -441,6 +438,40 @@ inc_timer1:
     add  t0, t0, t4
     sb   t0, apu_timers + 1
 early_exit:
+    jr   ra
+
+
+offset_timers: // a0: cycles
+    // Offset timer update timestamps for the next event
+    lw   t0, apu_cycle1
+    lw   t1, apu_cycle2
+    add  t0, t0, a0
+    add  t1, t1, a0
+    sw   t0, apu_cycle1
+    sw   t1, apu_cycle2
+
+    // Offset timer 0's overflow timestamp if enabled
+    la   t0, apu_ocycles
+    li   t1, INT_MIN
+    lw   t2, 0(t0)
+    beq  t2, t1, offset1
+    add  t2, t2, a0
+    sw   t2, 0(t0)
+
+offset1:
+    // Offset timer 1's overflow timestamp if enabled
+    lw   t3, 4(t0)
+    beq  t3, t1, offset2
+    add  t3, t3, a0
+    sw   t3, 4(t0)
+
+offset2:
+    // Offset timer 2's overflow timestamp if enabled
+    lw   t4, 8(t0)
+    beq  t4, t1, offset3
+    add  t4, t4, a0
+    sw   t4, 8(t0)
+offset3:
     jr   ra
 
 

@@ -27,8 +27,12 @@
 .globl read_mpyl
 .globl read_mpym
 .globl read_mpyh
+.globl read_slhv
 .globl read_rdvraml
 .globl read_rdvramh
+.globl read_ophct
+.globl read_opvct
+.globl read_stat78
 .globl read_rdnmi
 .globl read_timeup
 .globl read_hvbjoy
@@ -76,14 +80,15 @@
 
 .data
 
-event_func:  .word vblank_start
-section_ptr: .word 0xA037C000
-
 .align 8
 vram:       .byte  0:0x10000
 vram_table: .byte  0:0x400
 oam:        .byte  0:0x220
 cgram:      .hword 0:0x100
+
+section_ptr: .word  0xA037C000
+cur_line:    .hword 0x000
+vblank_line: .byte  0xE1
 
 fps_emulate: .byte 0x00
 fps_display: .byte 0x00
@@ -97,15 +102,20 @@ vram_inch:   .byte 0x00
 vram_fetch: .hword 0x0000
 oam_addr:   .hword 0x000
 oam_lsb:    .byte  0x00
+oph_low:    .byte  0x00
+opv_low:    .byte  0x00
 bg_old:     .byte  0x00
 m7_old:     .byte  0x00
 cg_lsb:     .byte  0x00
 
 mpy:      .word  0x000000
+ophct:    .hword 0x000
+opvct:    .hword 0x000
 coldata:  .hword 0x0000
 vmadd:    .hword 0x0000
 cgadd:    .hword 0x0000
 vtime:    .hword 0x0000
+stat78:   .byte  0x01
 tm:       .byte  0x00
 ts:       .byte  0x00
 nmitimen: .byte  0x00
@@ -155,9 +165,34 @@ vram_incrs: .byte 1, 32, 128, 128
 .text
 
 ppu_event:
-    // Jump to the current PPU event function
-    lw   t0, event_func
-    jr   t0
+    // Increment the line counter
+    lhu  s0, cur_line
+    addi s0, s0, 1
+    sh   s0, cur_line
+
+    // Check if a V-count IRQ event should occur
+    lhu  t0, vtime
+    beq  s0, t0, vcount_irq
+
+vblank_check:
+    // Check if a V-blank start or end event should occur
+    lbu  t0, vblank_line
+    beq  s0, t0, vblank_start
+    beq  s0, 262, vblank_end
+
+sched_next:
+    // Offset all cycle counts for the next event
+    li   a0, 341 * 4
+    add  s5, s5, a0 // CPU
+    add  s3, s3, a0 // APU
+    add  a3, a3, a0 // DSP
+    jal  offset_timers
+
+    // Don't let the CPU run if it's halted
+    andi t0, s4, 0x200 // Halted
+    beqz t0, cpu_execute
+    li   s5, 0
+    j    cpu_execute
 
 
 vblank_start:
@@ -184,15 +219,10 @@ skip_frame:
     // Trigger an NMI if enabled
     lbu  t0, nmitimen
     andi t0, t0, 0x80 // NMI enable
-    beqz t0, sched_end
+    beqz t0, sched_next
     li   a1, 0
-    jal  trigger_nmi
-
-sched_end:
-    // Schedule the V-blank end event
-    li   a0, 341 * 37 * 4 // V-blank period
-    la   a1, vblank_end
-    j    sched_next
+    la   ra, sched_next
+    j    trigger_nmi
 
 
 vblank_end:
@@ -202,33 +232,19 @@ vblank_end:
     sb   t0, hvbjoy
     sb   zero, rdnmi
 
-    // Trigger HDMA once per frame to at least initialize values
-    jal  trigger_hdma
-
-    // Schedule a V-count event if the time is valid
-    // TODO: support V-count during V-blank
-    lhu  t0, vtime
-    bge  t0, 225, no_count
-    li   t1, 341 * 4
-    mult t0, t1
-    mflo a0
-    la   a1, vcount_irq
-    j    sched_next
-
-no_count:
-    // Schedule the V-blank start event
-    li   a0, 341 * 225 * 4
-    la   a1, vblank_start
-    j    sched_next
+    // Reset the line counter and trigger HDMA once to at least initialize values
+    sh   zero, cur_line
+    la   ra, sched_next
+    j    trigger_hdma
 
 
 vcount_irq:
     // Trigger a V-count IRQ if enabled
     lbu  t0, nmitimen
     andi t0, t0, 0x20 // V-IRQ enable
-    beqz t0, sched_start
+    beqz t0, vblank_check
     andi t1, s4, 0x04 // IRQ disable
-    bnez t1, sched_start
+    bnez t1, vblank_check
     li   a1, 4
     jal  trigger_nmi
 
@@ -236,25 +252,15 @@ vcount_irq:
     li   t0, 0x80
     sb   t0, timeup
 
-    // Check if the section limit has been hit
+    // Make a new section unless in V-blank or the limit has been hit
+    lbu  t0, rdnmi
+    bnez t0, vblank_check
     lw   t1, section_ptr
     andi t2, t1, 0x1FFF
-    beq  t2, 0x50 * 7, sched_start
-
-    // Make a new frame section at the V-count line
-    lhu  a0, vtime
-    jal  make_section
-
-sched_start:
-    // Schedule the V-blank start event
-    lhu  t0, vtime
-    li   t1, 225
-    sub  t0, t1, t0
-    li   t1, 341 * 4
-    mult t0, t1
-    mflo a0
-    la   a1, vblank_start
-    j    sched_next
+    beq  t2, 0x50 * 7, vblank_check
+    lhu  a0, cur_line
+    la   ra, vblank_check
+    j    make_section
 
 
 make_section: // a0: line
@@ -428,14 +434,13 @@ vram_loop:
     addi t1, t1, 8
     bnez t2, vram_loop
 
-    // Make a final frame section based on the framebuffer border
+    // Make a final frame section based on the border
     lbu  t0, fb_border
-    xori t1, t0, 0x8
-    sw   t1, 0xA4000FF4 // Framebuffer border
-    sll  t0, t0, 1
-    addi a0, t0, 223
+    sw   t0, 0xA4000FF0 // Frame border
+    lhu  a0, cur_line
+    addi a0, a0, -2
+    sw   a0, 0xA4000FF4 // Frame end
     jal  make_section
-    sb   zero, split_line
 
     // Reset and swap section pointers with the RSP
     li   t0, 0xA037E000
@@ -461,33 +466,6 @@ frame_wait:
     jr   ra
 
 
-sched_next: // a0: cycles, a1: function
-    // Update timers before cycles are adjusted
-    jal  update_timers
-
-    // Offset all cycle counts for the next event
-    lw   t0, apu_cycle1
-    lw   t1, apu_cycle2
-    add  s5, s5, a0 // CPU
-    add  s3, s3, a0 // APU
-    add  a3, a3, a0 // DSP
-    add  t0, t0, a0 // Timer 0/1
-    add  t1, t1, a0 // Timer 2
-    sw   t0, apu_cycle1
-    sw   t1, apu_cycle2
-
-    // Don't let the CPU run if it's halted
-    andi t0, s4, 0x200 // Halted
-    beqz t0, sched_done
-    li   s5, 0
-
-sched_done:
-    // Set the next event, update overflows, and return to execution
-    sw   a1, event_func
-    la   ra, cpu_execute
-    j    update_overflows
-
-
 read_mpyl: // v0: value
     // Read the low byte of the signed multiply result
     lbu  v0, mpy + 3
@@ -503,6 +481,25 @@ read_mpym: // v0: value
 read_mpyh: // v0: value
     // Read the high byte of the signed multiply result
     lbu  v0, mpy + 1
+    jr   ra
+
+
+read_slhv: // a0: address - v0: value
+    // Latch the vertical counter
+    lhu  t0, cur_line
+    sh   t0, opvct
+
+    // Latch the horizontal counter based on cycles until next line
+    li   t0, 341
+    srl  t1, s5, 2
+    sub  t0, t0, t1
+    sh   t0, ophct
+
+    // Set the latch flag and return approximate open bus
+    lbu  t0, stat78
+    ori  t0, t0, 0x40
+    sb   t0, stat78
+    srl  v0, a0, 8
     jr   ra
 
 
@@ -546,6 +543,48 @@ vramh_end:
     jr   ra
 
 
+read_ophct: // v0: value
+    // Read from the OPHCT register's low or high byte
+    lhu  v0, ophct
+    lbu  t0, oph_low
+    beqz t0, oph_toggle
+    srl  v0, v0, 8
+
+oph_toggle:
+    // Toggle which byte to read next
+    andi v0, v0, 0xFF
+    xori t0, t0, 0x1
+    sb   t0, oph_low
+    jr   ra
+
+
+read_opvct: // v0: value
+    // Read from the OPVCT register's low or high byte
+    lhu  v0, opvct
+    lbu  t0, opv_low
+    beqz t0, opv_toggle
+    srl  v0, v0, 8
+
+opv_toggle:
+    // Toggle which byte to read next
+    andi v0, v0, 0xFF
+    xori t0, t0, 0x1
+    sb   t0, opv_low
+    jr   ra
+
+
+read_stat78: // v0: value
+    // Read from the STAT78 register and reset the latch flag
+    lbu  v0, stat78
+    andi t0, v0, 0xFF & ~0x40
+    sb   t0, stat78
+
+    // Reset the latched counter byte toggles
+    sb   zero, oph_low
+    sb   zero, opv_low
+    jr   ra
+
+
 read_rdnmi: // v0: value
     // Read from the RDNMI register, resetting its flag
     lbu  v0, rdnmi
@@ -561,11 +600,11 @@ read_timeup: // v0: value
 
 
 read_hvbjoy: // v0: value
-    // Read from the HVBJOY register
-    // TODO: Set H-blank flag based on timestamps
+    // Read from the HVBJOY register with H-blank based on cycles until next line
     lbu  v0, hvbjoy
-    xori v0, v0, 0x40 // Toggle H-blank (hack)
-    sb   v0, hvbjoy
+    slti t0, s5, (341 - 274) * 4
+    sll  t0, t0, 6
+    or   v0, v0, t0
     jr   ra
 
 
@@ -577,10 +616,9 @@ write_inidisp: // a1: value
     // Some games use mid-frame events to achieve a longer V-blank period
     // If force blank is set after a certain line, handle the frame now
     beqz t0, set_bright
-    lbu  t1, hvbjoy
-    andi t1, t1, 0x80
+    lbu  t1, rdnmi
     bnez t1, set_bright
-    lbu  t1, split_line
+    lbu  t1, cur_line
     ble  t1, 210, set_bright
     sb   t0, frame_done
     b    rsp_frame
@@ -1144,7 +1182,15 @@ write_setini: // a1: value
     // TODO: use the rest of the bits
     andi t0, a1, 0x4
     sll  t0, t0, 1
+    xori t0, t0, 0x8
     sb   t0, fb_border
+
+    // Set the line to trigger V-blank on based on border
+    li   t1, 240
+    beqz t0, no_border
+    addi t1, t1, -15
+no_border:
+    sb   t1, vblank_line
     jr   ra
 
 
@@ -1157,48 +1203,11 @@ write_nmitimen: // a1: value
 write_vtimel: // a1: value
     // Write the low byte of the V-count timer value
     sb   a1, vtime + 1
-skip_event:
     jr   ra
 
 
 write_vtimeh: // a1: value
     // Write the high bit of the V-count timer value
-    andi t0, 0x01
+    andi t0, a1, 0x01
     sb   t0, vtime
-
-    // Check if a V-count event can be scheduled
-    lw   t0, event_func
-    la   t1, vblank_start
-    bne  t0, t1, skip_event
-
-    // Calculate the cycles between V-blank and V-count
-    lhu  t0, vtime
-    li   t1, 225
-    sub  t0, t1, t0
-    blez t0, skip_event
-    li   t1, 341 * 4
-    mult t0, t1
-    mflo t0
-    bge  t0, s5, skip_event
-    sub  a0, zero, t0
-
-    // Update timers before cycles are adjusted
-    move t8, ra
-    jal  update_timers
-    move ra, t8
-
-    // Offset all cycle counts for the V-count event
-    lw   t0, apu_cycle1
-    lw   t1, apu_cycle2
-    add  s5, s5, a0 // CPU
-    add  s3, s3, a0 // APU
-    add  a3, a3, a0 // DSP
-    add  t0, t0, a0 // Timer 0/1
-    add  t1, t1, a0 // Timer 2
-    sw   t0, apu_cycle1
-    sw   t1, apu_cycle2
-
-    // Set the event function and update overflows
-    la   t0, vcount_irq
-    sw   t0, event_func
-    j    update_overflows
+    jr   ra

@@ -63,7 +63,8 @@
 #define MAIN_MASK    0xE0D
 #define M7_NOWRAP    0xE0E
 #define SPLIT_LINE   0xE0F
-#define FB_BORDER    0xFF4
+#define FB_BORDER    0xFF0
+#define FRAME_END    0xFF4
 #define SECTION_PTR  0xFF8
 #define FRAMEBUFFER  0xFFC
 
@@ -184,10 +185,11 @@ main_mask:   .byte  0x00
 m7_nowrap:   .byte  0x00
 split_line:  .byte  0x00
 
-.space 0x1E4
+.space 0x1E0
 
 // Values with hardcoded addresses for easy CPU access
-fb_border:   .word 0x08       // 0xFF4
+fb_border:   .word 0x08       // 0xFF0
+frame_end:   .word 0xDF       // 0xFF4
 section_ptr: .word 0xA037E000 // 0xFF8
 framebuffer: .word 0xA03CF300 // 0xFFC
 
@@ -218,7 +220,8 @@ draw_frame:
 
 next_section:
     // Finish the frame after the last section is done
-    bge  k1, 224, next_frame
+    lw   t0, FRAME_END
+    bgt  k1, t0, next_frame
 
     // Load values for the next section
     la   a0, OBJ_SIZE
