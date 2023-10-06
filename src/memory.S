@@ -77,28 +77,36 @@ read_iomap:
     .word read_unk:(0x42FF - 0x421F)                            // 0x4220-0x42FF
     .word read_dmapx,  read_bbadx,   read_a1txl,   read_a1txh   // 0x4300-0x4303
     .word read_a1bx,   read_dasxl,   read_dasxh,   read_dasbx   // 0x4304-0x4307
-    .word read_unk:(0x430F - 0x4307)                            // 0x4308-0x430F
+    .word read_a2axl,  read_a2axh,   read_ntrlx,   read_unusedx // 0x4308-0x430B
+    .word read_unk,    read_unk,     read_unk,     read_unusedx // 0x430C-0x430F
     .word read_dmapx,  read_bbadx,   read_a1txl,   read_a1txh   // 0x4310-0x4313
     .word read_a1bx,   read_dasxl,   read_dasxh,   read_dasbx   // 0x4314-0x4317
-    .word read_unk:(0x431F - 0x4317)                            // 0x4318-0x431F
+    .word read_a2axl,  read_a2axh,   read_ntrlx,   read_unusedx // 0x4318-0x431B
+    .word read_unk,    read_unk,     read_unk,     read_unusedx // 0x431C-0x431F
     .word read_dmapx,  read_bbadx,   read_a1txl,   read_a1txh   // 0x4320-0x4323
     .word read_a1bx,   read_dasxl,   read_dasxh,   read_dasbx   // 0x4324-0x4327
-    .word read_unk:(0x432F - 0x4327)                            // 0x4328-0x432F
+    .word read_a2axl,  read_a2axh,   read_ntrlx,   read_unusedx // 0x4328-0x432B
+    .word read_unk,    read_unk,     read_unk,     read_unusedx // 0x432C-0x432F
     .word read_dmapx,  read_bbadx,   read_a1txl,   read_a1txh   // 0x4330-0x4333
     .word read_a1bx,   read_dasxl,   read_dasxh,   read_dasbx   // 0x4334-0x4337
-    .word read_unk:(0x433F - 0x4337)                            // 0x4338-0x433F
+    .word read_a2axl,  read_a2axh,   read_ntrlx,   read_unusedx // 0x4338-0x433B
+    .word read_unk,    read_unk,     read_unk,     read_unusedx // 0x433C-0x433F
     .word read_dmapx,  read_bbadx,   read_a1txl,   read_a1txh   // 0x4340-0x4343
     .word read_a1bx,   read_dasxl,   read_dasxh,   read_dasbx   // 0x4344-0x4347
-    .word read_unk:(0x434F - 0x4347)                            // 0x4348-0x434F
+    .word read_a2axl,  read_a2axh,   read_ntrlx,   read_unusedx // 0x4348-0x434B
+    .word read_unk,    read_unk,     read_unk,     read_unusedx // 0x434C-0x434F
     .word read_dmapx,  read_bbadx,   read_a1txl,   read_a1txh   // 0x4350-0x4353
     .word read_a1bx,   read_dasxl,   read_dasxh,   read_dasbx   // 0x4354-0x4357
-    .word read_unk:(0x435F - 0x4357)                            // 0x4358-0x435F
+    .word read_a2axl,  read_a2axh,   read_ntrlx,   read_unusedx // 0x4358-0x435B
+    .word read_unk,    read_unk,     read_unk,     read_unusedx // 0x435C-0x435F
     .word read_dmapx,  read_bbadx,   read_a1txl,   read_a1txh   // 0x4360-0x4363
     .word read_a1bx,   read_dasxl,   read_dasxh,   read_dasbx   // 0x4364-0x4367
-    .word read_unk:(0x436F - 0x4367)                            // 0x4368-0x436F
+    .word read_a2axl,  read_a2axh,   read_ntrlx,   read_unusedx // 0x4368-0x436B
+    .word read_unk,    read_unk,     read_unk,     read_unusedx // 0x436C-0x436F
     .word read_dmapx,  read_bbadx,   read_a1txl,   read_a1txh   // 0x4370-0x4373
     .word read_a1bx,   read_dasxl,   read_dasxh,   read_dasbx   // 0x4374-0x4377
-    .word read_unk:(0x437F - 0x4377)                            // 0x4378-0x437F
+    .word read_a2axl,  read_a2axh,   read_ntrlx,   read_unusedx // 0x4378-0x437B
+    .word read_unk,    read_unk,     read_unk,     read_unusedx // 0x437C-0x437F
 
 write_iomap:
     .word write_inidisp,  write_obsel,   write_oamaddl, write_oamaddh // 0x2100-0x2103
@@ -139,28 +147,36 @@ write_iomap:
     .word write_unk:(0x42FF - 0x420F)                                 // 0x4210-0x42FF
     .word write_dmapx,    write_bbadx,   write_a1txl,   write_a1txh   // 0x4300-0x4303
     .word write_a1bx,     write_dasxl,   write_dasxh,   write_dasbx   // 0x4304-0x4307
-    .word write_unk:(0x430F - 0x4307)                                 // 0x4308-0x430F
+    .word write_a2axl,    write_a2axh,   write_ntrlx,   write_unusedx // 0x4308-0x430B
+    .word write_unk,      write_unk,     write_unk,     write_unusedx // 0x430C-0x430F
     .word write_dmapx,    write_bbadx,   write_a1txl,   write_a1txh   // 0x4310-0x4313
     .word write_a1bx,     write_dasxl,   write_dasxh,   write_dasbx   // 0x4314-0x4317
-    .word write_unk:(0x431F - 0x4317)                                 // 0x4318-0x431F
+    .word write_a2axl,    write_a2axh,   write_ntrlx,   write_unusedx // 0x4318-0x431B
+    .word write_unk,      write_unk,     write_unk,     write_unusedx // 0x431C-0x431F
     .word write_dmapx,    write_bbadx,   write_a1txl,   write_a1txh   // 0x4320-0x4323
     .word write_a1bx,     write_dasxl,   write_dasxh,   write_dasbx   // 0x4324-0x4327
-    .word write_unk:(0x432F - 0x4327)                                 // 0x4328-0x432F
+    .word write_a2axl,    write_a2axh,   write_ntrlx,   write_unusedx // 0x4328-0x432B
+    .word write_unk,      write_unk,     write_unk,     write_unusedx // 0x432C-0x432F
     .word write_dmapx,    write_bbadx,   write_a1txl,   write_a1txh   // 0x4330-0x4333
     .word write_a1bx,     write_dasxl,   write_dasxh,   write_dasbx   // 0x4334-0x4337
-    .word write_unk:(0x433F - 0x4337)                                 // 0x4338-0x433F
+    .word write_a2axl,    write_a2axh,   write_ntrlx,   write_unusedx // 0x4338-0x433B
+    .word write_unk,      write_unk,     write_unk,     write_unusedx // 0x433C-0x433F
     .word write_dmapx,    write_bbadx,   write_a1txl,   write_a1txh   // 0x4340-0x4343
     .word write_a1bx,     write_dasxl,   write_dasxh,   write_dasbx   // 0x4344-0x4347
-    .word write_unk:(0x434F - 0x4347)                                 // 0x4348-0x434F
+    .word write_a2axl,    write_a2axh,   write_ntrlx,   write_unusedx // 0x4348-0x434B
+    .word write_unk,      write_unk,     write_unk,     write_unusedx // 0x434C-0x434F
     .word write_dmapx,    write_bbadx,   write_a1txl,   write_a1txh   // 0x4350-0x4353
     .word write_a1bx,     write_dasxl,   write_dasxh,   write_dasbx   // 0x4354-0x4357
-    .word write_unk:(0x435F - 0x4357)                                 // 0x4358-0x435F
+    .word write_a2axl,    write_a2axh,   write_ntrlx,   write_unusedx // 0x4358-0x435B
+    .word write_unk,      write_unk,     write_unk,     write_unusedx // 0x435C-0x435F
     .word write_dmapx,    write_bbadx,   write_a1txl,   write_a1txh   // 0x4360-0x4363
     .word write_a1bx,     write_dasxl,   write_dasxh,   write_dasbx   // 0x4364-0x4367
-    .word write_unk:(0x436F - 0x4367)                                 // 0x4368-0x436F
+    .word write_a2axl,    write_a2axh,   write_ntrlx,   write_unusedx // 0x4368-0x436B
+    .word write_unk,      write_unk,     write_unk,     write_unusedx // 0x436C-0x436F
     .word write_dmapx,    write_bbadx,   write_a1txl,   write_a1txh   // 0x4370-0x4373
     .word write_a1bx,     write_dasxl,   write_dasxh,   write_dasbx   // 0x4374-0x4377
-    .word write_unk:(0x437F - 0x4377)                                 // 0x4378-0x437F
+    .word write_a2axl,    write_a2axh,   write_ntrlx,   write_unusedx // 0x4378-0x437B
+    .word write_unk,      write_unk,     write_unk,     write_unusedx // 0x437C-0x437F
 
 .text
 

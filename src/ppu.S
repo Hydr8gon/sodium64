@@ -19,11 +19,15 @@
 
 #include <regdef.h>
 
+// Minimum lines between frame sections
+#define SECTION_MIN 16
+
 .globl fps_emulate
 .globl fps_display
 .globl frame_count
 
 .globl ppu_event
+.globl section_init
 .globl read_mpyl
 .globl read_mpym
 .globl read_mpyh
@@ -87,6 +91,7 @@ oam:        .byte  0:0x220
 cgram:      .hword 0:0x100
 
 section_ptr: .word  0xA037C000
+sect_status: .hword 0x000
 cur_line:    .hword 0x000
 vblank_line: .byte  0xE1
 
@@ -142,7 +147,7 @@ m7c:         .hword 0x0000
 m7d:         .hword 0x0000
 m7x:         .hword 0x0000
 m7y:         .hword 0x0000
-fill_color:  .hword 0x0000
+filler:      .hword 0x0000
 force_blank: .byte  0x00
 bg_mode:     .byte  0x00
 sub_mask:    .byte  0x00
@@ -180,7 +185,30 @@ vblank_check:
     beq  s0, t0, vblank_start
     beq  s0, 262, vblank_end
 
-sched_next:
+run_line:
+    // Skip sections and HDMA if currently in V-blank
+    lbu  t0, hvbjoy
+    andi t0, t0, 0x80
+    bnez t0, next_line
+
+    // Decrement the section cooldown if non-zero
+    lhu  t0, sect_status
+    andi t1, t0, 0xFF
+    sltu t1, zero, t1
+    sub  t0, t0, t1
+
+    // Make a new section if dirty and reset the cooldown
+    bne  t0, 0x100, skip_section
+    lhu  a0, cur_line
+    jal  make_section
+    li   t0, SECTION_MIN
+
+skip_section:
+    // Update the section status and trigger HDMA
+    sh   t0, sect_status
+    jal  trigger_hdma
+
+next_line:
     // Offset all cycle counts for the next event
     li   a0, 341 * 4
     add  s5, s5, a0 // CPU
@@ -198,7 +226,7 @@ sched_next:
 vblank_start:
     // Set the V-blank and NMI flags
     lbu  t0, hvbjoy
-    or   t0, t0, 0x80
+    ori  t0, t0, 0x80
     sb   t0, hvbjoy
     li   t0, 0x80
     sb   t0, rdnmi
@@ -219,9 +247,9 @@ skip_frame:
     // Trigger an NMI if enabled
     lbu  t0, nmitimen
     andi t0, t0, 0x80 // NMI enable
-    beqz t0, sched_next
+    beqz t0, run_line
     li   a1, 0
-    la   ra, sched_next
+    la   ra, run_line
     j    trigger_nmi
 
 
@@ -232,10 +260,12 @@ vblank_end:
     sb   t0, hvbjoy
     sb   zero, rdnmi
 
-    // Reset the line counter and trigger HDMA once to at least initialize values
+    // Reset the frame status and start the first section
+    sh   zero, sect_status
     sh   zero, cur_line
-    la   ra, sched_next
-    j    trigger_hdma
+    jal  reload_hdma
+    la   ra, run_line
+    j    section_init
 
 
 vcount_irq:
@@ -251,70 +281,36 @@ vcount_irq:
     // Set the V-count IRQ flag
     li   t0, 0x80
     sb   t0, timeup
-
-    // Make a new section unless in V-blank or the limit has been hit
-    lbu  t0, rdnmi
-    bnez t0, vblank_check
-    lw   t1, section_ptr
-    andi t2, t1, 0x1FFF
-    beq  t2, 0x50 * 7, vblank_check
-    lhu  a0, cur_line
-    la   ra, vblank_check
-    j    make_section
+    j    vblank_check
 
 
 make_section: // a0: line
-    // Use the sub screen backdrop color if set; otherwise use the main color
-    // Blending isn't implemented, but this fixes the backdrop in some cases
-    lbu  t0, brightness
-    lhu  t1, coldata
-    li   t3, 0x0001 // Alpha
-    bnez t1, set_backdrop
-    lhu  t1, cgram
+    // Set bounds for the current frame section
+    lw   t1, section_ptr
+    addi t1, t1, -1
+    addi a0, a0, -1
+    sb   a0, (t1)
 
-set_backdrop:
-    // Apply brightness to the red component and shift for N64 format
-    andi t2, t1, 0x1F
-    mult t2, t0
-    mflo t2
-    srl  t2, t2, 4
-    sll  t2, t2, 11
-    or   t3, t3, t2
-
-    // Apply brightness to the green component and shift for N64 format
-    srl  t2, t1, 5
-    andi t2, t2, 0x1F
-    mult t2, t0
-    mflo t2
-    srl  t2, t2, 4
-    sll  t2, t2, 6
-    or   t3, t3, t2
-
-    // Apply brightness to the blue component and shift for N64 format
-    srl  t2, t1, 10
-    andi t2, t2, 0x1F
-    mult t2, t0
-    mflo t2
-    srl  t2, t2, 4
-    sll  t2, t2, 1
-    or   t3, t3, t2
-
-    // Set the backdrop color and section bounds
-    sh   t3, fill_color
-    sb   a0, split_line
-
-    // Copy values for a new frame section
+section_init:
+    // Copy values for the next frame section
     la   t0, obj_size
     lw   t1, section_ptr
     li   t2, 0x50
-sect_loop:
+section_loop:
     addi t2, t2, -8
     ld   t3, (t0)
     addi t0, t0, 8
     sd   t3, (t1)
     addi t1, t1, 8
-    bnez t2, sect_loop
+    bnez t2, section_loop
     sw   t1, section_ptr
+    jr   ra
+
+
+update_frame:
+    // Mark the current frame section as dirty
+    li   t0, 0x1
+    sb   t0, sect_status
     jr   ra
 
 
@@ -351,13 +347,19 @@ count_frame:
     // Set initial values for palette conversion
     lbu  t0, brightness
     la   t8, 0xA038C7F8
-    li   t9, 0x1FE
+    li   t9, 0x200
+
+    // Replace backdrop with the sub screen color to fake some effects
+    lhu  t7, cgram
+    lhu  t1, coldata
+    beqz t1, update_dpal
+    sh   t1, cgram
 
 update_dpal:
     // Move to the next palette color
-    lhu  t1, cgram(t9)
     addi t9, t9, -2
-    li   t3, 0x0001 // Alpha
+    lhu  t1, cgram(t9)
+    sltu t3, zero, t9 // Alpha
 
     // Apply brightness to the red component and shift for N64 format
     andi t2, t1, 0x1F
@@ -392,7 +394,10 @@ update_dpal:
     sw   t3, 4(t8)
     addi t8, t8, -8
     bnez t9, update_dpal
-    sd   zero, (t8) // Index 0
+
+    // Update the RSP's fill color and restore the backdrop
+    sw   t3, 0xA4000FEC // Fill color
+    sh   t7, cgram
 
     // Update the RSP's copy of OAM in DMEM
     la   t0, oam
@@ -438,9 +443,8 @@ vram_loop:
     lbu  t0, fb_border
     sw   t0, 0xA4000FF0 // Frame border
     lhu  a0, cur_line
-    addi a0, a0, -2
-    sw   a0, 0xA4000FF4 // Frame end
     jal  make_section
+    sw   a0, 0xA4000FF4 // Frame end
 
     // Reset and swap section pointers with the RSP
     li   t0, 0xA037E000
@@ -616,9 +620,10 @@ write_inidisp: // a1: value
     // Some games use mid-frame events to achieve a longer V-blank period
     // If force blank is set after a certain line, handle the frame now
     beqz t0, set_bright
-    lbu  t1, rdnmi
+    lbu  t1, hvbjoy
+    andi t1, t1, 0x80
     bnez t1, set_bright
-    lbu  t1, cur_line
+    lhu  t1, vtime
     ble  t1, 210, set_bright
     sb   t0, frame_done
     b    rsp_frame
@@ -629,7 +634,7 @@ set_bright:
     sgtu t1, t0, zero
     add  t0, t0, t1
     sb   t0, brightness
-    jr   ra
+    j    update_frame
 
 
 write_obsel: // a1: value
@@ -644,7 +649,7 @@ write_obsel: // a1: value
     srl  t0, t0, 3
     lw   t0, obj_sizes(t0)
     sw   t0, obj_size
-    jr   ra
+    j    update_frame
 
 
 write_oamaddl: // a1: value
@@ -659,7 +664,7 @@ write_oamaddl: // a1: value
     sll  t0, t0, 1
     andi t0, t0, 0x3FE
     sh   t0, oam_addr
-    jr   ra
+    j    update_frame
 
 
 write_oamaddh: // a1: value
@@ -675,7 +680,7 @@ write_oamaddh: // a1: value
     sll  t0, t0, 1
     andi t0, t0, 0x3FE
     sh   t0, oam_addr
-    jr   ra
+    j    update_frame
 
 
 write_oamdata: // a1: value
@@ -719,13 +724,13 @@ write_bgmode: // a1: value
     beq  t0, 0x09, high_prio
     andi t0, t0, 0x07
     sb   t0, bg_mode
-    jr   ra
+    j    update_frame
 
 high_prio:
     // Set a special mode when mode 1 is set with the BG3 priority bit
     li   t0, 8
     sb   t0, bg_mode
-    jr   ra
+    j    update_frame
 
 
 write_bg1sc: // a1: value
@@ -743,7 +748,7 @@ write_bg1sc: // a1: value
     // Update BG1's vertical base offset in DMEM
     lhu  t0, scrn_ofsv(t1)
     sh   t0, bgbaseofsv + 0
-    jr   ra
+    j    update_frame
 
 
 write_bg2sc: // a1: value
@@ -761,7 +766,7 @@ write_bg2sc: // a1: value
     // Update BG2's vertical base offset in DMEM
     lhu  t0, scrn_ofsv(t1)
     sh   t0, bgbaseofsv + 2
-    jr   ra
+    j    update_frame
 
 
 write_bg3sc: // a1: value
@@ -779,7 +784,7 @@ write_bg3sc: // a1: value
     // Update BG3's vertical base offset in DMEM
     lhu  t0, scrn_ofsv(t1)
     sh   t0, bgbaseofsv + 4
-    jr   ra
+    j    update_frame
 
 
 write_bg4sc: // a1: value
@@ -797,7 +802,7 @@ write_bg4sc: // a1: value
     // Update BG4's vertical base offset in DMEM
     lhu  t0, scrn_ofsv(t1)
     sh   t0, bgbaseofsv + 6
-    jr   ra
+    j    update_frame
 
 
 write_bg12nba: // a1: value
@@ -810,7 +815,7 @@ write_bg12nba: // a1: value
     andi t0, a1, 0x70
     sll  t0, t0, 9
     sh   t0, bgcharbase + 2
-    jr   ra
+    j    update_frame
 
 
 write_bg34nba: // a1: value
@@ -823,7 +828,7 @@ write_bg34nba: // a1: value
     andi t0, a1, 0x70
     sll  t0, t0, 9
     sh   t0, bgcharbase + 6
-    jr   ra
+    j    update_frame
 
 
 write_bg1hofs: // a1: value
@@ -843,7 +848,7 @@ write_bg1hofs: // a1: value
     sll  t0, t0, 18
     sra  t0, t0, 18
     sh   t0, m7hofs
-    jr   ra
+    j    update_frame
 
 
 write_bg1vofs: // a1: value
@@ -863,7 +868,7 @@ write_bg1vofs: // a1: value
     sll  t0, t0, 18
     sra  t0, t0, 18
     sh   t0, m7vofs
-    jr   ra
+    j    update_frame
 
 
 write_bg2hofs: // a1: value
@@ -874,7 +879,7 @@ write_bg2hofs: // a1: value
     or   t0, t0, t1
     sb   a1, bg_old
     sh   t0, bghofs + 2
-    jr   ra
+    j    update_frame
 
 
 write_bg2vofs: // a1: value
@@ -885,7 +890,7 @@ write_bg2vofs: // a1: value
     or   t0, t0, t1
     sb   a1, bg_old
     sh   t0, bgvofs + 2
-    jr   ra
+    j    update_frame
 
 
 write_bg3hofs: // a1: value
@@ -896,7 +901,7 @@ write_bg3hofs: // a1: value
     or   t0, t0, t1
     sb   a1, bg_old
     sh   t0, bghofs + 4
-    jr   ra
+    j    update_frame
 
 
 write_bg3vofs: // a1: value
@@ -907,7 +912,7 @@ write_bg3vofs: // a1: value
     or   t0, t0, t1
     sb   a1, bg_old
     sh   t0, bgvofs + 4
-    jr   ra
+    j    update_frame
 
 
 write_bg4hofs: // a1: value
@@ -918,7 +923,7 @@ write_bg4hofs: // a1: value
     or   t0, t0, t1
     sb   a1, bg_old
     sh   t0, bghofs + 6
-    jr   ra
+    j    update_frame
 
 
 write_bg4vofs: // a1: value
@@ -929,7 +934,7 @@ write_bg4vofs: // a1: value
     or   t0, t0, t1
     sb   a1, bg_old
     sh   t0, bgvofs + 6
-    jr   ra
+    j    update_frame
 
 
 write_vmain: // a1: value
@@ -1020,7 +1025,7 @@ write_m7sel: // a1: value
     // TODO: use the rest of the bits
     srl  t0, a1, 7
     sb   t0, m7_nowrap
-    jr   ra
+    j    update_frame
 
 
 write_m7a: // a1: value
@@ -1037,7 +1042,7 @@ write_m7a: // a1: value
     mult t0, t1
     mflo t0
     sw   t0, mpy
-    jr   ra
+    j    update_frame
 
 
 write_m7b: // a1: value
@@ -1054,7 +1059,7 @@ write_m7b: // a1: value
     mult t0, t1
     mflo t0
     sw   t0, mpy
-    jr   ra
+    j    update_frame
 
 
 write_m7c: // a1: value
@@ -1064,7 +1069,7 @@ write_m7c: // a1: value
     or   t0, t0, t1
     sb   a1, m7_old
     sh   t0, m7c
-    jr   ra
+    j    update_frame
 
 
 write_m7d: // a1: value
@@ -1074,7 +1079,7 @@ write_m7d: // a1: value
     or   t0, t0, t1
     sb   a1, m7_old
     sh   t0, m7d
-    jr   ra
+    j    update_frame
 
 
 write_m7x: // a1: value
@@ -1086,7 +1091,7 @@ write_m7x: // a1: value
     sll  t0, t0, 18
     sra  t0, t0, 18
     sh   t0, m7x
-    jr   ra
+    j    update_frame
 
 
 write_m7y: // a1: value
@@ -1098,7 +1103,7 @@ write_m7y: // a1: value
     sll  t0, t0, 18
     sra  t0, t0, 18
     sh   t0, m7y
-    jr   ra
+    j    update_frame
 
 
 write_cgadd: // a1: value
@@ -1138,7 +1143,7 @@ write_tm: // a1: value
     sb   a1, main_mask
     and  t0, t0, t1
     sb   t0, sub_mask
-    jr   ra
+    j    update_frame
 
 
 write_ts: // a1: value
@@ -1148,7 +1153,7 @@ write_ts: // a1: value
     xori t0, t0, 0x1F
     and  t0, t0, a1
     sb   t0, sub_mask
-    jr   ra
+    j    update_frame
 
 
 write_coldata: // a1: value

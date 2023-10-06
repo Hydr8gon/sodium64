@@ -19,6 +19,7 @@
 
 #include "cpu_address.h"
 
+.globl reload_hdma
 .globl trigger_hdma
 .globl write_mdmaen
 .globl read_dmapx
@@ -29,6 +30,10 @@
 .globl read_dasxl
 .globl read_dasxh
 .globl read_dasbx
+.globl read_a2axl
+.globl read_a2axh
+.globl read_ntrlx
+.globl read_unusedx
 .globl write_hdmaen
 .globl write_dmapx
 .globl write_bbadx
@@ -38,14 +43,23 @@
 .globl write_dasxl
 .globl write_dasxh
 .globl write_dasbx
+.globl write_a2axl
+.globl write_a2axh
+.globl write_ntrlx
+.globl write_unusedx
 
 .data
 
-hdmaen: .byte  0x00
-dmapx:  .byte  0x00:8
-bbadx:  .hword 0x2100:8
-a1tbx:  .word  0x000000:8
-dastbx: .word  0x000000:8
+hdma_mask: .byte 0x00
+
+hdmaen:  .byte  0x00
+dmapx:   .byte  0x00:8
+bbadx:   .hword 0x2100:8
+a1tbx:   .word  0x000000:8
+dastbx:  .word  0x000000:8
+a2abx:   .word  0x000000:8
+ntrlx:   .byte  0x00:8
+unusedx: .byte  0x00:8
 
 // Possible CPU address steps
 address_steps: .byte 1, 0, -1, 0
@@ -66,16 +80,43 @@ unit_lengths: .byte 1, 2, 2, 4, 4, 4, 2, 4
 
 .text
 
+reload_hdma:
+    // Reload the HDMA channel mask
+    lbu  t0, hdmaen
+    li   t1, 0
+    sb   t0, hdma_mask
+
+reload_start:
+    // Check if the current HDMA channel is enabled
+    andi t2, t0, 1
+    beqz t2, reload_end
+
+    // Reload the channel's table address and line counter
+    sll  t2, t1, 2
+    lw   t3, a1tbx(t2)
+    li   t4, 0x01
+    sw   t3, a2abx(t2)
+    sb   t4, ntrlx(t1)
+
+reload_end:
+    // Move to the next channel until no more are enabled
+    srl  t0, t0, 1
+    addi t1, t1, 1
+    bnez t0, reload_start
+    jr   ra
+
+
 trigger_hdma:
+    // Set the initial enabled channels (s0) and current channel (s1)
+    lbu  s0, hdma_mask
+    li   s1, 0
+    beqz s0, hdma_skip
+
     // Push non-temporary registers to the stack
     addi sp, sp, -12
     sw   ra, 8(sp)
     sw   s4, 4(sp)
     sw   s3, 0(sp)
-
-    // Set the initial enabled channels (s0) and current channel (s1)
-    lbu  s0, hdmaen
-    li   s1, 0
 
 hdma_start:
     // Check if the current HDMA channel is enabled
@@ -90,20 +131,63 @@ hdma_start:
     add  s3, s3, t2
     lbu  s4, unit_lengths(t1)
 
-    // Get the table entry address (s2) and check for indirect mode
+    // Decrement the line counter and check if finished
+    lbu  v1, ntrlx(s1)
     sll  t1, s1, 2
-    lw   s2, a1tbx(t1)
-    addi s2, s2, 1
-    andi t1, t0, 0x40
-    beqz t1, hdma_ready
+    lw   s2, a2abx(t1)
+    addi v1, v1, -1
+    sb   v1, ntrlx(s1)
+    andi t1, v1, 0x7F
+    bnez t1, same_entry
 
-    // Use the table entry as a pointer to data in indirect mode
+    // Reload the line counter for the next table entry
+    MEM_READ8 0(s2)
+    sb   v0, ntrlx(s1)
+    addi s2, s2, 1
+    sll  t1, s1, 2
+    sw   s2, a2abx(t1)
+    beqz v0, hdma_disable
+    ori  v1, v1, 0x80 // Do transfer
+
+same_entry:
+    // Check if a transfer should occur (repeat or first)
+    andi t1, v1, 0x80
+    beqz t1, hdma_end
+
+    // Check for indirect mode
+    lbu  t0, dmapx(s1)
+    andi t0, t0, 0x40
+    bnez t0, hdma_indir
+
+    // Increment the direct address and start a transfer
+    add  t0, s2, s4
+    sll  t1, s1, 2
+    sh   t0, a2abx + 2(t1)
+    b    hdma_ready
+
+hdma_indir:
+    // Check if the indirect address should be reloaded
+    andi t1, v1, 0x7F
+    bnez t1, indir_ready
+
+    // Read the value and increment the direct address
     MEM_READ16 0(s2)
-    sll  t2, s1, 2
-    lbu  t1, dastbx + 1(t2)
-    sll  t1, t1, 16
-    or   s2, t1, v0
-    sw   s2, dastbx(t2)
+    addi t0, s2, 2
+    sll  t1, s1, 2
+    sh   t0, a2abx + 2(t1)
+
+    // Reload the indirect address
+    lbu  t2, dastbx + 1(t1)
+    sll  t2, t2, 16
+    or   s2, t2, v0
+    sw   s2, dastbx(t1)
+
+indir_ready:
+    // Increment the indirect address and start a transfer
+    sll  t1, s1, 2
+    lw   s2, dastbx(t1)
+    add  t0, s2, s4
+    sw   t0, dastbx(t1)
 
 hdma_ready:
     // Check the channel's transfer direction
@@ -145,6 +229,15 @@ hio_cpu:
     bnez s4, hio_cpu
     b    hdma_end
 
+hdma_disable:
+    // Disable an HDMA channel for the rest of the frame
+    lbu  t0, hdma_mask
+    li   t1, 1
+    sll  t1, t1, s1
+    xori t1, t1, 0xFF
+    and  t0, t0, t1
+    sb   t0, hdma_mask
+
 hdma_end:
     // Move to the next channel until no more are enabled
     srl  s0, s0, 1
@@ -156,6 +249,7 @@ hdma_end:
     lw   s4, 4(sp)
     lw   s3, 0(sp)
     addi sp, sp, 12
+hdma_skip:
     jr   ra
 
 
@@ -342,6 +436,38 @@ read_dasbx: // a0: address - v0: value
     jr   ra
 
 
+read_a2axl: // a0: address - v0: value
+    // Get the low byte of one of the HDMA current addresses
+    srl  t0, a0, 2
+    andi t0, t0, 0x7 << 2
+    lbu  v0, a2abx + 3(t0)
+    jr   ra
+
+
+read_a2axh: // a0: address - v0: value
+    // Get the high byte of one of the HDMA current addresses
+    srl  t0, a0, 2
+    andi t0, t0, 0x7 << 2
+    lbu  v0, a2abx + 2(t0)
+    jr   ra
+
+
+read_ntrlx: // a0: address - v0: value
+    // Get one of the HDMA line counters
+    srl  t0, a0, 4
+    andi t0, t0, 0x7
+    lbu  v0, ntrlx(t0)
+    jr   ra
+
+
+read_unusedx: // a0: address - v0: value
+    // Get one of the unused DMA values
+    srl  t0, a0, 4
+    andi t0, t0, 0x7
+    lbu  v0, unusedx(t0)
+    jr   ra
+
+
 write_dmapx: // a0: address, a1: value
     // Write to one of the DMAPx registers
     srl  t0, a0, 4
@@ -403,4 +529,36 @@ write_dasbx: // a0: address, a1: value
     srl  t0, a0, 2
     andi t0, t0, 0x7 << 2
     sb   a1, dastbx + 1(t0)
+    jr   ra
+
+
+write_a2axl: // a0: address, a1: value
+    // Set the low byte of one of the HDMA current addresses
+    srl  t0, a0, 2
+    andi t0, t0, 0x7 << 2
+    sb   a1, a2abx + 3(t0)
+    jr   ra
+
+
+write_a2axh: // a0: address, a1: value
+    // Set the high byte of one of the HDMA current addresses
+    srl  t0, a0, 2
+    andi t0, t0, 0x7 << 2
+    sb   a1, a2abx + 2(t0)
+    jr   ra
+
+
+write_ntrlx: // a0: address, a1: value
+    // Set one of the HDMA line counters
+    srl  t0, a0, 4
+    andi t0, t0, 0x7
+    sb   a1, ntrlx(t0)
+    jr   ra
+
+
+write_unusedx: // a0: address, a1: value
+    // Set one of the unused DMA values
+    srl  t0, a0, 4
+    andi t0, t0, 0x7
+    sb   a1, unusedx(t0)
     jr   ra

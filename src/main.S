@@ -128,6 +128,7 @@ pi_wait1:
     jal  reset_tlb
     jal  input_init
     jal  memory_init
+    jal  section_init
     jal  cpu_init
 
     // Upload the RSP code and data

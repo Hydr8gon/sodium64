@@ -56,13 +56,14 @@
 #define M7D          0xE02
 #define M7X          0xE04
 #define M7Y          0xE06
-#define FILL_COLOR   0xE08
+#define FILLER       0xE08
 #define FORCE_BLANK  0xE0A
 #define BG_MODE      0xE0B
 #define SUB_MASK     0xE0C
 #define MAIN_MASK    0xE0D
 #define M7_NOWRAP    0xE0E
 #define SPLIT_LINE   0xE0F
+#define FILL_COLOR   0xFEC
 #define FB_BORDER    0xFF0
 #define FRAME_END    0xFF4
 #define SECTION_PTR  0xFF8
@@ -177,7 +178,7 @@ m7c:         .hword 0x0000
 m7d:         .hword 0x0000
 m7x:         .hword 0x0000
 m7y:         .hword 0x0000
-fill_color:  .hword 0x0000
+filler:      .hword 0x0000
 force_blank: .byte  0x00
 bg_mode:     .byte  0x00
 sub_mask:    .byte  0x00
@@ -185,9 +186,10 @@ main_mask:   .byte  0x00
 m7_nowrap:   .byte  0x00
 split_line:  .byte  0x00
 
-.space 0x1E0
+.space 0x1DC
 
 // Values with hardcoded addresses for easy CPU access
+fill_color:  .word 0x0000     // 0xFEC
 fb_border:   .word 0x08       // 0xFF0
 frame_end:   .word 0xDF       // 0xFF4
 section_ptr: .word 0xA037E000 // 0xFF8
@@ -221,20 +223,19 @@ draw_frame:
 next_section:
     // Finish the frame after the last section is done
     lw   t0, FRAME_END
-    bgt  k1, t0, next_frame
+    beq  k1, t0, next_frame
 
     // Load values for the next section
     la   a0, OBJ_SIZE
-    lw   a1, section_ptr
+    lw   a1, SECTION_PTR
     li   a2, 0x4F
     jal  dma_read
     addi a1, a1, 0x50
-    sw   a1, section_ptr
+    sw   a1, SECTION_PTR
 
     // Set the section bounds
     move k0, k1
     lbu  k1, SPLIT_LINE
-    addi k1, k1, 1
 
     // Update the RDP scissor and fill bounds for the section
     lw   t0, FB_BORDER
@@ -252,7 +253,7 @@ next_section:
     lbu  t1, FORCE_BLANK
     li   t0, 0
     bnez t1, blank_set
-    lhu  t0, FILL_COLOR
+    lw   t0, FILL_COLOR
 blank_set:
     sh   t0, RDP_SECTION + 12
     sh   t0, RDP_SECTION + 14
