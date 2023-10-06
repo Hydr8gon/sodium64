@@ -31,38 +31,38 @@
 #define RDP_INIT     0xBE0
 #define RDP_FRAME    0xC00
 #define RDP_SECTION  0xC18
-#define RDP_MODE7    0xC40
-#define RDP_TILE     0xC50
-#define LAYER_CHART  0xCC8
-#define TILE_PARAMS  0xD58
-#define TILE_JUMPS   0xD98
-#define MODE7_BOUNDS 0xDA4
-#define CACHE_BASES  0xDB4
-#define MASK_OFS     0xDBE
-#define OBJ_SIZE     0xDC0
-#define OBJCHARBASE  0xDC4
-#define OAMADD       0xDC6
-#define BGSCRNBASE   0xDC8
-#define BGBASEOFSH   0xDD0
-#define BGBASEOFSV   0xDD8
-#define BGCHARBASE   0xDE0
-#define BGHOFS       0xDE8
-#define BGVOFS       0xDF0
-#define M7HOFS       0xDF8
-#define M7VOFS       0xDFA
-#define M7A          0xDFC
-#define M7B          0xDFE
-#define M7C          0xE00
-#define M7D          0xE02
-#define M7X          0xE04
-#define M7Y          0xE06
-#define FILLER       0xE08
-#define FORCE_BLANK  0xE0A
-#define BG_MODE      0xE0B
-#define SUB_MASK     0xE0C
-#define MAIN_MASK    0xE0D
-#define M7_NOWRAP    0xE0E
-#define SPLIT_LINE   0xE0F
+#define RDP_MODE7    0xC48
+#define RDP_TILE     0xC60
+#define LAYER_CHART  0xCD8
+#define TILE_PARAMS  0xD68
+#define TILE_JUMPS   0xDA8
+#define MODE7_BOUNDS 0xDB4
+#define CACHE_BASES  0xDC4
+#define MASK_OFS     0xDCE
+#define OBJ_SIZE     0xDD0
+#define OBJCHARBASE  0xDD4
+#define OAMADD       0xDD6
+#define BGSCRNBASE   0xDD8
+#define BGBASEOFSH   0xDE0
+#define BGBASEOFSV   0xDE8
+#define BGCHARBASE   0xDF0
+#define BGHOFS       0xDF8
+#define BGVOFS       0xE00
+#define M7HOFS       0xE08
+#define M7VOFS       0xE0A
+#define M7A          0xE0C
+#define M7B          0xE0E
+#define M7C          0xE10
+#define M7D          0xE12
+#define M7X          0xE14
+#define M7Y          0xE16
+#define FILLER       0xE18
+#define FORCE_BLANK  0xE1A
+#define BG_MODE      0xE1B
+#define SUB_MASK     0xE1C
+#define MAIN_MASK    0xE1D
+#define M7_NOWRAP    0xE1E
+#define SPLIT_LINE   0xE1F
 #define FILL_COLOR   0xFEC
 #define FB_BORDER    0xFF0
 #define FRAME_END    0xFF4
@@ -105,6 +105,7 @@ rdp_frame:
 
 rdp_section:
     // RDP commands that run when changing the frame section
+    .dword 0x2800000000000000 // Sync Tile
     .dword 0x2D030020004303A0 // Set Scissor
     .dword 0x3700000000000000 // Set Fill Color
     .dword 0x2F3888FF00040001 // Set Other Modes (fill)
@@ -113,6 +114,7 @@ rdp_section:
 
 rdp_mode7:
     // RDP commands that run when changing to/from mode 7
+    .dword 0x2800000000000000 // Sync Tile
     .dword 0x3548020001054150 // Set Tile (texture)
     .dword 0x320000000101F01F // Set Tile Size
 
@@ -186,7 +188,7 @@ main_mask:   .byte  0x00
 m7_nowrap:   .byte  0x00
 split_line:  .byte  0x00
 
-.space 0x1DC
+.space 0x1CC
 
 // Values with hardcoded addresses for easy CPU access
 fill_color:  .word 0x0000     // 0xFEC
@@ -241,13 +243,13 @@ next_section:
     lw   t0, FB_BORDER
     add  t1, t0, k0
     sll  t1, t1, 2
-    sh   t1, RDP_SECTION + 2
-    sh   t1, RDP_SECTION + 30
+    sh   t1, RDP_SECTION + 10
+    sh   t1, RDP_SECTION + 38
     add  t2, t0, k1
     sll  t2, t2, 2
-    sh   t2, RDP_SECTION + 6
+    sh   t2, RDP_SECTION + 14
     ori  t2, t2, 0xF000
-    sh   t2, RDP_SECTION + 26
+    sh   t2, RDP_SECTION + 34
 
     // Update the RDP fill color for the section
     lbu  t1, FORCE_BLANK
@@ -255,8 +257,8 @@ next_section:
     bnez t1, blank_set
     lw   t0, FILL_COLOR
 blank_set:
-    sh   t0, RDP_SECTION + 12
-    sh   t0, RDP_SECTION + 14
+    sh   t0, RDP_SECTION + 20
+    sh   t0, RDP_SECTION + 22
 
     // Run the RDP to prepare the section
     la   a0, RDP_SECTION
@@ -633,9 +635,9 @@ draw_mode7:
 
     // Update RDP parameters for a texture width of 32 (4 tiles)
     li   t0, 0x08   // Width / 4
-    sb   t0, RDP_MODE7 + 2
+    sb   t0, RDP_MODE7 + 10
     li   t0, 0x0107F07F // Tile size
-    sw   t0, RDP_MODE7 + 12
+    sw   t0, RDP_MODE7 + 20
 
     // Set the initial tile Y-coordinate
     andi t0, k0, 0x7
@@ -939,9 +941,9 @@ finish_tile7:
 
     // Restore RDP parameters that were changed for mode 7
     li   t0, 0x02
-    sb   t0, RDP_MODE7 + 2   // Texture width / 4
+    sb   t0, RDP_MODE7 + 10   // Texture width / 4
     li   t0, 0x0101F01F
-    sw   t0, RDP_MODE7 + 12  // Tile size
+    sw   t0, RDP_MODE7 + 20  // Tile size
     li   t0, 0x0201F800
     sw   t0, RDP_TILE + 20   // Texels to load
     sw   zero, RDP_TILE + 72 // Coordinates (frac)
