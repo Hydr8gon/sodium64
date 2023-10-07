@@ -331,8 +331,13 @@ rsp_frame:
     addi sp, sp, -4
     sw   ra, 0(sp)
 
-    // Draw the FPS counter on the finished frame
-    lbu  t0, fps_toggle
+    // Swap the main and sub screens if toggled by the Z button
+    lbu  t0, btn_toggle
+    srl  t1, t0, 5
+    sw   t1, 0xA4000FE8 // Mask offset
+
+    // Draw the FPS counter if toggled by the start button
+    andi t0, t0, 0x10
     beqz t0, count_frame
     lbu  a0, fps_display
     li   a1, 24 * 560 + 44 * 2

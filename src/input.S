@@ -19,7 +19,7 @@
 
 #include <regdef.h>
 
-.globl fps_toggle
+.globl btn_toggle
 
 .globl input_init
 .globl input_update
@@ -40,8 +40,8 @@ joybus_cmd:
     .dword 0x0000000000000000 // Nothing
     .dword 0x0000000000000001 // Run command
 
-start_hold: .byte 0x01
-fps_toggle: .byte 0x00
+btn_state:  .byte 0x30
+btn_toggle: .byte 0x00
 
 .text
 
@@ -56,33 +56,32 @@ input_init:
 
 
 input_update:
-    // Check if controller 1's start button was pressed
+    // Check if controller 1 is connected
     la   k0, 0x20000002 + joybus_cmd
     lbu  k1, 0(k0)
     andi k1, k1, 0xC0 // Error bits
-    bnez k1, start_release
-    lbu  k1, 2(k0)
-    andi k1, k1, 0x10
-    beqz k1, start_release
-
-    // Check if the start button was previously held, and hold it
-    la   k0, start_hold
-    lbu  k1, (k0)
     bnez k1, joybus_dma
-    li   k1, 1
-    sb   k1, (k0)
 
-    // Toggle the FPS counter if the start button was newly pressed
-    la   k0, fps_toggle
-    lbu  k1, (k0)
-    xori k1, k1, 0x01
-    sb   k1, (k0)
-    b    joybus_dma
+    // Get the newly-pressed state for button toggles
+    lbu  k1, 2(k0)
+    la   k0, btn_state
+    lbu  k0, (k0)
+    xori k0, k0, 0x30
+    and  k0, k0, k1
 
-start_release:
-    // Release the start button so it can be pressed again
-    la   k0, start_hold
-    sb   zero, (k0)
+    // Toggle bits whose buttons were newly pressed
+    la   k1, btn_toggle
+    lbu  k1, (k1)
+    xor  k0, k0, k1
+    la   k1, btn_toggle
+    sb   k0, (k1)
+
+    // Save the current pressed state for next frame
+    la   k0, 0x20000002 + joybus_cmd
+    lbu  k1, 2(k0)
+    la   k0, btn_state
+    andi k1, k1, 0x30
+    sb   k1, (k0)
 
 joybus_dma:
     // Read the output of the joybus command via DMA

@@ -38,7 +38,6 @@
 #define TILE_JUMPS   0xDA8
 #define MODE7_BOUNDS 0xDB4
 #define CACHE_BASES  0xDC4
-#define MASK_OFS     0xDCE
 #define OBJ_SIZE     0xDD0
 #define OBJCHARBASE  0xDD4
 #define OAMADD       0xDD6
@@ -63,6 +62,7 @@
 #define MAIN_MASK    0xE1D
 #define M7_NOWRAP    0xE1E
 #define SPLIT_LINE   0xE1F
+#define MASK_OFS     0xFE8
 #define FILL_COLOR   0xFEC
 #define FB_BORDER    0xFF0
 #define FRAME_END    0xFF4
@@ -160,7 +160,6 @@ tile_params:
 tile_jumps:   .word  decode_tile4, decode_tile16, decode_tile256
 mode7_bounds: .word  0:4
 cache_bases:  .hword 0:5
-mask_ofs:     .byte  0
 
 // Values that are reloaded for each section (0x50 bytes)
 obj_size:    .word  0x10100808
@@ -188,9 +187,10 @@ main_mask:   .byte  0x00
 m7_nowrap:   .byte  0x00
 split_line:  .byte  0x00
 
-.space 0x1CC
+.space 0x1C8
 
 // Values with hardcoded addresses for easy CPU access
+mask_ofs:    .word 0x00       // 0xFE8
 fill_color:  .word 0x0000     // 0xFEC
 fb_border:   .word 0x08       // 0xFF0
 frame_end:   .word 0xDF       // 0xFF4
@@ -271,7 +271,7 @@ blank_set:
     // Set the initial layer lookup offset
     lbu  s3, BG_MODE
     sll  s3, s3, 4
-    sb   zero, MASK_OFS
+    lw   s7, MASK_OFS
 
 next_layer:
     // Look up the next layer and check if it's BG or OBJ
@@ -279,24 +279,23 @@ next_layer:
     // This isn't fully accurate; OBJ priority effects like SMB3 pipes won't work
     lbu  t0, LAYER_CHART(s3)
     addi s3, s3, 1
-    lbu  t1, MASK_OFS
     bge  t0, 0x80, draw_obj
     beq  t0, 0x40, draw_mode7
     bnez t0, draw_bg
 
-    // After the sub screen layers are done, draw the main screen layers on top
-    // Blending isn't implemented, but this at least allows using screens to reorder layers
-    bnez t1, next_section
+    // After the first screen's layers are done, draw the other screen's layers on top
+    // As a workaround for lack of blending, the main and sub screens can be swapped
+    lw   t1, MASK_OFS
+    bne  t1, s7, next_section
     lbu  s3, BG_MODE
     sll  s3, s3, 4
-    li   t1, 1
-    sb   t1, MASK_OFS
+    xori s7, s7, 0x1
     b    next_layer
 
 
 draw_bg:
     // Skip the layer if the BG is disabled
-    lbu  t1, SUB_MASK(t1)
+    lbu  t1, SUB_MASK(s7)
     li   t2, 1
     andi t3, t0, 0x03 // Index
     sll  a3, t2, t3   // Mask
@@ -629,7 +628,7 @@ skip_upload:
 
 draw_mode7:
     // Skip the layer if the BG is disabled
-    lbu  t1, SUB_MASK(t1)
+    lbu  t1, SUB_MASK(s7)
     andi t1, t1, 0x1
     beqz t1, next_layer
 
@@ -959,7 +958,7 @@ finish_tile7:
 
 draw_obj:
     // Skip the layer if objects are disabled
-    lbu  t1, SUB_MASK(t1)
+    lbu  t1, SUB_MASK(s7)
     andi a3, t0, 0x03 // Priority
     andi t1, t1, 0x10
     beqz t1, next_layer
