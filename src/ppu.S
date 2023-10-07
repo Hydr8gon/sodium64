@@ -19,8 +19,9 @@
 
 #include <regdef.h>
 
-// Minimum lines between frame sections
-#define SECTION_MIN 16
+// Values that control the cooldown between frame sections
+#define SECTION_MIN 4
+#define SECTION_INC 1
 
 .globl fps_emulate
 .globl fps_display
@@ -94,6 +95,7 @@ section_ptr: .word  0xA037C000
 sect_status: .hword 0x000
 cur_line:    .hword 0x000
 vblank_line: .byte  0xE1
+cooldown:    .byte  0x00
 
 fps_emulate: .byte 0x00
 fps_display: .byte 0x00
@@ -175,15 +177,16 @@ ppu_event:
     addi s0, s0, 1
     sh   s0, cur_line
 
-    // Check if a V-count IRQ event should occur
-    lhu  t0, vtime
-    beq  s0, t0, vcount_irq
-
-vblank_check:
     // Check if a V-blank start or end event should occur
     lbu  t0, vblank_line
     beq  s0, t0, vblank_start
     beq  s0, 262, vblank_end
+
+vcount_check:
+    // Check if a V-count IRQ event should occur
+    lhu  t0, vtime
+    lhu  s0, cur_line
+    beq  s0, t0, vcount_irq
 
 run_line:
     // Skip sections and HDMA if currently in V-blank
@@ -197,11 +200,13 @@ run_line:
     sltu t1, zero, t1
     sub  t0, t0, t1
 
-    // Make a new section if dirty and reset the cooldown
+    // Make a new section if dirty and increase the cooldown
     bne  t0, 0x100, skip_section
     lhu  a0, cur_line
     jal  make_section
-    li   t0, SECTION_MIN
+    lbu  t0, cooldown
+    addi t1, t0, SECTION_INC
+    sb   t1, cooldown
 
 skip_section:
     // Update the section status and trigger HDMA
@@ -247,9 +252,9 @@ skip_frame:
     // Trigger an NMI if enabled
     lbu  t0, nmitimen
     andi t0, t0, 0x80 // NMI enable
-    beqz t0, run_line
+    beqz t0, vcount_check
     li   a1, 0
-    la   ra, run_line
+    la   ra, vcount_check
     j    trigger_nmi
 
 
@@ -261,10 +266,12 @@ vblank_end:
     sb   zero, rdnmi
 
     // Reset the frame status and start the first section
+    li   t0, SECTION_MIN
+    sb   t0, cooldown
     sh   zero, sect_status
     sh   zero, cur_line
     jal  reload_hdma
-    la   ra, run_line
+    la   ra, vcount_check
     j    section_init
 
 
@@ -272,16 +279,16 @@ vcount_irq:
     // Trigger a V-count IRQ if enabled
     lbu  t0, nmitimen
     andi t0, t0, 0x20 // V-IRQ enable
-    beqz t0, vblank_check
+    beqz t0, run_line
     andi t1, s4, 0x04 // IRQ disable
-    bnez t1, vblank_check
+    bnez t1, run_line
     li   a1, 4
     jal  trigger_nmi
 
     // Set the V-count IRQ flag
     li   t0, 0x80
     sb   t0, timeup
-    j    vblank_check
+    j    run_line
 
 
 make_section: // a0: line
