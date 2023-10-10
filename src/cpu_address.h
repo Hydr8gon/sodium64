@@ -23,9 +23,9 @@
 #define RAM_CYCLE 8
 #define IO_CYCLE  6
 
-.macro MEM_READ8 addr=0(s0) // v0: value
+.macro MEM_READ8 addr=0(s0), lb=lbu // v0: value
     // Read a byte from memory and decrease the cycle count
-    lbu  v0, \addr
+    \lb  v0, \addr
     addi s5, s5, -RAM_CYCLE
 .endm
 

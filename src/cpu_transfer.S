@@ -704,14 +704,10 @@ pea: // PEA #nnnn
 
 
 per: // PER disp16
-    // Add a sign-extended 16-bit immediate value to the PC
+    // Push the PC plus a 16-bit immediate value to the stack
     MEM_READ16 1(s7)
-    sll  t0, v0, 16
-    sra  t0, t0, 16
     addi s7, s7, 3
-    add  a1, s7, t0
-
-    // Push the resulting value to the stack
+    add  a1, s7, v0
     lhu  s0, stack_ptr
     addi s0, s0, -2
     MEM_WRITE16 1(s0)

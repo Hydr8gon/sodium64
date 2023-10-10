@@ -68,22 +68,26 @@
 .text
 
 bra: // BRA disp8
-    // Sign-extend the 8-bit immediate value and add it to the PC
-    MEM_READ8 1(s7)
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  s7, s7, t0
+    // Add the signed 8-bit immediate value to the PC
+    MEM_READ8 1(s7), lb
     addi s7, s7, 2
+    add  t0, s7, v0
+    andi t0, t0, 0xFFFF
+    andi t1, s7, 0xFFFF
+    sub  s7, s7, t1
+    add  s7, s7, t0
     j    cpu_execute
 
 
 brl: // BRL disp16
-    // Sign-extend the 16-bit immediate value and add it to the PC
+    // Add the signed 16-bit immediate value to the PC
     MEM_READ16 1(s7)
-    sll  t0, v0, 16
-    sra  t0, t0, 16
-    add  s7, s7, t0
     addi s7, s7, 3
+    add  t0, s7, v0
+    andi t0, t0, 0xFFFF
+    andi t1, s7, 0xFFFF
+    sub  s7, s7, t1
+    add  s7, s7, t0
     j    cpu_execute
 
 
@@ -324,133 +328,139 @@ rts: // RTS
 bpl: // BPL disp8
     // Check the condition
     and  t0, s4, 0x80 // N
-    bnez t0, bpl_end
-
-    // Sign-extend the 8-bit immediate value and add it to the PC
-    MEM_READ8 1(s7)
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  s7, s7, t0
-bpl_end:
+    MEM_READ8 1(s7), lb
     addi s7, s7, 2
+    bnez t0, cpu_execute
+
+    // Add the signed 8-bit immediate value to the PC
+    add  t0, s7, v0
+    andi t0, t0, 0xFFFF
+    andi t1, s7, 0xFFFF
+    sub  s7, s7, t1
+    add  s7, s7, t0
     j    cpu_execute
 
 
 bmi: // BMI disp8
     // Check the condition
     and  t0, s4, 0x80 // N
-    beqz t0, bmi_end
-
-    // Sign-extend the 8-bit immediate value and add it to the PC
-    MEM_READ8 1(s7)
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  s7, s7, t0
-bmi_end:
+    MEM_READ8 1(s7), lb
     addi s7, s7, 2
+    beqz t0, cpu_execute
+
+    // Add the signed 8-bit immediate value to the PC
+    add  t0, s7, v0
+    andi t0, t0, 0xFFFF
+    andi t1, s7, 0xFFFF
+    sub  s7, s7, t1
+    add  s7, s7, t0
     j    cpu_execute
 
 
 bvc: // BVC disp8
     // Check the condition
     and  t0, s4, 0x40 // V
-    bnez t0, bvc_end
-
-    // Sign-extend the 8-bit immediate value and add it to the PC
-    MEM_READ8 1(s7)
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  s7, s7, t0
-bvc_end:
+    MEM_READ8 1(s7), lb
     addi s7, s7, 2
+    bnez t0, cpu_execute
+
+    // Add the signed 8-bit immediate value to the PC
+    add  t0, s7, v0
+    andi t0, t0, 0xFFFF
+    andi t1, s7, 0xFFFF
+    sub  s7, s7, t1
+    add  s7, s7, t0
     j    cpu_execute
 
 
 bvs: // BVS disp8
     // Check the condition
     and  t0, s4, 0x40 // V
-    beqz t0, bvs_end
-
-    // Sign-extend the 8-bit immediate value and add it to the PC
-    MEM_READ8 1(s7)
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  s7, s7, t0
-bvs_end:
+    MEM_READ8 1(s7), lb
     addi s7, s7, 2
+    beqz t0, cpu_execute
+
+    // Add the signed 8-bit immediate value to the PC
+    add  t0, s7, v0
+    andi t0, t0, 0xFFFF
+    andi t1, s7, 0xFFFF
+    sub  s7, s7, t1
+    add  s7, s7, t0
     j    cpu_execute
 
 
 bcc: // BCC disp8
     // Check the condition
     and  t0, s4, 0x01 // C
-    bnez t0, bcc_end
-
-    // Sign-extend the 8-bit immediate value and add it to the PC
-    MEM_READ8 1(s7)
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  s7, s7, t0
-bcc_end:
+    MEM_READ8 1(s7), lb
     addi s7, s7, 2
+    bnez t0, cpu_execute
+
+    // Add the signed 8-bit immediate value to the PC
+    add  t0, s7, v0
+    andi t0, t0, 0xFFFF
+    andi t1, s7, 0xFFFF
+    sub  s7, s7, t1
+    add  s7, s7, t0
     j    cpu_execute
 
 
 bcs: // BCS disp8
     // Check the condition
     and  t0, s4, 0x01 // C
-    beqz t0, bcs_end
-
-    // Sign-extend the 8-bit immediate value and add it to the PC
-    MEM_READ8 1(s7)
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  s7, s7, t0
-bcs_end:
+    MEM_READ8 1(s7), lb
     addi s7, s7, 2
+    beqz t0, cpu_execute
+
+    // Add the signed 8-bit immediate value to the PC
+    add  t0, s7, v0
+    andi t0, t0, 0xFFFF
+    andi t1, s7, 0xFFFF
+    sub  s7, s7, t1
+    add  s7, s7, t0
     j    cpu_execute
 
 
 bne: // BNE disp8
     // Check the condition
     and  t0, s4, 0x02 // Z
-    bnez t0, bne_end
-
-    // Sign-extend the 8-bit immediate value and add it to the PC
-    MEM_READ8 1(s7)
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  s7, s7, t0
-bne_end:
+    MEM_READ8 1(s7), lb
     addi s7, s7, 2
+    bnez t0, cpu_execute
+
+    // Add the signed 8-bit immediate value to the PC
+    add  t0, s7, v0
+    andi t0, t0, 0xFFFF
+    andi t1, s7, 0xFFFF
+    sub  s7, s7, t1
+    add  s7, s7, t0
     j    cpu_execute
 
 
 beq: // BEQ disp8
     // Check the condition
     and  t0, s4, 0x02 // Z
-    beqz t0, beq_end
+    MEM_READ8 1(s7), lb
+    addi s7, s7, 2
+    beqz t0, cpu_execute
 
-    // Sign-extend the 8-bit immediate value and add it to the PC
-    MEM_READ8 1(s7)
-    sll  t0, v0, 24
-    sra  t0, t0, 24
+    // Add the signed 8-bit immediate value to the PC
+    add  t0, s7, v0
+    andi t0, t0, 0xFFFF
+    andi t1, s7, 0xFFFF
+    sub  s7, s7, t1
     add  s7, s7, t0
 
     // Check for a basic type of idle loop
-    bne  v0, 0xFC, beq_end // -4
+    bne  v0, 0xFC, cpu_execute // -4
     MEM_READ8 6(s7)
-    bne  v0, 0x58, beq_end // CLI
+    bne  v0, 0x58, cpu_execute // CLI
     MEM_READ8 2(s7)
-    bne  v0, 0xA5, beq_end // LDA
+    bne  v0, 0xA5, cpu_execute // LDA
 
     // Halt the CPU until the next interrupt
     ori  s4, s4, 0x200 // Halted
     li   s5, 0
-
-beq_end:
-    // Move to the next opcode
-    addi s7, s7, 2
     j    cpu_execute
 
 
