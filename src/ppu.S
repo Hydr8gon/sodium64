@@ -635,8 +635,10 @@ write_inidisp: // a1: value
     lbu  t1, hvbjoy
     andi t1, t1, 0x80
     bnez t1, set_bright
-    lhu  t1, vtime
+    lhu  t1, cur_line
     ble  t1, 210, set_bright
+    lbu  t1, frame_done
+    bnez t1, set_bright
     sb   t0, frame_done
     b    rsp_frame
 
