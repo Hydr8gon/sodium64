@@ -452,10 +452,11 @@ beq: // BEQ disp8
     add  s7, s7, t0
 
     // Check for a basic type of idle loop
-    bne  v0, 0xFC, cpu_execute // -4
-    MEM_READ8 6(s7)
+    addi t0, v0, 4 // Offset
+    bnez t0, cpu_execute
+    MEM_READ8 4(s7)
     bne  v0, 0x58, cpu_execute // CLI
-    MEM_READ8 2(s7)
+    MEM_READ8 0(s7)
     bne  v0, 0xA5, cpu_execute // LDA
 
     // Halt the CPU until the next interrupt
