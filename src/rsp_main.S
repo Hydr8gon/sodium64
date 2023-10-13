@@ -882,20 +882,30 @@ next_subtile:
     li   a2, 0x7F
     jal  dma_read
 
-    // Set the initial decoding offsets
-    addi t7, a0, 0x80
+    // Copy the character data into vector registers
+    lqv  $v00, 0, 0x00, a0
+    lqv  $v01, 0, 0x10, a0
+    lqv  $v02, 0, 0x20, a0
+    lqv  $v03, 0, 0x30, a0
+    lqv  $v04, 0, 0x40, a0
+    lqv  $v05, 0, 0x50, a0
+    lqv  $v06, 0, 0x60, a0
+    lqv  $v07, 0, 0x70, a0
+
+    // Get the tile's texture offset
     sll  t0, v0, 3
-    addi t1, v1, 1
-    sll  t1, t1, 8
+    sll  t1, v1, 8
     add  t0, t0, t1
 
-decode_tile7:
-    // Copy a tile line to the texture buffer and loop until complete
-    addi  t7, t7, -0x10
-    lqv   $v00, 0, 0, t7
-    addi  t0, t0, -0x20
-    spv   $v00, 0, 0, t0
-    bne   t7, a0, decode_tile7
+    // Copy bytes containing pixels into the texture
+    spv  $v00, 0, 0x00, t0
+    spv  $v01, 0, 0x20, t0
+    spv  $v02, 0, 0x40, t0
+    spv  $v03, 0, 0x60, t0
+    spv  $v04, 0, 0x80, t0
+    spv  $v05, 0, 0xA0, t0
+    spv  $v06, 0, 0xC0, t0
+    spv  $v07, 0, 0xE0, t0
 
     // Loop through tiles until the texture is complete
     bnez v0, next_subtile
