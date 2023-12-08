@@ -134,13 +134,8 @@ char_9:
 .endm
 
 draw_value: // a0: value, a1: top-right offset
-    // Apply the offset within the current rendered frame
-    lw   t0, 0xA4000FFC // Framebuffer
-    add  a1, a1, t0
-    li   t1, 10
-
-draw_digit:
     // Isolate the lowest base-10 digit and convert to sprite address
+    li   t1, 10
     div  a0, t1
     addi a1, a1, -16
     mfhi t2 // Remainder
@@ -160,5 +155,5 @@ draw_digit:
 
     // Move to the next digit if there is one
     mflo a0 // Quotient
-    bnez a0, draw_digit
+    bnez a0, draw_value
     jr   ra

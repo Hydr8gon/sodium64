@@ -426,7 +426,7 @@ tlbl_rom:
     lui  k0, 0xA460     // PI register upper address
     sw   k1, 0x0004(k0) // PI_CART_ADDR
     lbu  k1, rom_pointer
-    addi k1, k1, 0x130000 >> 13
+    addi k1, k1, 0x200000 >> 13
     sll  k1, k1, 13     // ROM buffer address
     sw   k1, 0x0000(k0) // PI_DRAM_ADDR
     li   k1, 0x1FFF     // 8KB
@@ -436,7 +436,7 @@ tlbl_rom:
     lbu  k0, rom_pointer
     addi k1, k0, 1
     sb   k1, rom_pointer
-    addi k1, k0, 0x130000 >> 13
+    addi k1, k0, 0x200000 >> 13
     sll  k1, k1, 7
     ori  k1, k1, 0x1B // Cache, Valid, Global
 

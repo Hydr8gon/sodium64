@@ -18,6 +18,7 @@
 */
 
 #include <regdef.h>
+#include "addresses.h"
 
 // Values that control the cooldown between frame sections
 #define SECTION_MIN 4
@@ -91,11 +92,12 @@ vram_table: .byte  0:0x400
 oam:        .byte  0:0x220
 cgram:      .hword 0:0x100
 
-section_ptr: .word  0xA037C000
+section_ptr: .word  SECTION_QUEUE1
 sect_status: .hword 0x000
 cur_line:    .hword 0x000
 vblank_line: .byte  0xE1
 cooldown:    .byte  0x00
+queue_id:    .byte  0x00
 
 fps_emulate: .byte 0x00
 fps_display: .byte 0x00
@@ -168,6 +170,13 @@ obj_sizes:
 
 // Possible address increments for VRAM access
 vram_incrs: .byte 1, 32, 128, 128
+
+// Double-buffered addresses for queued frame data
+pal_queues:   .word PALETTE_QUEUE1, PALETTE_QUEUE2
+oam_queues:   .word OAM_QUEUE1, OAM_QUEUE2
+dirty_queues: .word DIRTY_QUEUE1, DIRTY_QUEUE2
+vram_queues:  .word VRAM_QUEUE1, VRAM_QUEUE2
+sect_queues:  .word SECTION_QUEUE1, SECTION_QUEUE2
 
 .text
 
@@ -322,43 +331,19 @@ update_frame:
 
 
 rsp_frame:
-    // Wait until the RSP is finished rendering
-    lw   t0, 0xA4040010 // SP_STATUS_REG
-    andi t0, t0, 0x0001 // Halt
-    beqz t0, rsp_frame
-
     // Push the return address to the stack
     addi sp, sp, -4
     sw   ra, 0(sp)
 
-    // Swap the main and sub screens if toggled by the Z button
-    lbu  t0, btn_toggle
-    srl  t1, t0, 5
-    sw   t1, 0xA4000FE8 // Mask offset
-
-    // Draw the FPS counter if toggled by the start button
-    andi t0, t0, 0x10
-    beqz t0, count_frame
-    lbu  a0, fps_display
-    li   a1, 24 * 560 + 44 * 2
-    jal  draw_value
-
-count_frame:
-    // Increment the frame counters with VI interrupts disabled
-    li   t0, 1 << 6     // Clear VI mask
-    sw   t0, 0xA430000C // MI_INTR_MASK_REG
-    lbu  t0, frame_count
-    lbu  t1, fps_emulate
-    addi t0, t0, 1
-    sb   t0, frame_count
-    addi t1, t1, 1
-    sb   t1, fps_emulate
-    li   t0, 1 << 7     // Set VI mask
-    sw   t0, 0xA430000C // MI_INTR_MASK_REG
+    // Get indices for queued frame values, alternating each frame
+    lbu  t5, queue_id // Next
+    xori t6, t5, 4 // Current
+    sb   t6, queue_id
 
     // Set initial values for palette conversion
     lbu  t0, brightness
-    la   t8, 0xA038C7F8
+    lw   t8, pal_queues(t5)
+    addi t8, t8, 0x7F8
     li   t9, 0x200
 
     // Replace backdrop with the sub screen color to fake some effects
@@ -399,7 +384,7 @@ update_dpal:
     sll  t2, t2, 1
     or   t3, t3, t2
 
-    // Update a value in the RDP's palette and loop until finished
+    // Set a color in the palette queue and loop until finished
     sll  t2, t3, 16
     or   t3, t3, t2
     sw   t3, 0(t8)
@@ -407,41 +392,38 @@ update_dpal:
     addi t8, t8, -8
     bnez t9, update_dpal
 
-    // Update the RSP's fill color and restore the backdrop
-    sw   t3, 0xA4000FEC // Fill color
+    // Restore backdrop but save the modified value for fill color
     sh   t7, cgram
+    andi t7, t3, 0xFFFF
 
-    // Update the RSP's copy of OAM in DMEM
+    // Copy OAM to the queue for the next frame
     la   t0, oam
-    la   t1, 0xA4000840
+    lw   t1, oam_queues(t5)
     li   t2, 0x220
 oam_loop:
-    addi t2, t2, -4
-    lw   t3, (t0)
-    addi t0, t0, 4
-    sw   t3, (t1)
-    addi t1, t1, 4
+    addi t2, t2, -8
+    ld   t3, (t0)
+    addi t0, t0, 8
+    sd   t3, (t1)
+    addi t1, t1, 8
     bnez t2, oam_loop
 
-    // Update the RSP's VRAM dirty table with bits that were set this frame
+    // Reset and copy the VRAM dirty table to the queue for the next frame
     la   t0, vram_table
-    la   t1, 0xA4000440
+    lw   t1, dirty_queues(t5)
     li   t2, 0x400
-table_loop:
-    addi t2, t2, -4
-    lw   t3, (t0)
-    lw   t4, (t1)
-    sw   zero, (t0)
-    addi t0, t0, 4
-    or   t3, t3, t4
-    sw   t3, (t1)
-    addi t1, t1, 4
-    bnez t2, table_loop
+dirty_loop:
+    addi t2, t2, -8
+    ld   t3, (t0)
+    sd   zero, (t0)
+    addi t0, t0, 8
+    sd   t3, (t1)
+    addi t1, t1, 8
+    bnez t2, dirty_loop
 
-update_vram:
-    // Update the RSP's copy of VRAM
+    // Copy VRAM to the queue for the next frame
     la   t0, vram
-    la   t1, 0xA03F0000
+    lw   t1, vram_queues(t5)
     li   t2, 0x10000
 vram_loop:
     addi t2, t2, -8
@@ -451,21 +433,62 @@ vram_loop:
     addi t1, t1, 8
     bnez t2, vram_loop
 
-    // Make a final frame section based on the border
-    lbu  t0, fb_border
-    sw   t0, 0xA4000FF0 // Frame border
+    // Make a final frame section and reset the pointer
     lhu  a0, cur_line
     jal  make_section
-    sw   a0, 0xA4000FF4 // Frame end
-
-    // Reset and swap section pointers with the RSP
-    li   t0, 0xA037E000
-    blt  t1, t0, set_ptrs
-    xori t0, t0, 0x2000
-set_ptrs:
+    lw   t0, sect_queues(t6)
     sw   t0, section_ptr
-    xori t0, t0, 0x2000
-    sw   t0, 0xA4000FF8 // Section pointer
+
+rsp_wait:
+    // Wait until the RSP is finished rendering
+    lw   t0, 0xA4040010 // SP_STATUS_REG
+    andi t0, t0, 0x0001 // Halt
+    beqz t0, rsp_wait
+
+    // Draw an FPS counter on the current frame if toggled
+    lbu  t0, btn_toggle
+    andi t0, t0, 0x10
+    beqz t0, count_frame
+    lbu  a0, fps_display
+    lw   t0, DMEM(FRAMEBUFFER)(t6)
+    addi a1, t0, 24 * 560 + 44 * 2
+    jal  draw_value
+
+count_frame:
+    // Increment the frame counters with VI interrupts disabled
+    li   t0, 1 << 6     // Clear VI mask
+    sw   t0, 0xA430000C // MI_INTR_MASK_REG
+    lbu  t0, frame_count
+    lbu  t1, fps_emulate
+    addi t0, t0, 1
+    sb   t0, frame_count
+    addi t1, t1, 1
+    sb   t1, fps_emulate
+    li   t0, 1 << 7     // Set VI mask
+    sw   t0, 0xA430000C // MI_INTR_MASK_REG
+
+    // Update/reset values for the next frame
+    lbu  t0, btn_toggle
+    lbu  t1, fb_border
+    lhu  t2, cur_line
+    lw   t3, sect_queues(t5)
+    srl  t0, t0, 5 // Z toggle
+    addi t2, t2, -1
+    sw   t0, DMEM(MASK_OFS)(t5)
+    sw   t7, DMEM(FILL_COLOR)(t5)
+    sw   t1, DMEM(FB_BORDER)(t5)
+    sw   t2, DMEM(FRAME_END)(t5)
+    sw   t3, DMEM(SECTION_PTR)(t5)
+
+    // Get the address of the next of three framebuffers
+    lw   t0, DMEM(FRAMEBUFFER)(t6)
+    li   t1, FRAMEBUFFER2 - FRAMEBUFFER1
+    add  t0, t0, t1
+    la   t1, MODE7_TEXTURE
+    bne  t0, t1, set_buffer
+    la   t0, FRAMEBUFFER1
+set_buffer:
+    sw   t0, DMEM(FRAMEBUFFER)(t5)
 
 frame_wait:
     // Wait for a framebuffer to be available

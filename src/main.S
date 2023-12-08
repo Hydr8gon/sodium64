@@ -18,6 +18,7 @@
 */
 
 #include <regdef.h>
+#include "addresses.h"
 
 .globl _start
 
@@ -29,7 +30,7 @@ _start:
 
 .data
 
-framebuffer: .word 0xA038D900
+framebuffer: .word FRAMEBUFFER1
 fps_native:  .byte 0x00
 
 .text
@@ -40,9 +41,9 @@ main:
     li   t0, 8
     sw   t0, 0xBFC007FC
 
-    // Clear framebuffers and other PPU data (hardcoded for RSP access)
-    li   t0, 0xA0378000
-    li   t1, 0xA0400000
+    // Clear framebuffers and other hardcoded data
+    la   t0, FRAMEBUFFER1
+    la   t1, 0xA0200000
 clear_vram:
     sd   zero, (t0)
     addi t0, t0, 8
@@ -52,7 +53,7 @@ clear_vram:
     lui  t0, 0xA440     // VI register upper address
     li   t1, 0x0202     // 16-bit pixel format, no anti-aliasing
     sw   t1, 0x0000(t0) // VI_STATUS_REG
-    li   t1, 0xA038D900 // Framebuffer address
+    li   t1, FRAMEBUFFER1 // Framebuffer address
     sw   t1, 0x0004(t0) // VI_ORIGIN_REG
     li   t1, 0x0118     // Framebuffer width
     sw   t1, 0x0008(t0) // VI_WIDTH_REG
@@ -106,8 +107,8 @@ clear_vram:
     cache 0x10, 0x0100(t0)
     cache 0x10, 0x0180(t0)
 
-    // Initialize the stack below the ROM buffer
-    la   sp, 0x80130000
+    // Initialize the stack below hardcoded addresses
+    la   sp, FRAMEBUFFER1
 
     // Use DMA to copy SRAM from the cart to memory
     lui  t0, 0xA460     // PI register upper address
@@ -250,13 +251,11 @@ pi_wait2:
     bnez k1, pi_wait2
 
 check_frame:
-    // Continue if the next frame is ready, otherwise just update input
+    // Continue if the next frame is ready; otherwise just update input
     la   k0, frame_count
     lbu  k1, (k0)
-    bnez k1, swap_buffers
-    j    input_update
+    beqz k1, input_update
 
-swap_buffers:
     // Decrement the frame counter
     addi k1, k1, -1
     sb   k1, (k0)
@@ -264,12 +263,11 @@ swap_buffers:
     // Get the address of the next of three framebuffers
     la   k0, framebuffer
     lw   k0, (k0)
-    li   k1, 0x20D00 // Buffer size
+    li   k1, FRAMEBUFFER2 - FRAMEBUFFER1
     add  k0, k0, k1
-    li   k1, 0xA03F0000
-    sub  k1, k1, k0
-    bnez k1, set_buffer
-    li   k0, 0xA038D900
+    la   k1, MODE7_TEXTURE
+    bne  k0, k1, set_buffer
+    la   k0, FRAMEBUFFER1
 
 set_buffer:
     // Set the framebuffer address and update input
