@@ -155,7 +155,7 @@ apu_bcc: // BCC dest
     // Check the condition (C clear)
     NONE 2
     lbu  t0, apu_flags
-    andi t0, t0, 0x01 // C
+    andi t0, t0, 0x1 // C
     bnez t0, cpu_execute
 
     // Sign-extend the offset value and add it to the PC
@@ -173,7 +173,7 @@ apu_bcs: // BCS dest
     // Check the condition (C set)
     NONE 2
     lbu  t0, apu_flags
-    andi t0, t0, 0x01 // C
+    andi t0, t0, 0x1 // C
     beqz t0, cpu_execute
 
     // Sign-extend the offset value and add it to the PC
@@ -191,7 +191,7 @@ apu_bne: // BNE dest
     // Check the condition (Z clear)
     NONE 2
     lbu  t0, apu_flags
-    andi t0, t0, 0x02 // Z
+    andi t0, t0, 0x2 // Z
     bnez t0, cpu_execute
 
     // Sign-extend the offset value and add it to the PC
@@ -209,7 +209,7 @@ apu_beq: // BEQ dest
     // Check the condition (Z set)
     NONE 2
     lbu  t0, apu_flags
-    andi t0, t0, 0x02 // Z
+    andi t0, t0, 0x2 // Z
     beqz t0, cpu_execute
 
     // Sign-extend the offset value and add it to the PC
@@ -505,8 +505,8 @@ apu_brk: // BRK
 
     // Push the flags to the stack and modify current ones
     lbu  a1, apu_flags
-    andi t0, a1, 0xFF & ~0x04 // Clear I
-    ori  t0, t0, 0x10         // Set B
+    andi t0, a1, 0xFB // Clear I
+    ori  t0, t0, 0x10 // Set B
     sb   t0, apu_flags
     addi a0, s1, -2
     jal  apu_write8
@@ -525,7 +525,7 @@ apu_clrp: // CLRP
     // Clear the P flag
     NONE
     lbu  t0, apu_flags
-    andi t0, t0, 0xFF & ~0x20
+    andi t0, t0, 0xDF
     sb   t0, apu_flags
     j    cpu_execute
 
@@ -543,7 +543,7 @@ apu_di: // DI
     // Clear the I flag
     NONE
     lbu  t0, apu_flags
-    andi t0, t0, 0xFF & ~0x04
+    andi t0, t0, 0xFB
     sb   t0, apu_flags
     j    cpu_execute
 
@@ -552,6 +552,6 @@ apu_ei: // EI
     // Set the I flag
     NONE
     lbu  t0, apu_flags
-    ori  t0, t0, 0x04
+    ori  t0, t0, 0x4
     sb   t0, apu_flags
     j    cpu_execute

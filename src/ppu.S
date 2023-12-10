@@ -86,78 +86,76 @@
 
 .data
 
-.align 8
-vram:       .byte  0:0x10000
-vram_table: .byte  0:0x400
-oam:        .byte  0:0x220
-cgram:      .hword 0:0x100
+section_ptr: .word SECTION_QUEUE1
+sect_status: .hword 0
+cur_line: .hword 0
+vblank_line: .byte 0xE1
+cooldown: .byte 0
+queue_id: .byte 0
 
-section_ptr: .word  SECTION_QUEUE1
-sect_status: .hword 0x000
-cur_line:    .hword 0x000
-vblank_line: .byte  0xE1
-cooldown:    .byte  0x00
-queue_id:    .byte  0x00
+fps_emulate: .byte 0
+fps_display: .byte 0
+frame_count: .byte 0
+frame_done: .byte 0
+fb_border: .byte 0
+brightness: .byte 0
+vram_incl: .byte 0
+vram_inch: .byte 0
 
-fps_emulate: .byte 0x00
-fps_display: .byte 0x00
-frame_count: .byte 0x00
-frame_done:  .byte 0x00
-fb_border:   .byte 0x00
-brightness:  .byte 0x00
-vram_incl:   .byte 0x00
-vram_inch:   .byte 0x00
+vram_fetch: .hword 0
+oam_addr: .hword 0
+oam_lsb: .byte 0
+oph_low: .byte 0
+opv_low: .byte 0
+bg_old: .byte 0
+m7_old: .byte 0
+cg_lsb: .byte 0
 
-vram_fetch: .hword 0x0000
-oam_addr:   .hword 0x000
-oam_lsb:    .byte  0x00
-oph_low:    .byte  0x00
-opv_low:    .byte  0x00
-bg_old:     .byte  0x00
-m7_old:     .byte  0x00
-cg_lsb:     .byte  0x00
+mpy: .word 0
+ophct: .hword 0
+opvct: .hword 0
+coldata: .hword 0
+vmadd: .hword 0
+cgadd: .hword 0
+vtime: .hword 0
+stat78: .byte 0x1
+tm: .byte 0
+ts: .byte 0
+nmitimen: .byte 0
+rdnmi: .byte 0
+timeup: .byte 0
+hvbjoy: .byte 0
 
-mpy:      .word  0x000000
-ophct:    .hword 0x000
-opvct:    .hword 0x000
-coldata:  .hword 0x0000
-vmadd:    .hword 0x0000
-cgadd:    .hword 0x0000
-vtime:    .hword 0x0000
-stat78:   .byte  0x01
-tm:       .byte  0x00
-ts:       .byte  0x00
-nmitimen: .byte  0x00
-rdnmi:    .byte  0x00
-timeup:   .byte  0x00
-hvbjoy:   .byte  0x00
+vram: .dword 0:0x2000 // Aligned
+vram_table: .byte 0:0x400
+oam: .byte 0:0x220
+cgram: .hword 0:0x100
 
 // RSP values that are saved for each section (0x50 bytes)
-.align 8
-obj_size:    .word  0x10100808
-objcharbase: .hword 0x0000
-oamadd:      .hword 0x0000
-bgscrnbase:  .hword 0x0000:4
-bgbaseofsh:  .hword 0x0000:4
-bgbaseofsv:  .hword 0x0000:4
-bgcharbase:  .hword 0x0000:4
-bghofs:      .hword 0x0000:4
-bgvofs:      .hword 0x0000:4
-m7hofs:      .hword 0x0000
-m7vofs:      .hword 0x0000
-m7a:         .hword 0x0000
-m7b:         .hword 0x0000
-m7c:         .hword 0x0000
-m7d:         .hword 0x0000
-m7x:         .hword 0x0000
-m7y:         .hword 0x0000
-filler:      .hword 0x0000
-force_blank: .byte  0x00
-bg_mode:     .byte  0x00
-sub_mask:    .byte  0x00
-main_mask:   .byte  0x00
-m7_nowrap:   .byte  0x00
-split_line:  .byte  0x00
+obj_size: .word 0x10100808
+objcharbase: .hword 0
+oamadd: .hword 0
+bgscrnbase: .hword 0:4
+bgbaseofsh: .hword 0:4
+bgbaseofsv: .hword 0:4
+bgcharbase: .hword 0:4
+bghofs: .hword 0:4
+bgvofs: .hword 0:4
+m7hofs: .hword 0
+m7vofs: .hword 0
+m7a: .hword 0
+m7b: .hword 0
+m7c: .hword 0
+m7d: .hword 0
+m7x: .hword 0
+m7y: .hword 0
+filler: .hword 0
+force_blank: .byte 0
+bg_mode: .byte 0
+sub_mask: .byte 0
+main_mask: .byte 0
+m7_nowrap: .byte 0
+split_line: .byte 0
 
 // Possible offsets for additional screens past the base
 scrn_ofsh: .hword 0x0000, 0x0800, 0x0000, 0x0800
@@ -172,11 +170,11 @@ obj_sizes:
 vram_incrs: .byte 1, 32, 128, 128
 
 // Double-buffered addresses for queued frame data
-pal_queues:   .word PALETTE_QUEUE1, PALETTE_QUEUE2
-oam_queues:   .word OAM_QUEUE1, OAM_QUEUE2
+pal_queues: .word PALETTE_QUEUE1, PALETTE_QUEUE2
+oam_queues: .word OAM_QUEUE1, OAM_QUEUE2
 dirty_queues: .word DIRTY_QUEUE1, DIRTY_QUEUE2
-vram_queues:  .word VRAM_QUEUE1, VRAM_QUEUE2
-sect_queues:  .word SECTION_QUEUE1, SECTION_QUEUE2
+vram_queues: .word VRAM_QUEUE1, VRAM_QUEUE2
+sect_queues: .word SECTION_QUEUE1, SECTION_QUEUE2
 
 .text
 
@@ -270,7 +268,7 @@ skip_frame:
 vblank_end:
     // Clear the V-blank and NMI flags
     lbu  t0, hvbjoy
-    andi t0, t0, ~0x80 & 0xFF
+    andi t0, t0, 0x7F
     sb   t0, hvbjoy
     sb   zero, rdnmi
 
@@ -289,7 +287,7 @@ vcount_irq:
     lbu  t0, nmitimen
     andi t0, t0, 0x20 // V-IRQ enable
     beqz t0, run_line
-    andi t1, s4, 0x04 // IRQ disable
+    andi t1, s4, 0x4 // IRQ disable
     bnez t1, run_line
     li   a1, 4
     jal  trigger_nmi
@@ -441,8 +439,8 @@ vram_loop:
 
 rsp_wait:
     // Wait until the RSP is finished rendering
-    lw   t0, 0xA4040010 // SP_STATUS_REG
-    andi t0, t0, 0x0001 // Halt
+    lw   t0, 0xA4040010 // SP_STATUS
+    andi t0, t0, 0x1 // Halt
     beqz t0, rsp_wait
 
     // Draw an FPS counter on the current frame if toggled
@@ -456,16 +454,16 @@ rsp_wait:
 
 count_frame:
     // Increment the frame counters with VI interrupts disabled
-    li   t0, 1 << 6     // Clear VI mask
-    sw   t0, 0xA430000C // MI_INTR_MASK_REG
+    li   t0, 0x40 // Clear VI mask
+    sw   t0, 0xA430000C // MI_MASK
     lbu  t0, frame_count
     lbu  t1, fps_emulate
     addi t0, t0, 1
     sb   t0, frame_count
     addi t1, t1, 1
     sb   t1, fps_emulate
-    li   t0, 1 << 7     // Set VI mask
-    sw   t0, 0xA430000C // MI_INTR_MASK_REG
+    li   t0, 0x80 // Set VI mask
+    sw   t0, 0xA430000C // MI_MASK
 
     // Update/reset values for the next frame
     lbu  t0, btn_toggle
@@ -484,9 +482,9 @@ count_frame:
     lw   t0, DMEM(FRAMEBUFFER)(t6)
     li   t1, FRAMEBUFFER2 - FRAMEBUFFER1
     add  t0, t0, t1
-    la   t1, MODE7_TEXTURE
+    li   t1, MODE7_TEXTURE
     bne  t0, t1, set_buffer
-    la   t0, FRAMEBUFFER1
+    li   t0, FRAMEBUFFER1
 set_buffer:
     sw   t0, DMEM(FRAMEBUFFER)(t5)
 
@@ -496,8 +494,8 @@ frame_wait:
     beq  t0, 2, frame_wait
 
     // Unhalt the RSP so it can render the next frame
-    li   t0, 0x0001     // Clear halt
-    sw   t0, 0xA4040010 // SP_STATUS_REG
+    li   t0, 0x1 // Clear halt
+    sw   t0, 0xA4040010 // SP_STATUS
 
     // Pop the return address from the stack
     lw   ra, 0(sp)
@@ -615,7 +613,7 @@ opv_toggle:
 read_stat78: // v0: value
     // Read from the STAT78 register and reset the latch flag
     lbu  v0, stat78
-    andi t0, v0, 0xFF & ~0x40
+    andi t0, v0, 0xBF
     sb   t0, stat78
 
     // Reset the latched counter byte toggles
@@ -667,7 +665,7 @@ write_inidisp: // a1: value
 
 set_bright:
     // Set the master brightness
-    andi t0, a1, 0x0F
+    andi t0, a1, 0xF
     sgtu t1, t0, zero
     add  t0, t0, t1
     sb   t0, brightness
@@ -692,7 +690,7 @@ write_obsel: // a1: value
 write_oamaddl: // a1: value
     // Set the low byte of the OAM address reload
     lhu  t0, oamadd
-    andi t1, a1, 0x00FF
+    andi t1, a1, 0xFF
     andi t0, t0, 0x8100
     or   t0, t0, t1
     sh   t0, oamadd
@@ -709,7 +707,7 @@ write_oamaddh: // a1: value
     lhu  t0, oamadd
     sll  t1, a1, 8
     andi t1, t1, 0x8100
-    andi t0, t0, 0x00FF
+    andi t0, t0, 0xFF
     or   t0, t0, t1
     sh   t0, oamadd
 
@@ -741,7 +739,7 @@ no_wrap:
 
 oam_high:
     // Form a 16-bit value with the low byte and store it in OAM
-    andi t0, t0, 0x3FF & ~1
+    andi t0, t0, 0x3FE
     lbu  t1, oam_lsb
     sll  t2, a1, 8
     or   t3, t1, t2
@@ -757,9 +755,9 @@ oam_end:
 write_bgmode: // a1: value
     // Set the BG screen mode from 0 to 7
     // TODO: use the tile sizes
-    andi t0, a1, 0x0F
-    beq  t0, 0x09, high_prio
-    andi t0, t0, 0x07
+    andi t0, a1, 0xF
+    beq  t0, 0x9, high_prio
+    andi t0, t0, 0x7
     sb   t0, bg_mode
     j    update_frame
 
@@ -777,7 +775,7 @@ write_bg1sc: // a1: value
     sh   t0, bgscrnbase + 0
 
     // Update BG1's horizontal base offset in DMEM
-    andi t1, a1, 0x03
+    andi t1, a1, 0x3
     sll  t1, t1, 1
     lhu  t0, scrn_ofsh(t1)
     sh   t0, bgbaseofsh + 0
@@ -795,7 +793,7 @@ write_bg2sc: // a1: value
     sh   t0, bgscrnbase + 2
 
     // Update BG2's horizontal base offset in DMEM
-    andi t1, a1, 0x03
+    andi t1, a1, 0x3
     sll  t1, t1, 1
     lhu  t0, scrn_ofsh(t1)
     sh   t0, bgbaseofsh + 2
@@ -813,7 +811,7 @@ write_bg3sc: // a1: value
     sh   t0, bgscrnbase + 4
 
     // Update BG3's horizontal base offset in DMEM
-    andi t1, a1, 0x03
+    andi t1, a1, 0x3
     sll  t1, t1, 1
     lhu  t0, scrn_ofsh(t1)
     sh   t0, bgbaseofsh + 4
@@ -831,7 +829,7 @@ write_bg4sc: // a1: value
     sh   t0, bgscrnbase + 6
 
     // Update BG4's horizontal base offset in DMEM
-    andi t1, a1, 0x03
+    andi t1, a1, 0x3
     sll  t1, t1, 1
     lhu  t0, scrn_ofsh(t1)
     sh   t0, bgbaseofsh + 6
@@ -844,7 +842,7 @@ write_bg4sc: // a1: value
 
 write_bg12nba: // a1: value
     // Update BG1's character base address in DMEM
-    andi t0, a1, 0x07
+    andi t0, a1, 0x7
     sll  t0, t0, 13
     sh   t0, bgcharbase + 0
 
@@ -857,7 +855,7 @@ write_bg12nba: // a1: value
 
 write_bg34nba: // a1: value
     // Update BG3's character base address in DMEM
-    andi t0, a1, 0x07
+    andi t0, a1, 0x7
     sll  t0, t0, 13
     sh   t0, bgcharbase + 4
 
@@ -977,7 +975,7 @@ write_bg4vofs: // a1: value
 write_vmain: // a1: value
     // Get the VRAM increment and check if it applies to high or low access
     // TODO: address translation
-    andi t0, a1, 0x03
+    andi t0, a1, 0x3
     lbu  t0, vram_incrs(t0)
     andi t1, a1, 0x80
     bnez t1, vmain_high
@@ -1164,7 +1162,7 @@ write_cgdata: // a1: value
 
 cg_high:
     // Form a 16-bit value with the low byte and write it to CGRAM
-    andi t0, t0, 0x1FF & ~1
+    andi t0, t0, 0x1FE
     lbu  t1, cg_lsb
     sll  t2, a1, 8
     or   t1, t1, t2
@@ -1197,8 +1195,8 @@ write_coldata: // a1: value
     // Prepare to update the sub screen background color
     lhu  t0, coldata
     andi t1, a1, 0x1F // Intensity
-    li   t2, 0x1F     // Mask
-    li   t3, 3        // Count
+    li   t2, 0x1F // Mask
+    li   t3, 3 // Count
 
 next_channel:
     // Update a channel's intensity if its bit is set
@@ -1250,6 +1248,6 @@ write_vtimel: // a1: value
 
 write_vtimeh: // a1: value
     // Write the high bit of the V-count timer value
-    andi t0, a1, 0x01
+    andi t0, a1, 0x1
     sb   t0, vtime
     jr   ra

@@ -22,16 +22,20 @@
 
 .globl _start
 
-// Entry point; jump directly to main
-.section .boot
-_start:
-    j    main
-.section .code
-
 .data
 
 framebuffer: .word FRAMEBUFFER1
-fps_native:  .byte 0x00
+fps_native: .byte 0
+
+.section .boot
+
+_start:
+    // Jump to the main function (entry point)
+    j    main
+
+exception_vector:
+    // Jump to the exception handler (copied to exception vectors)
+    j    exception_handler
 
 .text
 
@@ -42,87 +46,81 @@ main:
     sw   t0, 0xBFC007FC
 
     // Clear framebuffers and other hardcoded data
-    la   t0, FRAMEBUFFER1
-    la   t1, 0xA0200000
+    li   t0, FRAMEBUFFER1
+    li   t1, ROM_BUFFER
 clear_vram:
     sd   zero, (t0)
     addi t0, t0, 8
     bne  t0, t1, clear_vram
 
     // Initialize the VI to display a 16-bit 256x224 framebuffer
-    lui  t0, 0xA440     // VI register upper address
-    li   t1, 0x0202     // 16-bit pixel format, no anti-aliasing
-    sw   t1, 0x0000(t0) // VI_STATUS_REG
+    lui  t0, 0xA440 // VI register upper address
+    li   t1, 0x00000202 // 16-bit pixel format, no anti-aliasing
+    sw   t1, 0x0000(t0) // VI_CONTROL
     li   t1, FRAMEBUFFER1 // Framebuffer address
-    sw   t1, 0x0004(t0) // VI_ORIGIN_REG
-    li   t1, 0x0118     // Framebuffer width
-    sw   t1, 0x0008(t0) // VI_WIDTH_REG
-    li   t1, 0x0200     // Line to trigger interrupt
-    sw   t1, 0x000C(t0) // VI_INTR_REG
-    li   t1, 0x0000     // Clear interrupt
-    sw   t1, 0x0010(t0) // VI_CURRENT
+    sw   t1, 0x0004(t0) // VI_ORIGIN
+    li   t1, 0x00000118 // Framebuffer width
+    sw   t1, 0x0008(t0) // VI_WIDTH
+    li   t1, 0x00000200 // Line to trigger interrupt
+    sw   t1, 0x000C(t0) // VI_V_INTR
+    li   t1, 0x00000000 // Clear interrupt
+    sw   t1, 0x0010(t0) // VI_V_CURRENT
     li   t1, 0x03E52239 // Various timing parameters
-    sw   t1, 0x0014(t0) // VI_BURST_REG
-    li   t1, 0x020D     // Lines per frame (NTSC standard)
-    sw   t1, 0x0018(t0) // VI_V_SYNC_REG
-    li   t1, 0x0C15     // Quarter-pixels per line
-    sw   t1, 0x001C(t0) // VI_H_SYNC_REG
+    sw   t1, 0x0014(t0) // VI_BURST
+    li   t1, 0x0000020D // Lines per frame (NTSC standard)
+    sw   t1, 0x0018(t0) // VI_V_SYNC
+    li   t1, 0x00000C15 // Quarter-pixels per line
+    sw   t1, 0x001C(t0) // VI_H_SYNC
     li   t1, 0x0C150C15 // Same as above
-    sw   t1, 0x0020(t0) // VI_LEAP_REG
+    sw   t1, 0x0020(t0) // VI_H_SYNC_LEAP
     li   t1, 0x006C02EC // Active horizontal pixel range
-    sw   t1, 0x0024(t0) // VI_H_START_REG
+    sw   t1, 0x0024(t0) // VI_H_VIDEO
     li   t1, 0x002501FF // Active vertical pixel range
-    sw   t1, 0x0028(t0) // VI_V_START_REG
+    sw   t1, 0x0028(t0) // VI_V_VIDEO
     li   t1, 0x000E0204 // Vertical color burst range
-    sw   t1, 0x002C(t0) // VI_V_BURST_REG
-    li   t1, 0x01C0     // Horizontal scale (10-bit fraction, 280/640)
-    sw   t1, 0x0030(t0) // VI_X_SCALE_REG
-    li   t1, 0x0400     // Vertical scale (10-bit fraction, 240/240)
-    sw   t1, 0x0034(t0) // VI_Y_SCALE_REG
+    sw   t1, 0x002C(t0) // VI_V_BURST
+    li   t1, 0x000001C0 // Horizontal scale (10-bit fraction, 280/640)
+    sw   t1, 0x0030(t0) // VI_X_SCALE
+    li   t1, 0x00000400 // Vertical scale (10-bit fraction, 240/240)
+    sw   t1, 0x0034(t0) // VI_Y_SCALE
 
     // Initialize the AI to output 16-bit samples at 32000Hz
-    lui  t0, 0xA450     // AI register upper address
-    li   t1, 0x0001     // DMA enable
+    lui  t0, 0xA450 // AI register upper address
+    li   t1, 0x00000001 // DMA enable
     sw   t1, 0x0008(t0) // AI_CONTROL
-    li   t1, 0x05F1     // 48681812 / 32000Hz
+    li   t1, 0x000005F1 // 48681812 / 32000Hz
     sw   t1, 0x0010(t0) // AI_DAC_RATE
-    li   t1, 0x000F     // 16-bit - 1
+    li   t1, 0x0000000F // 16-bit - 1
     sw   t1, 0x0014(t0) // AI_BIT_RATE
 
     // Update the exception vectors
-    la    t0, exception_vector
-    lw    t1, 0x0000(t0)
-    lw    t2, 0x0004(t0)
     lui   t0, 0xA000
-    sw    t1, 0x0000(t0)
-    sw    t2, 0x0004(t0)
-    sw    t1, 0x0080(t0)
-    sw    t2, 0x0084(t0)
-    sw    t1, 0x0100(t0)
-    sw    t2, 0x0104(t0)
-    sw    t1, 0x0180(t0)
-    sw    t2, 0x0184(t0)
+    ld    t1, exception_vector
+    sd    t1, 0x0000(t0)
+    sd    t1, 0x0080(t0)
+    sd    t1, 0x0100(t0)
+    sd    t1, 0x0180(t0)
     cache 0x10, 0x0000(t0)
     cache 0x10, 0x0080(t0)
     cache 0x10, 0x0100(t0)
     cache 0x10, 0x0180(t0)
 
     // Initialize the stack below hardcoded addresses
-    la   sp, FRAMEBUFFER1
+    li   sp, FRAMEBUFFER1
 
     // Use DMA to copy SRAM from the cart to memory
-    lui  t0, 0xA460     // PI register upper address
-    la   t1, sram       // Local SRAM
+    lui  t0, 0xA460 // PI register upper address
+    la   t1, sram // Local SRAM
     sw   t1, 0x0000(t0) // PI_DRAM_ADDR
-    la   t1, 0x8000000  // Cart SRAM
+    li   t1, 0x08000000 // Cart SRAM
     sw   t1, 0x0004(t0) // PI_CART_ADDR
-    li   t1, 0x7FFF     // 32KB size
+    li   t1, 0x00007FFF // 32KB size
     sw   t1, 0x000C(t0) // PI_WR_LEN
 
 pi_wait1:
     // Wait for the DMA to complete
     lw   t1, 0x0010(t0) // PI_STATUS
-    andi t1, t1, 0x1    // DMA busy
+    andi t1, t1, 0x1 // DMA busy
     bnez t1, pi_wait1
 
     // Initialize the emulator
@@ -141,10 +139,10 @@ pi_wait1:
     jal  rsp_upload
 
     // Enable VI interrupts and nothing else
-    li   t0, 0x0595     // Set VI mask
-    sw   t0, 0xA430000C // MI_MASK_REG
-    li   t0, 0x401      // Enable interrupts
-    mtc0 t0, $12        // Status
+    li   t0, 0x00000595 // Set VI mask
+    sw   t0, 0xA430000C // MI_MASK
+    li   t0, 0x00000401 // Enable interrupts
+    mtc0 t0, $12 // Status
 
     // Start execution
     j    cpu_execute
@@ -152,15 +150,15 @@ pi_wait1:
 
 rsp_upload: // a0: RSP address, a1: DRAM address
     // Transfer data to the RSP via DMA
-    lui  t0, 0xA404     // SP register upper address
-    sw   a0, 0x0000(t0) // SP_MEM_ADDR_REG
-    sw   a1, 0x0004(t0) // SP_DRAM_ADDR_REG
-    li   t1, 0x0FFF     // Data size
-    sw   t1, 0x0008(t0) // SP_RD_LEN_REG
+    lui  t0, 0xA404 // SP register upper address
+    sw   a0, 0x0000(t0) // SP_MEM_ADDR
+    sw   a1, 0x0004(t0) // SP_DRAM_ADDR
+    li   t1, 0x00000FFF // Data size
+    sw   t1, 0x0008(t0) // SP_RD_LEN
 
 dma_wait:
     // Wait for the DMA to complete
-    lw   t1, 0x0018(t0) // SP_DMA_BUSY_REG
+    lw   t1, 0x0018(t0) // SP_DMA_BUSY
     bnez t1, dma_wait
     jr   ra
 
@@ -169,25 +167,20 @@ reset_tlb:
     // Map all TLB entries to inaccessible locations
     mtc0 zero, $5 // PageMask
     li   t0, 0x80000000
-    mtc0 t0, $10  // EntryHi
+    mtc0 t0, $10 // EntryHi
     li   t0, 32
 next_tlb:
     addi t0, t0, -1
-    mtc0 t0, $0   // Index
+    mtc0 t0, $0 // Index
     nop
     tlbwi
     bnez t0, next_tlb
     jr   ra
 
 
-exception_vector:
-    // Jump to the custom exception handler (copied to exception vectors)
-    j    exception_handler
-
-
 exception_handler:
     // Jump to the appropriate handler for supported exceptions
-    mfc0 k0, $13      // Cause
+    mfc0 k0, $13 // Cause
     andi k0, k0, 0x7C
     addi k1, k0, -0x8 // TLB load miss
     beqz k1, tlbl_exception
@@ -236,18 +229,18 @@ update_fps:
     sb   zero, (k0)
 
     // Use DMA to copy SRAM from memory to the cart
-    lui  k0, 0xA460     // PI register upper address
-    la   k1, sram       // Local SRAM
+    lui  k0, 0xA460 // PI register upper address
+    la   k1, sram // Local SRAM
     sw   k1, 0x0000(k0) // PI_DRAM_ADDR
-    la   k1, 0x8000000  // Cart SRAM
+    li   k1, 0x08000000 // Cart SRAM
     sw   k1, 0x0004(k0) // PI_CART_ADDR
-    li   k1, 0x7FFF     // 32KB size
+    li   k1, 0x00007FFF // 32KB size
     sw   k1, 0x0008(k0) // PI_RD_LEN
 
 pi_wait2:
     // Wait for the DMA to complete
     lw   k1, 0x0010(k0) // PI_STATUS
-    andi k1, k1, 0x1    // DMA busy
+    andi k1, k1, 0x1 // DMA busy
     bnez k1, pi_wait2
 
 check_frame:
@@ -265,9 +258,9 @@ check_frame:
     lw   k0, (k0)
     li   k1, FRAMEBUFFER2 - FRAMEBUFFER1
     add  k0, k0, k1
-    la   k1, MODE7_TEXTURE
+    li   k1, MODE7_TEXTURE
     bne  k0, k1, set_buffer
-    la   k0, FRAMEBUFFER1
+    li   k0, FRAMEBUFFER1
 
 set_buffer:
     // Set the framebuffer address and update input
@@ -280,9 +273,9 @@ set_buffer:
 
 reset_interrupt:
     // Stop the RSP and prepare the RDP for reset
-    li   t0, 0x0002     // Set halt
+    li   t0, 0x00000002 // Set halt
     sw   t0, 0xA4040010 // SP_STATUS
-    li   t0, 0x0001     // Use RDRAM
+    li   t0, 0x00000001 // Use RDRAM
     sw   t0, 0xA410000C // DP_STATUS
 
 loop:

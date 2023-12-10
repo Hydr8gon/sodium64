@@ -18,6 +18,7 @@
 */
 
 #include <regdef.h>
+#include "addresses.h"
 
 // Approximate master cycle count for DSP samples
 #define DSP_SAMPLE 672 // 21477000Hz / 32000Hz = 671.15625
@@ -30,16 +31,16 @@
 
 .data
 
-dsp_buffer:  .word  0:0x800
-dsp_pointer: .hword 0x0000
+dsp_buffer: .word 0:0x800
+dsp_pointer: .hword 0
 
 dsp_regs: .byte 0:0x100
-dsp_addr: .byte 0x00
+dsp_addr: .byte 0
 
-enabled:     .byte  0x00
-counters:    .hword 0x0000:8
-cur_addrs:   .hword 0x0000:8
-cur_samples: .dword 0x0000:8
+enabled: .byte 0
+counters: .hword 0:8
+cur_addrs: .hword 0:8
+cur_samples: .dword 0:8
 
 filter_jumps: .word filter_end, filter_1, filter_2, filter_3
 
@@ -48,8 +49,8 @@ filter_jumps: .word filter_end, filter_1, filter_2, filter_3
 dsp_sample:
     // Set initial values for the sample
     li   t6, -1 // Voice count
-    li   t5,  0 // Left sample
-    li   t4,  0 // Right sample
+    li   t5, 0 // Left sample
+    li   t4, 0 // Right sample
 
 next_voice:
     // Check if a voice is enabled
@@ -62,7 +63,7 @@ next_voice:
 
     // Get the pitch scaler for the current voice
     sll  t8, t6, 4
-    lhu  t0, 0x2 + dsp_regs(t8) // VxPITCH(L/H)
+    lhu  t0, dsp_regs + 0x02(t8) // VxPITCH(L/H)
     sll  t1, t0, 8
     srl  t0, t0, 8
     or   t0, t0, t1
@@ -86,15 +87,15 @@ next_voice:
 
     // Move to the next 9-byte BRR block based on current flags
     lbu  t9, apu_ram(t0) // Header
-    andi t3, t9, 0x1     // End
+    andi t3, t9, 0x1 // End
     addi t0, t0, 9
     beqz t3, decode_samples
-    andi t3, t9, 0x2     // Loop
+    andi t3, t9, 0x2 // Loop
     beqz t3, end_voice
 
     // Get the address of the voice's sample table entry
-    lbu  t0, dsp_regs + 0x5D    // DIR
-    lbu  t3, dsp_regs + 0x4(t8) // VxSRCN
+    lbu  t0, dsp_regs + 0x5D // DIR
+    lbu  t3, dsp_regs + 0x04(t8) // VxSRCN
     sll  t0, t0, 8
     sll  t3, t3, 2
     add  t0, t0, t3
@@ -125,8 +126,8 @@ decode_samples:
     // Configure things based on the BRR block header
     sh   t0, cur_addrs(t1)
     lbu  t9, apu_ram(t0) // Header
-    srl  t1, t9, 4       // Shift
-    andi t9, t9, 0x0C    // Filter
+    srl  t1, t9, 4 // Shift
+    andi t9, t9, 0xC // Filter
     lw   t9, filter_jumps(t9)
 
     // Load 4 4-bit BRR samples at once to be decoded
@@ -226,14 +227,14 @@ mix_sample:
     lh   t0, cur_samples(t1)
 
     // Mix the sample on the left channel
-    lb   t1, 0x0 + dsp_regs(t8) // VxVOLL
+    lb   t1, dsp_regs + 0x00(t8) // VxVOLL
     mult t0, t1
     mflo t1
     sra  t1, t1, 7
     addu t5, t5, t1
 
     // Mix the sample on the right channel
-    lb   t1, 0x1 + dsp_regs(t8) // VxVOLR
+    lb   t1, dsp_regs + 0x01(t8) // VxVOLR
     mult t0, t1
     mflo t1
     sra  t1, t1, 7
@@ -246,7 +247,7 @@ write_sample:
     sll  t5, t5, 16
     or   t0, t4, t5
     lhu  t1, dsp_pointer
-    sw   t0, 0x20000000 + dsp_buffer(t1) // Uncached
+    sw   t0, UNCACHED(dsp_buffer)(t1)
 
     // Increment the sample pointer
     addi a0, t1, 4
@@ -261,11 +262,11 @@ write_sample:
 
 submit_buffer:
     // Submit a buffer to the AI when one is ready
-    lui  t0, 0xA450     // AI register upper address
+    lui  t0, 0xA450 // AI register upper address
     la   t1, dsp_buffer - 0x1000
-    add  t1, t1, a0     // Buffer address
+    add  t1, t1, a0 // Buffer address
     sw   t1, 0x0000(t0) // AI_DRAM_ADDR
-    li   t1, 0x1000     // Buffer length
+    li   t1, 0x00001000 // Buffer length
     sw   t1, 0x0004(t0) // AI_LENGTH
     j    apu_execute
 
@@ -319,8 +320,7 @@ next_on:
     // Get the address of the voice's sample table entry
     lbu  t0, dsp_regs + 0x5D // DIR
     sll  t1, t6, 4
-    addi t1, t1, 4
-    lbu  t1, dsp_regs(t1)    // VxSRCN
+    lbu  t1, dsp_regs + 0x04(t1) // VxSRCN
     sll  t0, t0, 8
     sll  t1, t1, 2
     add  t0, t0, t1

@@ -94,7 +94,7 @@ brl: // BRL disp16
 jmp: // JMP nnnn
     // Set the PC to the 16-bit immediate value
     MEM_READ16 1(s7)
-    li   t0, ~0xFFFF
+    lui  t0, 0xFFFF
     and  s7, s7, t0
     add  s7, s7, v0
     j    cpu_execute
@@ -122,7 +122,7 @@ jmpind: // JMP (nnnn)
     MEM_READ16 1(s7)
     move s0, v0
     MEM_READ16
-    li   t0, ~0xFFFF
+    lui  t0, 0xFFFF
     and  s7, s7, t0
     add  s7, s7, v0
     j    cpu_execute
@@ -133,7 +133,7 @@ jmpidx: // JMP (nnnn,X)
     MEM_READ16 1(s7)
     lhu  t0, register_x
     add  t0, t0, v0
-    li   s1, ~0xFFFF
+    lui  s1, 0xFFFF
     and  t1, s7, s1
     add  s0, t0, t1
 
@@ -177,7 +177,7 @@ jsr: // JSR nnnn
 
     // Set the PC to the 16-bit immediate value
     MEM_READ16 1(s7)
-    li   t0, ~0xFFFF
+    lui  t0, 0xFFFF
     and  s7, s7, t0
     add  s7, s7, v0
     j    cpu_execute
@@ -234,7 +234,7 @@ jsridx: // JSR (nnnn,X)
     MEM_READ16 1(s7)
     lhu  t0, register_x
     add  t0, t0, v0
-    li   s1, ~0xFFFF
+    lui  s1, 0xFFFF
     and  t1, s7, s1
     add  s0, t0, t1
 
@@ -249,7 +249,7 @@ rti_e: // RTI (emulation mode)
     // Pop the flags from the stack
     lhu  s0, stack_ptr
     MEM_READ8 1(s0)
-    andi t0, v0, ~0x10 & 0xFFFF // B
+    andi t0, v0, 0xFFEF // Clear B
     andi s4, s4, 0xFF00
     or   s4, s4, t0
 
@@ -315,7 +315,7 @@ rts: // RTS
     lhu  s0, stack_ptr
     MEM_READ16 1(s0)
     addi t0, v0, 1
-    li   t1, ~0xFFFF
+    lui  t1, 0xFFFF
     and  s7, s7, t1
     add  s7, s7, t0
 
@@ -327,7 +327,7 @@ rts: // RTS
 
 bpl: // BPL disp8
     // Check the condition
-    and  t0, s4, 0x80 // N
+    andi t0, s4, 0x80 // N
     MEM_READ8 1(s7), lb
     addi s7, s7, 2
     bnez t0, cpu_execute
@@ -343,7 +343,7 @@ bpl: // BPL disp8
 
 bmi: // BMI disp8
     // Check the condition
-    and  t0, s4, 0x80 // N
+    andi t0, s4, 0x80 // N
     MEM_READ8 1(s7), lb
     addi s7, s7, 2
     beqz t0, cpu_execute
@@ -359,7 +359,7 @@ bmi: // BMI disp8
 
 bvc: // BVC disp8
     // Check the condition
-    and  t0, s4, 0x40 // V
+    andi t0, s4, 0x40 // V
     MEM_READ8 1(s7), lb
     addi s7, s7, 2
     bnez t0, cpu_execute
@@ -375,7 +375,7 @@ bvc: // BVC disp8
 
 bvs: // BVS disp8
     // Check the condition
-    and  t0, s4, 0x40 // V
+    andi t0, s4, 0x40 // V
     MEM_READ8 1(s7), lb
     addi s7, s7, 2
     beqz t0, cpu_execute
@@ -391,7 +391,7 @@ bvs: // BVS disp8
 
 bcc: // BCC disp8
     // Check the condition
-    and  t0, s4, 0x01 // C
+    andi t0, s4, 0x1 // C
     MEM_READ8 1(s7), lb
     addi s7, s7, 2
     bnez t0, cpu_execute
@@ -407,7 +407,7 @@ bcc: // BCC disp8
 
 bcs: // BCS disp8
     // Check the condition
-    and  t0, s4, 0x01 // C
+    andi t0, s4, 0x1 // C
     MEM_READ8 1(s7), lb
     addi s7, s7, 2
     beqz t0, cpu_execute
@@ -423,7 +423,7 @@ bcs: // BCS disp8
 
 bne: // BNE disp8
     // Check the condition
-    and  t0, s4, 0x02 // Z
+    andi t0, s4, 0x2 // Z
     MEM_READ8 1(s7), lb
     addi s7, s7, 2
     bnez t0, cpu_execute
@@ -439,7 +439,7 @@ bne: // BNE disp8
 
 beq: // BEQ disp8
     // Check the condition
-    and  t0, s4, 0x02 // Z
+    andi t0, s4, 0x2 // Z
     MEM_READ8 1(s7), lb
     addi s7, s7, 2
     beqz t0, cpu_execute
@@ -476,10 +476,10 @@ brk_e: // BRK (emulation mode)
     MEM_WRITE16 2(s0)
 
     // Push the flags to the stack and modify them
-    ori  a1, s4, 0x10           // B
+    ori  a1, s4, 0x10 // Set B
     MEM_WRITE8 1(s0)
-    ori  s4, s4, 0x04           // I
-    andi s4, s4, ~0x08 & 0xFFFF // D
+    ori  s4, s4, 0x4 // Set I
+    andi s4, s4, 0xFFF7 // Clear D
 
     // Jump to the BRK vector (emulation mode)
     li   s0, 0xFFFE
@@ -503,8 +503,8 @@ brk: // BRK
     // Push the flags to the stack and modify them
     move a1, s4
     MEM_WRITE8 1(s0)
-    ori  s4, s4, 0x04           // I
-    andi s4, s4, ~0x08 & 0xFFFF // D
+    ori  s4, s4, 0x4 // Set I
+    andi s4, s4, 0xFFF7 // Clear D
 
     // Jump to the BRK vector
     li   s0, 0xFFE6
@@ -524,10 +524,10 @@ cop_e: // COP (emulation mode)
     MEM_WRITE16 2(s0)
 
     // Push the flags to the stack and modify them
-    ori  a1, s4, 0x10           // B
+    ori  a1, s4, 0x10 // Set B
     MEM_WRITE8 1(s0)
-    ori  s4, s4, 0x04           // I
-    andi s4, s4, ~0x08 & 0xFFFF // D
+    ori  s4, s4, 0x4 // Set I
+    andi s4, s4, 0xFFF7 // Clear D
 
     // Jump to the COP vector (emulation mode)
     li   s0, 0xFFF4
@@ -551,8 +551,8 @@ cop: // COP
     // Push the flags to the stack and modify them
     move a1, s4
     MEM_WRITE8 1(s0)
-    ori  s4, s4, 0x04           // I
-    andi s4, s4, ~0x08 & 0xFFFF // D
+    ori  s4, s4, 0x4 // Set I
+    andi s4, s4, 0xFFF7 // Clear D
 
     // Jump to the COP vector
     li   s0, 0xFFE4
@@ -563,49 +563,49 @@ cop: // COP
 
 clc: // CLC
     // Clear the carry flag
-    andi s4, s4, ~0x01 & 0xFFFF
+    andi s4, s4, 0xFFFE
     addi s7, s7, 1
     j    cpu_execute
 
 
 cli: // CLI
     // Clear the interrupt flag
-    andi s4, s4, ~0x04 & 0xFFFF
+    andi s4, s4, 0xFFFB
     addi s7, s7, 1
     j    cpu_execute
 
 
 cld: // CLD
     // Clear the decimal flag
-    andi s4, s4, ~0x08 & 0xFFFF
+    andi s4, s4, 0xFFF7
     addi s7, s7, 1
     j    update_mode
 
 
 clv: // CLV
     // Clear the overflow flag
-    andi s4, s4, ~0x40 & 0xFFFF
+    andi s4, s4, 0xFFBF
     addi s7, s7, 1
     j    cpu_execute
 
 
 sec: // SEC
     // Set the carry flag
-    ori  s4, s4, 0x01
+    ori  s4, s4, 0x1
     addi s7, s7, 1
     j    cpu_execute
 
 
 sei: // SEI
     // Set the interrupt flag
-    ori  s4, s4, 0x04
+    ori  s4, s4, 0x4
     addi s7, s7, 1
     j    cpu_execute
 
 
 sed: // SED
     // Set the decimal flag
-    ori  s4, s4, 0x08
+    ori  s4, s4, 0x8
     addi s7, s7, 1
     j    update_mode
 
@@ -633,7 +633,7 @@ xce: // XCE
     srl  t1, s4, 8
     or   t0, t0, t1
     andi t0, t0, 0x101
-    andi s4, s4, ~0x101 & 0xFFFF
+    andi s4, s4, 0xFEFE
     or   s4, s4, t0
     addi s7, s7, 1
     j    update_mode

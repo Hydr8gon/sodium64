@@ -50,16 +50,16 @@
 
 .data
 
-hdma_mask: .byte 0x00
+hdma_mask: .byte 0
 
-hdmaen:  .byte  0x00
-dmapx:   .byte  0x00:8
-bbadx:   .hword 0x2100:8
-a1tbx:   .word  0x000000:8
-dastbx:  .word  0x000000:8
-a2abx:   .word  0x000000:8
-ntrlx:   .byte  0x00:8
-unusedx: .byte  0x00:8
+hdmaen: .byte 0
+dmapx: .byte 0:8
+bbadx: .hword 0x2100:8
+a1tbx: .word 0:8
+dastbx: .word 0:8
+a2abx: .word 0:8
+ntrlx: .byte 0:8
+unusedx: .byte 0:8
 
 // Possible CPU address steps
 address_steps: .byte 1, 0, -1, 0
@@ -88,13 +88,13 @@ reload_hdma:
 
 reload_start:
     // Check if the current HDMA channel is enabled
-    andi t2, t0, 1
+    andi t2, t0, 0x1
     beqz t2, reload_end
 
     // Reload the channel's table address and line counter
     sll  t2, t1, 2
     lw   t3, a1tbx(t2)
-    li   t4, 0x01
+    li   t4, 1
     sw   t3, a2abx(t2)
     sb   t4, ntrlx(t1)
 
@@ -120,7 +120,7 @@ trigger_hdma:
 
 hdma_start:
     // Check if the current HDMA channel is enabled
-    andi t0, s0, 1
+    andi t0, s0, 0x1
     beqz t0, hdma_end
     lbu  t0, dmapx(s1)
 
@@ -268,7 +268,7 @@ write_mdmaen: // a1: value
 
 dma_start:
     // Check if the current DMA channel is enabled
-    andi t0, s0, 1
+    andi t0, s0, 0x1
     beqz t0, dma_end
     lbu  t0, dmapx(s1)
 
@@ -383,7 +383,7 @@ read_dmapx: // a0: address - v0: value
 read_bbadx: // a0: address - v0: value
     // Get the low byte of one of the I/O addresses
     srl  t0, a0, 3
-    andi t0, t0, 0x7 << 1
+    andi t0, t0, 0xE
     lbu  v0, bbadx + 1(t0)
     jr   ra
 
@@ -391,7 +391,7 @@ read_bbadx: // a0: address - v0: value
 read_a1txl: // a0: address - v0: value
     // Get the low byte of one of the CPU addresses
     srl  t0, a0, 2
-    andi t0, t0, 0x7 << 2
+    andi t0, t0, 0x1C
     lbu  v0, a1tbx + 3(t0)
     jr   ra
 
@@ -399,7 +399,7 @@ read_a1txl: // a0: address - v0: value
 read_a1txh: // a0: address - v0: value
     // Get the high byte of one of the CPU addresses
     srl  t0, a0, 2
-    andi t0, t0, 0x7 << 2
+    andi t0, t0, 0x1C
     lbu  v0, a1tbx + 2(t0)
     jr   ra
 
@@ -407,7 +407,7 @@ read_a1txh: // a0: address - v0: value
 read_a1bx: // a0: address - v0: value
     // Get the bank of one of the CPU addresses
     srl  t0, a0, 2
-    andi t0, t0, 0x7 << 2
+    andi t0, t0, 0x1C
     lbu  v0, a1tbx + 1(t0)
     jr   ra
 
@@ -415,7 +415,7 @@ read_a1bx: // a0: address - v0: value
 read_dasxl: // a0: address - v0: value
     // Get the low byte of one of the byte counters
     srl  t0, a0, 2
-    andi t0, t0, 0x7 << 2
+    andi t0, t0, 0x1C
     lbu  v0, dastbx + 3(t0)
     jr   ra
 
@@ -423,7 +423,7 @@ read_dasxl: // a0: address - v0: value
 read_dasxh: // a0: address - v0: value
     // Get the high byte of one of the byte counters
     srl  t0, a0, 2
-    andi t0, t0, 0x7 << 2
+    andi t0, t0, 0x1C
     lbu  v0, dastbx + 2(t0)
     jr   ra
 
@@ -431,7 +431,7 @@ read_dasxh: // a0: address - v0: value
 read_dasbx: // a0: address - v0: value
     // Get the bank of one of the indirect HDMA addresses
     srl  t0, a0, 2
-    andi t0, t0, 0x7 << 2
+    andi t0, t0, 0x1C
     lbu  v0, dastbx + 1(t0)
     jr   ra
 
@@ -439,7 +439,7 @@ read_dasbx: // a0: address - v0: value
 read_a2axl: // a0: address - v0: value
     // Get the low byte of one of the HDMA current addresses
     srl  t0, a0, 2
-    andi t0, t0, 0x7 << 2
+    andi t0, t0, 0x1C
     lbu  v0, a2abx + 3(t0)
     jr   ra
 
@@ -447,7 +447,7 @@ read_a2axl: // a0: address - v0: value
 read_a2axh: // a0: address - v0: value
     // Get the high byte of one of the HDMA current addresses
     srl  t0, a0, 2
-    andi t0, t0, 0x7 << 2
+    andi t0, t0, 0x1C
     lbu  v0, a2abx + 2(t0)
     jr   ra
 
@@ -479,7 +479,7 @@ write_dmapx: // a0: address, a1: value
 write_bbadx: // a0: address, a1: value
     // Set the low byte of one of the I/O addresses
     srl  t0, a0, 3
-    andi t0, t0, 0x7 << 1
+    andi t0, t0, 0xE
     sb   a1, bbadx + 1(t0)
     jr   ra
 
@@ -487,7 +487,7 @@ write_bbadx: // a0: address, a1: value
 write_a1txl: // a0: address, a1: value
     // Set the low byte of one of the CPU addresses
     srl  t0, a0, 2
-    andi t0, t0, 0x7 << 2
+    andi t0, t0, 0x1C
     sb   a1, a1tbx + 3(t0)
     jr   ra
 
@@ -495,7 +495,7 @@ write_a1txl: // a0: address, a1: value
 write_a1txh: // a0: address, a1: value
     // Set the high byte of one of the CPU addresses
     srl  t0, a0, 2
-    andi t0, t0, 0x7 << 2
+    andi t0, t0, 0x1C
     sb   a1, a1tbx + 2(t0)
     jr   ra
 
@@ -503,7 +503,7 @@ write_a1txh: // a0: address, a1: value
 write_a1bx: // a0: address, a1: value
     // Set the bank of one of the CPU addresses
     srl  t0, a0, 2
-    andi t0, t0, 0x7 << 2
+    andi t0, t0, 0x1C
     sb   a1, a1tbx + 1(t0)
     jr   ra
 
@@ -511,7 +511,7 @@ write_a1bx: // a0: address, a1: value
 write_dasxl: // a0: address, a1: value
     // Set the low byte of one of the byte counters
     srl  t0, a0, 2
-    andi t0, t0, 0x7 << 2
+    andi t0, t0, 0x1C
     sb   a1, dastbx + 3(t0)
     jr   ra
 
@@ -519,7 +519,7 @@ write_dasxl: // a0: address, a1: value
 write_dasxh: // a0: address, a1: value
     // Set the high byte of one of the byte counters
     srl  t0, a0, 2
-    andi t0, t0, 0x7 << 2
+    andi t0, t0, 0x1C
     sb   a1, dastbx + 2(t0)
     jr   ra
 
@@ -527,7 +527,7 @@ write_dasxh: // a0: address, a1: value
 write_dasbx: // a0: address, a1: value
     // Set the bank of one of the indirect HDMA addresses
     srl  t0, a0, 2
-    andi t0, t0, 0x7 << 2
+    andi t0, t0, 0x1C
     sb   a1, dastbx + 1(t0)
     jr   ra
 
@@ -535,7 +535,7 @@ write_dasbx: // a0: address, a1: value
 write_a2axl: // a0: address, a1: value
     // Set the low byte of one of the HDMA current addresses
     srl  t0, a0, 2
-    andi t0, t0, 0x7 << 2
+    andi t0, t0, 0x1C
     sb   a1, a2abx + 3(t0)
     jr   ra
 
@@ -543,7 +543,7 @@ write_a2axl: // a0: address, a1: value
 write_a2axh: // a0: address, a1: value
     // Set the high byte of one of the HDMA current addresses
     srl  t0, a0, 2
-    andi t0, t0, 0x7 << 2
+    andi t0, t0, 0x1C
     sb   a1, a2abx + 2(t0)
     jr   ra
 

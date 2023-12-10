@@ -274,7 +274,7 @@ apu_eorbxy: BXY; EORM // EOR (X),(Y)
     lbu  t0, apu_accum
     sub  a0, t0, v0
     lbu  t1, apu_flags
-    andi t1, t1, 0xFF & ~0x01
+    andi t1, t1, 0xFE
     sleu t2, a0, t0 // C
     or   t1, t1, t2
     sb   t1, apu_flags
@@ -297,7 +297,7 @@ apu_cmpidy: IDY; CMPA // CMP A,[aa]+Y
     jal  apu_read8
     sub  a0, v0, a1
     lbu  t1, apu_flags
-    andi t1, t1, 0xFF & ~0x01
+    andi t1, t1, 0xFE
     sleu t2, a0, v0 // C
     or   t1, t1, t2
     sb   t1, apu_flags
@@ -315,7 +315,7 @@ apu_cmpbxy: BXY; CMPM // CMP (X),(Y)
     lbu  t0, apu_reg_x
     sub  a0, t0, v0
     lbu  t1, apu_flags
-    andi t1, t1, 0xFF & ~0x01
+    andi t1, t1, 0xFE
     sleu t2, a0, t0 // C
     or   t1, t1, t2
     sb   t1, apu_flags
@@ -333,7 +333,7 @@ apu_cpxabs: ABS; CMPX // CMP X,aaaa
     lbu  t0, apu_reg_y
     sub  a0, t0, v0
     lbu  t1, apu_flags
-    andi t1, t1, 0xFF & ~0x01
+    andi t1, t1, 0xFE
     sleu t2, a0, t0 // C
     or   t1, t1, t2
     sb   t1, apu_flags
@@ -351,13 +351,13 @@ apu_cpyabs: ABS; CMPY // CMP Y,aaaa
     lbu  t0, apu_accum
     add  a0, t0, v0
     lbu  t2, apu_flags
-    andi t1, t2, 0x01 // C
+    andi t1, t2, 0x1 // C
     add  a0, a0, t1
     sb   a0, apu_accum
 
     // Set flags for addition
     // TODO: set the H flag
-    andi t2, t2, 0xFF & ~0x49
+    andi t2, t2, 0xB6
     sgt  t1, a0, 0xFF // C
     or   t2, t2, t1
     xor  t1, a0, t0
@@ -387,14 +387,14 @@ apu_adcidy: IDY; ADCA // ADC A,[aa]+Y
     move s1, a1
     add  a1, v0, s1
     lbu  t2, apu_flags
-    andi t1, t2, 0x01 // C
+    andi t1, t2, 0x1 // C
     add  a1, a1, t1
     jal  apu_write8
     move a0, a1
 
     // Set flags for addition
     // TODO: set the H flag
-    andi t2, t2, 0xFF & ~0x49
+    andi t2, t2, 0xB6
     sgt  t1, a0, 0xFF // C
     or   t2, t2, t1
     xor  t1, a0, v0
@@ -419,14 +419,14 @@ apu_adcbxy: BXY; ADCM // ADC (X),(Y)
     sub  a0, t0, v0
     addi a0, a0, -1
     lbu  t2, apu_flags
-    andi t1, t2, 0x01 // C
+    andi t1, t2, 0x1 // C
     add  a0, a0, t1
     sb   a0, apu_accum
 
     // Set flags for subtraction
     // TODO: set the H flag
-    andi t2, t2, 0xFF & ~0x49
-    sleu t1, a0, t0   // C
+    andi t2, t2, 0xB6
+    sleu t1, a0, t0 // C
     or   t2, t2, t1
     xor  t1, t0, v0
     xor  t3, t0, a0
@@ -456,15 +456,15 @@ apu_sbcidy: IDY; SBCA // SBC A,[aa]+Y
     sub  a1, v0, s1
     addi a1, a1, -1
     lbu  t2, apu_flags
-    andi t1, t2, 0x01 // C
+    andi t1, t2, 0x1 // C
     add  a1, a1, t1
     jal  apu_write8
     move a0, a1
 
     // Set flags for subtraction
     // TODO: set the H flag
-    andi t2, t2, 0xFF & ~0x49
-    sleu t1, a1, v0   // C
+    andi t2, t2, 0xB6
+    sleu t1, a1, v0 // C
     or   t2, t2, t1
     xor  t1, v0, s1
     xor  t3, v0, a1
@@ -489,7 +489,7 @@ apu_asla: // ASL A
     sb   a0, apu_accum
     lbu  t1, apu_flags
     srl  t0, t0, 7 // C
-    andi t1, t1, 0xFF & ~0x01
+    andi t1, t1, 0xFE
     or   t1, t1, t0
     sb   t1, apu_flags
     j    apu_set_nz
@@ -501,7 +501,7 @@ apu_asla: // ASL A
     sll  a1, v0, 1
     lbu  t1, apu_flags
     srl  t0, v0, 7 // C
-    andi t1, t1, 0xFF & ~0x01
+    andi t1, t1, 0xFE
     or   t1, t1, t0
     sb   t1, apu_flags
     jal  apu_write8
@@ -521,8 +521,8 @@ apu_lsra: // LSR A
     srl  a0, t0, 1
     sb   a0, apu_accum
     lbu  t1, apu_flags
-    andi t0, t0, 0x01 // C
-    andi t1, t1, 0xFF & ~0x01
+    andi t0, t0, 0x1 // C
+    andi t1, t1, 0xFE
     or   t1, t1, t0
     sb   t1, apu_flags
     j    apu_set_nz
@@ -533,8 +533,8 @@ apu_lsra: // LSR A
     jal  apu_read8
     srl  a1, v0, 1
     lbu  t1, apu_flags
-    andi t0, v0, 0x01 // C
-    andi t1, t1, 0xFF & ~0x01
+    andi t0, v0, 0x1 // C
+    andi t1, t1, 0xFE
     or   t1, t1, t0
     sb   t1, apu_flags
     jal  apu_write8
@@ -553,10 +553,10 @@ apu_rola: // ROL A
     lbu  t0, apu_accum
     lbu  t1, apu_flags
     sll  a0, t0, 1
-    andi t2, t1, 0x01
+    andi t2, t1, 0x1
     or   a0, a0, t2
     sb   a0, apu_accum
-    andi t1, t1, 0xFF & ~0x01
+    andi t1, t1, 0xFE
     srl  t0, t0, 7 // C
     or   t1, t1, t0
     sb   t1, apu_flags
@@ -568,9 +568,9 @@ apu_rola: // ROL A
     jal  apu_read8
     lbu  t1, apu_flags
     sll  a1, v0, 1
-    andi t2, t1, 0x01
+    andi t2, t1, 0x1
     or   a1, a1, t2
-    andi t1, t1, 0xFF & ~0x01
+    andi t1, t1, 0xFE
     srl  t0, v0, 7 // C
     or   t1, t1, t0
     sb   t1, apu_flags
@@ -593,8 +593,8 @@ apu_rora: // ROR A
     sll  t2, t1, 7
     or   a0, a0, t2
     sb   a0, apu_accum
-    andi t1, t1, 0xFF & ~0x01
-    andi t0, t0, 0x01 // C
+    andi t1, t1, 0xFE
+    andi t0, t0, 0x1 // C
     or   t1, t1, t0
     sb   t1, apu_flags
     j    apu_set_nz
@@ -607,8 +607,8 @@ apu_rora: // ROR A
     srl  a1, v0, 1
     sll  t2, t1, 7
     or   a1, a1, t2
-    andi t1, t1, 0xFF & ~0x01
-    andi t0, v0, 0x01 // C
+    andi t1, t1, 0xFE
+    andi t0, v0, 0x1 // C
     or   t1, t1, t0
     sb   t1, apu_flags
     jal  apu_write8
@@ -719,7 +719,7 @@ apu_addw: // ADDW YA,aa
     add  a0, t0, a1
     sh   a0, apu_reg_y
     lbu  t1, apu_flags
-    andi t1, t1, 0xFF & ~0x49
+    andi t1, t1, 0xB6
     sgt  t2, a0, 0xFFFF // C
     or   t1, t1, t2
     xor  t2, a0, t0
@@ -753,7 +753,7 @@ apu_subw: // SUBW YA,aa
     sub  a0, t0, a1
     sh   a0, apu_reg_y
     lbu  t1, apu_flags
-    andi t1, t1, 0xFF & ~0x49
+    andi t1, t1, 0xB6
     sleu t2, a0, t0 // C
     or   t1, t1, t2
     xor  t2, t0, a1
@@ -785,7 +785,7 @@ apu_cmpw: // CMPW YA,aa
     lhu  t0, apu_reg_y
     sub  a0, t0, a1
     lbu  t1, apu_flags
-    andi t1, t1, 0xFF & ~0x01
+    andi t1, t1, 0xFE
     sleu t2, a0, t0 // C
     or   t1, t1, t2
     sb   t1, apu_flags
@@ -861,7 +861,7 @@ apu_div: // DIV YA,X
     lbu  t1, apu_flags
     sgt  t0, a0, 0xFF
     sll  t0, t0, 6 // V
-    andi t1, t1, 0xFF & ~0x48
+    andi t1, t1, 0xB7
     or   t1, t1, t0
     sb   t1, apu_flags
     j    apu_set_nz
@@ -885,7 +885,7 @@ apu_mul: // MUL YA
     // Clear a bit in a memory value
     DIR
     jal  apu_read8
-    andi a1, v0, 0xFF & ~\mask
+    andi a1, v0, ~\mask & 0xFF
     jal  apu_write8
     j    cpu_execute
 .endm
@@ -935,7 +935,7 @@ apu_mov1a: // MOV1 aaa.b,C
     lbu  t0, apu_flags
     xori t1, a1, 0xFF
     and  v0, v0, t1
-    andi t0, t0, 0x01
+    andi t0, t0, 0x1
     sub  t0, zero, t0
     and  t0, t0, a1
     or   a1, v0, t0
@@ -1024,7 +1024,7 @@ apu_clrc: // CLRC
     // Clear the C flag
     NONE
     lbu  t0, apu_flags
-    andi t0, t0, 0xFF & ~0x01
+    andi t0, t0, 0xFE
     sb   t0, apu_flags
     j    cpu_execute
 
@@ -1033,7 +1033,7 @@ apu_setc: // SETC
     // Set the C flag
     NONE
     lbu  t0, apu_flags
-    ori  t0, t0, 0x01
+    ori  t0, t0, 0x1
     sb   t0, apu_flags
     j    cpu_execute
 
@@ -1042,7 +1042,7 @@ apu_notc: // NOTC
     // Negate the C flag
     NONE
     lbu  t0, apu_flags
-    xori t0, t0, 0x01
+    xori t0, t0, 0x1
     sb   t0, apu_flags
     j    cpu_execute
 
@@ -1051,7 +1051,7 @@ apu_clrv: // CLRV
     // Clear the V and H flags
     NONE
     lbu  t0, apu_flags
-    andi t0, t0, 0xFF & ~0x48
+    andi t0, t0, 0xB7
     sb   t0, apu_flags
     j    cpu_execute
 

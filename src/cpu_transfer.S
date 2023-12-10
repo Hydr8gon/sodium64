@@ -40,103 +40,103 @@
 .globl tsc
 .globl tcs_e
 .globl tcs
-.globl lda_8
-.globl lda_16
+.globl ldaimm_8
 .globl ldadir_8
-.globl ldadir_16
 .globl ldadrx_8
-.globl ldadrx_16
 .globl ldadrs_8
-.globl ldadrs_16
 .globl ldaabs_8
-.globl ldaabs_16
 .globl ldaabx_8
-.globl ldaabx_16
 .globl ldaaby_8
-.globl ldaaby_16
 .globl ldalng_8
-.globl ldalng_16
 .globl ldalnx_8
-.globl ldalnx_16
 .globl ldaind_8
-.globl ldaind_16
 .globl ldaidx_8
-.globl ldaidx_16
 .globl ldaidy_8
-.globl ldaidy_16
 .globl ldaisy_8
-.globl ldaisy_16
 .globl ldaidl_8
-.globl ldaidl_16
 .globl ldaily_8
+.globl ldaimm_16
+.globl ldadir_16
+.globl ldadrx_16
+.globl ldadrs_16
+.globl ldaabs_16
+.globl ldaabx_16
+.globl ldaaby_16
+.globl ldalng_16
+.globl ldalnx_16
+.globl ldaind_16
+.globl ldaidx_16
+.globl ldaidy_16
+.globl ldaisy_16
+.globl ldaidl_16
 .globl ldaily_16
-.globl ldx_8
-.globl ldx_16
+.globl ldximm_8
 .globl ldxdir_8
-.globl ldxdir_16
 .globl ldxdry_8
-.globl ldxdry_16
 .globl ldxabs_8
-.globl ldxabs_16
 .globl ldxaby_8
+.globl ldximm_16
+.globl ldxdir_16
+.globl ldxdry_16
+.globl ldxabs_16
 .globl ldxaby_16
-.globl ldy_8
-.globl ldy_16
+.globl ldyimm_8
 .globl ldydir_8
-.globl ldydir_16
 .globl ldydrx_8
-.globl ldydrx_16
 .globl ldyabs_8
-.globl ldyabs_16
 .globl ldyabx_8
+.globl ldyimm_16
+.globl ldydir_16
+.globl ldydrx_16
+.globl ldyabs_16
 .globl ldyabx_16
 .globl stzdir_8
-.globl stzdir_16
 .globl stzdrx_8
-.globl stzdrx_16
 .globl stzabs_8
-.globl stzabs_16
 .globl stzabx_8
+.globl stzdir_16
+.globl stzdrx_16
+.globl stzabs_16
 .globl stzabx_16
 .globl stadir_8
-.globl stadir_16
 .globl stadrx_8
-.globl stadrx_16
 .globl stadrs_8
-.globl stadrs_16
 .globl staabs_8
-.globl staabs_16
 .globl staabx_8
-.globl staabx_16
 .globl staaby_8
-.globl staaby_16
 .globl stalng_8
-.globl stalng_16
 .globl stalnx_8
-.globl stalnx_16
 .globl staind_8
-.globl staind_16
 .globl staidx_8
-.globl staidx_16
 .globl staidy_8
-.globl staidy_16
 .globl staisy_8
-.globl staisy_16
 .globl staidl_8
-.globl staidl_16
 .globl staily_8
+.globl stadir_16
+.globl stadrx_16
+.globl stadrs_16
+.globl staabs_16
+.globl staabx_16
+.globl staaby_16
+.globl stalng_16
+.globl stalnx_16
+.globl staind_16
+.globl staidx_16
+.globl staidy_16
+.globl staisy_16
+.globl staidl_16
 .globl staily_16
 .globl stxdir_8
-.globl stxdir_16
 .globl stxdry_8
-.globl stxdry_16
 .globl stxabs_8
+.globl stxdir_16
+.globl stxdry_16
 .globl stxabs_16
 .globl stydir_8
-.globl stydir_16
 .globl stydrx_8
-.globl stydrx_16
 .globl styabs_8
+.globl stydir_16
+.globl stydrx_16
 .globl styabs_16
 .globl pha_8
 .globl pha_16
@@ -343,21 +343,21 @@ tcs: // TCS
     j    set_nz8
 .endm
 
-lda_8:    IM8; LDA_8 // LDA #nn      (8-bit)
-ldadir_8: DIR; LDA_8 // LDA nn       (8-bit)
-ldadrx_8: DRX; LDA_8 // LDA nn,X     (8-bit)
-ldadrs_8: DRS; LDA_8 // LDA nn,S     (8-bit)
-ldaabs_8: ABS; LDA_8 // LDA nnnn     (8-bit)
-ldaabx_8: ABX; LDA_8 // LDA nnnn,X   (8-bit)
-ldaaby_8: ABY; LDA_8 // LDA nnnn,Y   (8-bit)
-ldalng_8: LNG; LDA_8 // LDA nnnnnn   (8-bit)
+ldaimm_8: IM8; LDA_8 // LDA #nn (8-bit)
+ldadir_8: DIR; LDA_8 // LDA nn (8-bit)
+ldadrx_8: DRX; LDA_8 // LDA nn,X (8-bit)
+ldadrs_8: DRS; LDA_8 // LDA nn,S (8-bit)
+ldaabs_8: ABS; LDA_8 // LDA nnnn (8-bit)
+ldaabx_8: ABX; LDA_8 // LDA nnnn,X (8-bit)
+ldaaby_8: ABY; LDA_8 // LDA nnnn,Y (8-bit)
+ldalng_8: LNG; LDA_8 // LDA nnnnnn (8-bit)
 ldalnx_8: LNX; LDA_8 // LDA nnnnnn,X (8-bit)
-ldaind_8: IND; LDA_8 // LDA (nn)     (8-bit)
-ldaidx_8: IDX; LDA_8 // LDA (nn,X)   (8-bit)
-ldaidy_8: IDY; LDA_8 // LDA (nn),Y   (8-bit)
+ldaind_8: IND; LDA_8 // LDA (nn) (8-bit)
+ldaidx_8: IDX; LDA_8 // LDA (nn,X) (8-bit)
+ldaidy_8: IDY; LDA_8 // LDA (nn),Y (8-bit)
 ldaisy_8: ISY; LDA_8 // LDA (nn,S),Y (8-bit)
-ldaidl_8: IDL; LDA_8 // LDA [nn]     (8-bit)
-ldaily_8: ILY; LDA_8 // LDA [nn],Y   (8-bit)
+ldaidl_8: IDL; LDA_8 // LDA [nn] (8-bit)
+ldaily_8: ILY; LDA_8 // LDA [nn],Y (8-bit)
 
 
 .macro LDA_16 // LDA op (16-bit)
@@ -368,21 +368,21 @@ ldaily_8: ILY; LDA_8 // LDA [nn],Y   (8-bit)
     j    set_nz16
 .endm
 
-lda_16:    I16; LDA_16 // LDA #nnnn    (16-bit)
-ldadir_16: DIR; LDA_16 // LDA nn       (16-bit)
-ldadrx_16: DRX; LDA_16 // LDA nn,X     (16-bit)
-ldadrs_16: DRS; LDA_16 // LDA nn,S     (16-bit)
-ldaabs_16: ABS; LDA_16 // LDA nnnn     (16-bit)
-ldaabx_16: ABX; LDA_16 // LDA nnnn,X   (16-bit)
-ldaaby_16: ABY; LDA_16 // LDA nnnn,Y   (16-bit)
-ldalng_16: LNG; LDA_16 // LDA nnnnnn   (16-bit)
+ldaimm_16: I16; LDA_16 // LDA #nnnn (16-bit)
+ldadir_16: DIR; LDA_16 // LDA nn (16-bit)
+ldadrx_16: DRX; LDA_16 // LDA nn,X (16-bit)
+ldadrs_16: DRS; LDA_16 // LDA nn,S (16-bit)
+ldaabs_16: ABS; LDA_16 // LDA nnnn (16-bit)
+ldaabx_16: ABX; LDA_16 // LDA nnnn,X (16-bit)
+ldaaby_16: ABY; LDA_16 // LDA nnnn,Y (16-bit)
+ldalng_16: LNG; LDA_16 // LDA nnnnnn (16-bit)
 ldalnx_16: LNX; LDA_16 // LDA nnnnnn,X (16-bit)
-ldaind_16: IND; LDA_16 // LDA (nn)     (16-bit)
-ldaidx_16: IDX; LDA_16 // LDA (nn,X)   (16-bit)
-ldaidy_16: IDY; LDA_16 // LDA (nn),Y   (16-bit)
+ldaind_16: IND; LDA_16 // LDA (nn) (16-bit)
+ldaidx_16: IDX; LDA_16 // LDA (nn,X) (16-bit)
+ldaidy_16: IDY; LDA_16 // LDA (nn),Y (16-bit)
 ldaisy_16: ISY; LDA_16 // LDA (nn,S),Y (16-bit)
-ldaidl_16: IDL; LDA_16 // LDA [nn]     (16-bit)
-ldaily_16: ILY; LDA_16 // LDA [nn],Y   (16-bit)
+ldaidl_16: IDL; LDA_16 // LDA [nn] (16-bit)
+ldaily_16: ILY; LDA_16 // LDA [nn],Y (16-bit)
 
 
 .macro LDX_8 // LDX op (8-bit)
@@ -393,10 +393,10 @@ ldaily_16: ILY; LDA_16 // LDA [nn],Y   (16-bit)
     j    set_nz8
 .endm
 
-ldx_8:    IM8; LDX_8 // LDX #nn    (8-bit)
-ldxdir_8: DIR; LDX_8 // LDX nn     (8-bit)
-ldxdry_8: DRY; LDX_8 // LDX nn,Y   (8-bit)
-ldxabs_8: ABS; LDX_8 // LDX nnnn   (8-bit)
+ldximm_8: IM8; LDX_8 // LDX #nn (8-bit)
+ldxdir_8: DIR; LDX_8 // LDX nn (8-bit)
+ldxdry_8: DRY; LDX_8 // LDX nn,Y (8-bit)
+ldxabs_8: ABS; LDX_8 // LDX nnnn (8-bit)
 ldxaby_8: ABY; LDX_8 // LDX nnnn,Y (8-bit)
 
 
@@ -408,10 +408,10 @@ ldxaby_8: ABY; LDX_8 // LDX nnnn,Y (8-bit)
     j    set_nz16
 .endm
 
-ldx_16:    I16; LDX_16 // LDX #nnnn  (16-bit)
-ldxdir_16: DIR; LDX_16 // LDX nn     (16-bit)
-ldxdry_16: DRY; LDX_16 // LDX nn,Y   (16-bit)
-ldxabs_16: ABS; LDX_16 // LDX nnnn   (16-bit)
+ldximm_16: I16; LDX_16 // LDX #nnnn (16-bit)
+ldxdir_16: DIR; LDX_16 // LDX nn (16-bit)
+ldxdry_16: DRY; LDX_16 // LDX nn,Y (16-bit)
+ldxabs_16: ABS; LDX_16 // LDX nnnn (16-bit)
 ldxaby_16: ABY; LDX_16 // LDX nnnn,Y (16-bit)
 
 
@@ -423,10 +423,10 @@ ldxaby_16: ABY; LDX_16 // LDX nnnn,Y (16-bit)
     j    set_nz8
 .endm
 
-ldy_8:    IM8; LDY_8 // LDY #nn    (8-bit)
-ldydir_8: DIR; LDY_8 // LDY nn     (8-bit)
-ldydrx_8: DRX; LDY_8 // LDY nn,X   (8-bit)
-ldyabs_8: ABS; LDY_8 // LDY nnnn   (8-bit)
+ldyimm_8: IM8; LDY_8 // LDY #nn (8-bit)
+ldydir_8: DIR; LDY_8 // LDY nn (8-bit)
+ldydrx_8: DRX; LDY_8 // LDY nn,X (8-bit)
+ldyabs_8: ABS; LDY_8 // LDY nnnn (8-bit)
 ldyabx_8: ABX; LDY_8 // LDY nnnn,X (8-bit)
 
 
@@ -438,10 +438,10 @@ ldyabx_8: ABX; LDY_8 // LDY nnnn,X (8-bit)
     j    set_nz16
 .endm
 
-ldy_16:    I16; LDY_16 // LDY #nnnn  (16-bit)
-ldydir_16: DIR; LDY_16 // LDY nn     (16-bit)
-ldydrx_16: DRX; LDY_16 // LDY nn,X   (16-bit)
-ldyabs_16: ABS; LDY_16 // LDY nnnn   (16-bit)
+ldyimm_16: I16; LDY_16 // LDY #nnnn (16-bit)
+ldydir_16: DIR; LDY_16 // LDY nn (16-bit)
+ldydrx_16: DRX; LDY_16 // LDY nn,X (16-bit)
+ldyabs_16: ABS; LDY_16 // LDY nnnn (16-bit)
 ldyabx_16: ABX; LDY_16 // LDY nnnn,X (16-bit)
 
 
@@ -452,9 +452,9 @@ ldyabx_16: ABX; LDY_16 // LDY nnnn,X (16-bit)
     j    cpu_execute
 .endm
 
-stzdir_8: DIR; STZ_8 // STZ nn     (8-bit)
-stzdrx_8: DRX; STZ_8 // STZ nn,X   (8-bit)
-stzabs_8: ABS; STZ_8 // STZ nnnn   (8-bit)
+stzdir_8: DIR; STZ_8 // STZ nn (8-bit)
+stzdrx_8: DRX; STZ_8 // STZ nn,X (8-bit)
+stzabs_8: ABS; STZ_8 // STZ nnnn (8-bit)
 stzabx_8: ABX; STZ_8 // STZ nnnn,X (8-bit)
 
 
@@ -465,9 +465,9 @@ stzabx_8: ABX; STZ_8 // STZ nnnn,X (8-bit)
     j    cpu_execute
 .endm
 
-stzdir_16: DIR; STZ_16 // STZ nn     (16-bit)
-stzdrx_16: DRX; STZ_16 // STZ nn,X   (16-bit)
-stzabs_16: ABS; STZ_16 // STZ nnnn   (16-bit)
+stzdir_16: DIR; STZ_16 // STZ nn (16-bit)
+stzdrx_16: DRX; STZ_16 // STZ nn,X (16-bit)
+stzabs_16: ABS; STZ_16 // STZ nnnn (16-bit)
 stzabx_16: ABX; STZ_16 // STZ nnnn,X (16-bit)
 
 
@@ -478,20 +478,20 @@ stzabx_16: ABX; STZ_16 // STZ nnnn,X (16-bit)
     j    cpu_execute
 .endm
 
-stadir_8: DIR; STA_8 // STA nn       (8-bit)
-stadrx_8: DRX; STA_8 // STA nn,X     (8-bit)
-stadrs_8: DRS; STA_8 // STA nn,S     (8-bit)
-staabs_8: ABS; STA_8 // STA nnnn     (8-bit)
-staabx_8: ABX; STA_8 // STA nnnn,X   (8-bit)
-staaby_8: ABY; STA_8 // STA nnnn,Y   (8-bit)
-stalng_8: LNG; STA_8 // STA nnnnnn   (8-bit)
+stadir_8: DIR; STA_8 // STA nn (8-bit)
+stadrx_8: DRX; STA_8 // STA nn,X (8-bit)
+stadrs_8: DRS; STA_8 // STA nn,S (8-bit)
+staabs_8: ABS; STA_8 // STA nnnn (8-bit)
+staabx_8: ABX; STA_8 // STA nnnn,X (8-bit)
+staaby_8: ABY; STA_8 // STA nnnn,Y (8-bit)
+stalng_8: LNG; STA_8 // STA nnnnnn (8-bit)
 stalnx_8: LNX; STA_8 // STA nnnnnn,X (8-bit)
-staind_8: IND; STA_8 // STA (nn)     (8-bit)
-staidx_8: IDX; STA_8 // STA (nn,X)   (8-bit)
-staidy_8: IDY; STA_8 // STA (nn),Y   (8-bit)
+staind_8: IND; STA_8 // STA (nn) (8-bit)
+staidx_8: IDX; STA_8 // STA (nn,X) (8-bit)
+staidy_8: IDY; STA_8 // STA (nn),Y (8-bit)
 staisy_8: ISY; STA_8 // STA (nn,S),Y (8-bit)
-staidl_8: IDL; STA_8 // STA [nn]     (8-bit)
-staily_8: ILY; STA_8 // STA [nn],Y   (8-bit)
+staidl_8: IDL; STA_8 // STA [nn] (8-bit)
+staily_8: ILY; STA_8 // STA [nn],Y (8-bit)
 
 
 .macro STA_16 // STA op (16-bit)
@@ -501,20 +501,20 @@ staily_8: ILY; STA_8 // STA [nn],Y   (8-bit)
     j    cpu_execute
 .endm
 
-stadir_16: DIR; STA_16 // STA nn       (16-bit)
-stadrx_16: DRX; STA_16 // STA nn,X     (16-bit)
-stadrs_16: DRS; STA_16 // STA nn,S     (16-bit)
-staabs_16: ABS; STA_16 // STA nnnn     (16-bit)
-staabx_16: ABX; STA_16 // STA nnnn,X   (16-bit)
-staaby_16: ABY; STA_16 // STA nnnn,Y   (16-bit)
-stalng_16: LNG; STA_16 // STA nnnnnn   (16-bit)
+stadir_16: DIR; STA_16 // STA nn (16-bit)
+stadrx_16: DRX; STA_16 // STA nn,X (16-bit)
+stadrs_16: DRS; STA_16 // STA nn,S (16-bit)
+staabs_16: ABS; STA_16 // STA nnnn (16-bit)
+staabx_16: ABX; STA_16 // STA nnnn,X (16-bit)
+staaby_16: ABY; STA_16 // STA nnnn,Y (16-bit)
+stalng_16: LNG; STA_16 // STA nnnnnn (16-bit)
 stalnx_16: LNX; STA_16 // STA nnnnnn,X (16-bit)
-staind_16: IND; STA_16 // STA (nn)     (16-bit)
-staidx_16: IDX; STA_16 // STA (nn,X)   (16-bit)
-staidy_16: IDY; STA_16 // STA (nn),Y   (16-bit)
+staind_16: IND; STA_16 // STA (nn) (16-bit)
+staidx_16: IDX; STA_16 // STA (nn,X) (16-bit)
+staidy_16: IDY; STA_16 // STA (nn),Y (16-bit)
 staisy_16: ISY; STA_16 // STA (nn,S),Y (16-bit)
-staidl_16: IDL; STA_16 // STA [nn]     (16-bit)
-staily_16: ILY; STA_16 // STA [nn],Y   (16-bit)
+staidl_16: IDL; STA_16 // STA [nn] (16-bit)
+staily_16: ILY; STA_16 // STA [nn],Y (16-bit)
 
 
 .macro STX_8 // STX op (8-bit)
@@ -524,7 +524,7 @@ staily_16: ILY; STA_16 // STA [nn],Y   (16-bit)
     j    cpu_execute
 .endm
 
-stxdir_8: DIR; STX_8 // STX nn   (8-bit)
+stxdir_8: DIR; STX_8 // STX nn (8-bit)
 stxdry_8: DRY; STX_8 // STX nn,Y (8-bit)
 stxabs_8: ABS; STX_8 // STX nnnn (8-bit)
 
@@ -536,7 +536,7 @@ stxabs_8: ABS; STX_8 // STX nnnn (8-bit)
     j    cpu_execute
 .endm
 
-stxdir_16: DIR; STX_16 // STX nn   (16-bit)
+stxdir_16: DIR; STX_16 // STX nn (16-bit)
 stxdry_16: DRY; STX_16 // STX nn,Y (16-bit)
 stxabs_16: ABS; STX_16 // STX nnnn (16-bit)
 
@@ -548,7 +548,7 @@ stxabs_16: ABS; STX_16 // STX nnnn (16-bit)
     j    cpu_execute
 .endm
 
-stydir_8: DIR; STY_8 // STY nn   (8-bit)
+stydir_8: DIR; STY_8 // STY nn (8-bit)
 stydrx_8: DRX; STY_8 // STY nn,X (8-bit)
 styabs_8: ABS; STY_8 // STY nnnn (8-bit)
 
@@ -560,7 +560,7 @@ styabs_8: ABS; STY_8 // STY nnnn (8-bit)
     j    cpu_execute
 .endm
 
-stydir_16: DIR; STY_16 // STY nn   (16-bit)
+stydir_16: DIR; STY_16 // STY nn (16-bit)
 stydrx_16: DRX; STY_16 // STY nn,X (16-bit)
 styabs_16: ABS; STY_16 // STY nnnn (16-bit)
 

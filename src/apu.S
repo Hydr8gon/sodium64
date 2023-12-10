@@ -21,9 +21,9 @@
 #include <limits.h>
 
 // Approximate master cycle counts for APU components (underclocked)
-#define APU_CYCLE  21*2 // 21477000Hz / 1024000Hz = 20.973632812
+#define APU_CYCLE 21 * 2 // 21477000Hz / 1024000Hz = 20.973632812
 #define APU_TIMER1 2688 // 21477000Hz / 8000Hz = 2684.625
-#define APU_TIMER2  336 // 21477000Hz / 64000Hz = 335.578125
+#define APU_TIMER2 336 // 21477000Hz / 64000Hz = 335.578125
 
 .globl apu_ram
 .globl apu_reg_x
@@ -62,71 +62,69 @@ apu_rom:
     .byte 0xF6, 0xDA, 0x00, 0xBA, 0xF4, 0xC4, 0xF4, 0xDD // 0xFFF0-0xFFF7
     .byte 0x5D, 0xD0, 0xDB, 0x1F, 0x00, 0x00, 0xC0, 0xFF // 0xFFF8-0xFFFF
 
-apu_cycle1:  .word 341 * 225 * 4
-apu_cycle2:  .word 341 * 225 * 4
+apu_cycle1: .word 341 * 225 * 4
+apu_cycle2: .word 341 * 225 * 4
 apu_ocycles: .word INT_MIN:3
-apu_timers:  .byte 0x00:3
-apu_tmdivs:  .byte 0x00:3
-apu_tmouts:  .byte 0x00:3
+apu_timers: .byte 0:3
+apu_tmdivs: .byte 0:3
+apu_tmouts: .byte 0:3
 
 apu_control: .byte 0xB0
-.align 2
-apu_inputs:  .byte 0x00:4
-apu_outputs: .byte 0x00:4
+apu_inputs: .hword 0:2
+apu_outputs: .hword 0:2
 
-apu_reg_x: .byte 0x00
-.align 2
-apu_reg_y: .byte 0x00
-apu_accum: .byte 0x00
+apu_reg_x: .hword 0 // Aligned
+apu_reg_y: .byte 0
+apu_accum: .byte 0
 apu_stack: .hword 0x1FF
-apu_flags: .byte 0x00
+apu_flags: .byte 0
 apu_count: .hword 0xFFC0
 
 apu_opcodes:
-    .word apu_nop,    apu_tcall0, apu_set0,   apu_bbs0,   apu_ordir,  apu_orabs,  apu_orbrx,  apu_oridx  // 0x00-0x07
-    .word apu_orimm,  apu_ordr2,  apu_or1a,   apu_asldir, apu_aslabs, apu_php,    apu_tset1,  apu_brk    // 0x08-0x0F
-    .word apu_bpl,    apu_tcall1, apu_clr0,   apu_bbc0,   apu_ordrx,  apu_orabx,  apu_oraby,  apu_oridy  // 0x10-0x17
-    .word apu_ordri,  apu_orbxy,  apu_decw,   apu_asldrx, apu_asla,   apu_decx,   apu_cpxabs, apu_jmpabx // 0x18-0x1F
-    .word apu_clrp,   apu_tcall2, apu_set1,   apu_bbs1,   apu_anddir, apu_andabs, apu_andbrx, apu_andidx // 0x20-0x27
-    .word apu_andimm, apu_anddr2, apu_or1b,   apu_roldir, apu_rolabs, apu_pha,    apu_cbnea,  apu_bra    // 0x28-0x2F
-    .word apu_bmi,    apu_tcall3, apu_clr1,   apu_bbc1,   apu_anddrx, apu_andabx, apu_andaby, apu_andidy // 0x30-0x37
-    .word apu_anddri, apu_andbxy, apu_incw,   apu_roldrx, apu_rola,   apu_incx,   apu_cpxdir, apu_call   // 0x38-0x3F
-    .word apu_setp,   apu_tcall4, apu_set2,   apu_bbs2,   apu_eordir, apu_eorabs, apu_eorbrx, apu_eoridx // 0x40-0x47
-    .word apu_eorimm, apu_eordr2, apu_and1a,  apu_lsrdir, apu_lsrabs, apu_phx,    apu_tclr1,  apu_pcall  // 0x48-0x4F
-    .word apu_bvc,    apu_tcall5, apu_clr2,   apu_bbc2,   apu_eordrx, apu_eorabx, apu_eoraby, apu_eoridy // 0x50-0x57
-    .word apu_eordri, apu_eorbxy, apu_cmpw,   apu_lsrdrx, apu_lsra,   apu_movxa,  apu_cpyabs, apu_jmpabs // 0x58-0x5F
-    .word apu_clrc,   apu_tcall6, apu_set3,   apu_bbs3,   apu_cmpdir, apu_cmpabs, apu_cmpbrx, apu_cmpidx // 0x60-0x67
-    .word apu_cmpimm, apu_cmpdr2, apu_and1b,  apu_rordir, apu_rorabs, apu_phy,    apu_dbnza,  apu_ret    // 0x68-0x6F
-    .word apu_bvs,    apu_tcall7, apu_clr3,   apu_bbc3,   apu_cmpdrx, apu_cmpabx, apu_cmpaby, apu_cmpidy // 0x70-0x77
-    .word apu_cmpdri, apu_cmpbxy, apu_addw,   apu_rordrx, apu_rora,   apu_movax,  apu_cpydir, apu_ret1   // 0x78-0x7F
-    .word apu_setc,   apu_tcall8, apu_set4,   apu_bbs4,   apu_adcdir, apu_adcabs, apu_adcbrx, apu_adcidx // 0x80-0x87
-    .word apu_adcimm, apu_adcdr2, apu_eor1,   apu_decdir, apu_decabs, apu_mvyimm, apu_ppp,    apu_movdri // 0x88-0x8F
-    .word apu_bcc,    apu_tcall9, apu_clr4,   apu_bbc4,   apu_adcdrx, apu_adcabx, apu_adcaby, apu_adcidy // 0x90-0x97
-    .word apu_adcdri, apu_adcbxy, apu_subw,   apu_decdrx, apu_deca,   apu_movxs,  apu_div,    apu_xcn    // 0x98-0x9F
-    .word apu_ei,     apu_tcallA, apu_set5,   apu_bbs5,   apu_sbcdir, apu_sbcabs, apu_sbcbrx, apu_sbcidx // 0xA0-0xA7
-    .word apu_sbcimm, apu_sbcdr2, apu_mov1b,  apu_incdir, apu_incabs, apu_cpyimm, apu_ppa,    apu_amvbxp // 0xA8-0xAF
-    .word apu_bcs,    apu_tcallB, apu_clr5,   apu_bbc5,   apu_sbcdrx, apu_sbcabx, apu_sbcaby, apu_sbcidy // 0xB0-0xB7
-    .word apu_sbcdri, apu_sbcbxy, apu_movwya, apu_incdrx, apu_inca,   apu_movsx,  apu_unk,    apu_mvabxp // 0xB8-0xBF
-    .word apu_di,     apu_tcallC, apu_set6,   apu_bbs6,   apu_amvdir, apu_amvabs, apu_amvbrx, apu_amvidx // 0xC0-0xC7
-    .word apu_cpximm, apu_xmvabs, apu_mov1a,  apu_ymvdir, apu_ymvabs, apu_mvximm, apu_ppx,    apu_mul    // 0xC8-0xCF
-    .word apu_bne,    apu_tcallD, apu_clr6,   apu_bbc6,   apu_amvdrx, apu_amvabx, apu_amvaby, apu_amvidy // 0xD0-0xD7
-    .word apu_xmvdir, apu_xmvdry, apu_movway, apu_ymvdrx, apu_decy,   apu_movay,  apu_cbnex,  apu_unk    // 0xD8-0xDF
-    .word apu_clrv,   apu_tcallE, apu_set7,   apu_bbs7,   apu_mvadir, apu_mvaabs, apu_mvabrx, apu_mvaidx // 0xE0-0xE7
-    .word apu_mvaimm, apu_mvxabs, apu_not1,   apu_mvydir, apu_mvyabs, apu_notc,   apu_ppy,    apu_unk    // 0xE8-0xEF
-    .word apu_beq,    apu_tcallF, apu_clr7,   apu_bbc7,   apu_mvadrx, apu_mvaabx, apu_mvaaby, apu_mvaidy // 0xF0-0xF7
-    .word apu_mvxdir, apu_mvxdry, apu_movdr2, apu_mvydrx, apu_incy,   apu_movya,  apu_dbnzy,  apu_unk    // 0xF8-0xFF
+    .word apu_nop, apu_tcall0, apu_set0, apu_bbs0, apu_ordir, apu_orabs, apu_orbrx, apu_oridx // 0x00-0x07
+    .word apu_orimm, apu_ordr2, apu_or1a, apu_asldir, apu_aslabs, apu_php, apu_tset1, apu_brk // 0x08-0x0F
+    .word apu_bpl, apu_tcall1, apu_clr0, apu_bbc0, apu_ordrx, apu_orabx, apu_oraby, apu_oridy // 0x10-0x17
+    .word apu_ordri, apu_orbxy, apu_decw, apu_asldrx, apu_asla, apu_decx, apu_cpxabs, apu_jmpabx // 0x18-0x1F
+    .word apu_clrp, apu_tcall2, apu_set1, apu_bbs1, apu_anddir, apu_andabs, apu_andbrx, apu_andidx // 0x20-0x27
+    .word apu_andimm, apu_anddr2, apu_or1b, apu_roldir, apu_rolabs, apu_pha, apu_cbnea, apu_bra // 0x28-0x2F
+    .word apu_bmi, apu_tcall3, apu_clr1, apu_bbc1, apu_anddrx, apu_andabx, apu_andaby, apu_andidy // 0x30-0x37
+    .word apu_anddri, apu_andbxy, apu_incw, apu_roldrx, apu_rola, apu_incx, apu_cpxdir, apu_call // 0x38-0x3F
+    .word apu_setp, apu_tcall4, apu_set2, apu_bbs2, apu_eordir, apu_eorabs, apu_eorbrx, apu_eoridx // 0x40-0x47
+    .word apu_eorimm, apu_eordr2, apu_and1a, apu_lsrdir, apu_lsrabs, apu_phx, apu_tclr1, apu_pcall // 0x48-0x4F
+    .word apu_bvc, apu_tcall5, apu_clr2, apu_bbc2, apu_eordrx, apu_eorabx, apu_eoraby, apu_eoridy // 0x50-0x57
+    .word apu_eordri, apu_eorbxy, apu_cmpw, apu_lsrdrx, apu_lsra, apu_movxa, apu_cpyabs, apu_jmpabs // 0x58-0x5F
+    .word apu_clrc, apu_tcall6, apu_set3, apu_bbs3, apu_cmpdir, apu_cmpabs, apu_cmpbrx, apu_cmpidx // 0x60-0x67
+    .word apu_cmpimm, apu_cmpdr2, apu_and1b, apu_rordir, apu_rorabs, apu_phy, apu_dbnza, apu_ret // 0x68-0x6F
+    .word apu_bvs, apu_tcall7, apu_clr3, apu_bbc3, apu_cmpdrx, apu_cmpabx, apu_cmpaby, apu_cmpidy // 0x70-0x77
+    .word apu_cmpdri, apu_cmpbxy, apu_addw, apu_rordrx, apu_rora, apu_movax, apu_cpydir, apu_ret1 // 0x78-0x7F
+    .word apu_setc, apu_tcall8, apu_set4, apu_bbs4, apu_adcdir, apu_adcabs, apu_adcbrx, apu_adcidx // 0x80-0x87
+    .word apu_adcimm, apu_adcdr2, apu_eor1, apu_decdir, apu_decabs, apu_mvyimm, apu_ppp, apu_movdri // 0x88-0x8F
+    .word apu_bcc, apu_tcall9, apu_clr4, apu_bbc4, apu_adcdrx, apu_adcabx, apu_adcaby, apu_adcidy // 0x90-0x97
+    .word apu_adcdri, apu_adcbxy, apu_subw, apu_decdrx, apu_deca, apu_movxs, apu_div, apu_xcn // 0x98-0x9F
+    .word apu_ei, apu_tcallA, apu_set5, apu_bbs5, apu_sbcdir, apu_sbcabs, apu_sbcbrx, apu_sbcidx // 0xA0-0xA7
+    .word apu_sbcimm, apu_sbcdr2, apu_mov1b, apu_incdir, apu_incabs, apu_cpyimm, apu_ppa, apu_amvbxp // 0xA8-0xAF
+    .word apu_bcs, apu_tcallB, apu_clr5, apu_bbc5, apu_sbcdrx, apu_sbcabx, apu_sbcaby, apu_sbcidy // 0xB0-0xB7
+    .word apu_sbcdri, apu_sbcbxy, apu_movwya, apu_incdrx, apu_inca, apu_movsx, apu_unk, apu_mvabxp // 0xB8-0xBF
+    .word apu_di, apu_tcallC, apu_set6, apu_bbs6, apu_amvdir, apu_amvabs, apu_amvbrx, apu_amvidx // 0xC0-0xC7
+    .word apu_cpximm, apu_xmvabs, apu_mov1a, apu_ymvdir, apu_ymvabs, apu_mvximm, apu_ppx, apu_mul // 0xC8-0xCF
+    .word apu_bne, apu_tcallD, apu_clr6, apu_bbc6, apu_amvdrx, apu_amvabx, apu_amvaby, apu_amvidy // 0xD0-0xD7
+    .word apu_xmvdir, apu_xmvdry, apu_movway, apu_ymvdrx, apu_decy, apu_movay, apu_cbnex, apu_unk // 0xD8-0xDF
+    .word apu_clrv, apu_tcallE, apu_set7, apu_bbs7, apu_mvadir, apu_mvaabs, apu_mvabrx, apu_mvaidx // 0xE0-0xE7
+    .word apu_mvaimm, apu_mvxabs, apu_not1, apu_mvydir, apu_mvyabs, apu_notc, apu_ppy, apu_unk // 0xE8-0xEF
+    .word apu_beq, apu_tcallF, apu_clr7, apu_bbc7, apu_mvadrx, apu_mvaabx, apu_mvaaby, apu_mvaidy // 0xF0-0xF7
+    .word apu_mvxdir, apu_mvxdry, apu_movdr2, apu_mvydrx, apu_incy, apu_movya, apu_dbnzy, apu_unk // 0xF8-0xFF
 
 read_iomap:
-    .word read_unk,    read_unk,    read_dspaddr, read_dspdata // 0xF0-0xF3
-    .word read_cpuio0, read_cpuio1, read_cpuio2,  read_cpuio3  // 0xF4-0xF7
-    .word read_unk,    read_unk,    read_unk,     read_unk     // 0xF8-0xFB
-    .word read_unk,    read_t0out,  read_t1out,   read_t2out   // 0xFC-0xFF
+    .word read_unk, read_unk, read_dspaddr, read_dspdata // 0xF0-0xF3
+    .word read_cpuio0, read_cpuio1, read_cpuio2, read_cpuio3 // 0xF4-0xF7
+    .word read_unk, read_unk, read_unk, read_unk // 0xF8-0xFB
+    .word read_unk, read_t0out, read_t1out, read_t2out // 0xFC-0xFF
 
 write_iomap:
-    .word write_unk,    write_control, write_dspaddr, write_dspdata // 0xF0-0xF3
-    .word write_cpuio0, write_cpuio1,  write_cpuio2,  write_cpuio3  // 0xF4-0xF7
-    .word write_unk,    write_unk,     write_t0div,   write_t1div   // 0xF8-0xFB
-    .word write_t2div,  write_unk,     write_unk,     write_unk     // 0xFC-0xFF
+    .word write_unk, write_control, write_dspaddr, write_dspdata // 0xF0-0xF3
+    .word write_cpuio0, write_cpuio1, write_cpuio2, write_cpuio3 // 0xF4-0xF7
+    .word write_unk, write_unk, write_t0div, write_t1div // 0xF8-0xFB
+    .word write_t2div, write_unk, write_unk, write_unk // 0xFC-0xFF
 
 .text
 
@@ -149,9 +147,9 @@ apu_set_nz: // a0: value
     // Set the NZ flags and finish executing an APU opcode
     lbu  t0, apu_flags
     andi a0, a0, 0xFF
-    andi t0, t0, 0xFF & ~0x82
+    andi t0, t0, 0x7D
     seq  t1, a0, zero
-    sll  t1, t1, 1    // Z
+    sll  t1, t1, 1 // Z
     or   t0, t0, t1
     andi t1, a0, 0x80 // N
     or   t0, t0, t1
@@ -174,7 +172,7 @@ apu_read8: // a0: address - v0: value
 
     // Check if the address is an I/O port
     andi t0, a0, 0xFFF0
-    beq  t0, 0x00F0, io_read8
+    beq  t0, 0xF0, io_read8
     jr   ra
 
 io_read8:
@@ -196,7 +194,7 @@ apu_write8: // a0: address, a1: value
 
     // Check if the address is an I/O port
     andi t0, a0, 0xFFF0
-    beq  t0, 0x00F0, io_write8
+    beq  t0, 0xF0, io_write8
     jr   ra
 
 io_write8:
@@ -214,7 +212,7 @@ write_unk:
 update_overflows:
     // Never overflow timer 0 if it's disabled
     lbu  t0, apu_control
-    andi t1, t0, 0x01
+    andi t1, t0, 0x1
     bnez t1, stamp_timer0
     li   t1, INT_MIN
     sw   t1, apu_ocycles + 0
@@ -227,9 +225,9 @@ stamp_timer0:
     addi t1, t1, 1
     sub  t1, t2, t1
     andi t1, t1, 0xFF
-    addi t1, t1, 1      // Ticks until overflow
+    addi t1, t1, 1 // Ticks until overflow
     li   t2, APU_TIMER1 // Cycles per timer tick
-    mult t1, t2         // Cycles until overflow
+    mult t1, t2 // Cycles until overflow
     lw   t1, apu_cycle1
     mflo t2
     sub  t1, t1, t2
@@ -237,7 +235,7 @@ stamp_timer0:
 
 overflow_timer1:
     // Never overflow timer 1 if it's disabled
-    andi t1, t0, 0x02
+    andi t1, t0, 0x2
     bnez t1, stamp_timer1
     li   t1, INT_MIN
     sw   t1, apu_ocycles + 4
@@ -250,9 +248,9 @@ stamp_timer1:
     addi t1, t1, 1
     sub  t1, t2, t1
     andi t1, t1, 0xFF
-    addi t1, t1, 1      // Ticks until overflow
+    addi t1, t1, 1 // Ticks until overflow
     li   t2, APU_TIMER1 // Cycles per timer tick
-    mult t1, t2         // Cycles until overflow
+    mult t1, t2 // Cycles until overflow
     lw   t1, apu_cycle1
     mflo t2
     sub  t1, t1, t2
@@ -260,7 +258,7 @@ stamp_timer1:
 
 overflow_timer2:
     // Never overflow timer 2 if it's disabled
-    andi t1, t0, 0x04
+    andi t1, t0, 0x4
     bnez t1, stamp_timer2
     li   t1, INT_MIN
     sw   t1, apu_ocycles + 8
@@ -273,9 +271,9 @@ stamp_timer2:
     addi t1, t1, 1
     sub  t1, t2, t1
     andi t1, t1, 0xFF
-    addi t1, t1, 1      // Ticks until overflow
+    addi t1, t1, 1 // Ticks until overflow
     li   t2, APU_TIMER2 // Cycles per timer tick
-    mult t1, t2         // Cycles until overflow
+    mult t1, t2 // Cycles until overflow
     lw   t1, apu_cycle2
     mflo t2
     sub  t1, t1, t2
@@ -286,18 +284,18 @@ stamp_timer2:
 update_timers:
     // Get how many timer 2 ticks passed since the last update
     lw   t7, apu_cycle2
-    sub  t0, t7, s3     // Cycles since last update
+    sub  t0, t7, s3 // Cycles since last update
     li   t1, APU_TIMER2 // Cycles per timer tick
     blt  t0, t1, early_exit
     div  t0, t1
-    mflo t6             // Ticks passed
-    mfhi t1             // Cycles since latest tick
+    mflo t6 // Ticks passed
+    mfhi t1 // Cycles since latest tick
     add  t1, t1, s3
     sw   t1, apu_cycle2
 
     // Check if timer 2 is enabled
     lbu  t5, apu_control
-    andi t0, t5, 0x04
+    andi t0, t5, 0x4
     beqz t0, update_timer0
     move t4, t6 // Ticks left
 
@@ -325,9 +323,9 @@ loop_timer2:
     // Update the overflow timestamp for next overflow
     addi t1, t2, -1
     andi t1, t1, 0xFF
-    addi t1, t1, 1      // Ticks until overflow
+    addi t1, t1, 1 // Ticks until overflow
     li   t2, APU_TIMER2 // Cycles per timer tick
-    mult t1, t2         // Cycles until overflow
+    mult t1, t2 // Cycles until overflow
     mflo t2
     sub  t0, t0, t2
     sw   t0, apu_ocycles + 8
@@ -342,17 +340,17 @@ inc_timer2:
 update_timer0:
     // Get how many timer 0/1 ticks passed since the last update
     lw   t7, apu_cycle1
-    sub  t0, t7, s3     // Cycles since last update
+    sub  t0, t7, s3 // Cycles since last update
     li   t1, APU_TIMER1 // Cycles per timer tick
     blt  t0, t1, early_exit
     div  t0, t1
-    mflo t6             // Ticks passed
-    mfhi t1             // Cycles since latest tick
+    mflo t6 // Ticks passed
+    mfhi t1 // Cycles since latest tick
     add  t1, t1, s3
     sw   t1, apu_cycle1
 
     // Check if timer 0 is enabled
-    andi t0, t5, 0x01
+    andi t0, t5, 0x1
     beqz t0, update_timer1
     move t4, t6 // Ticks left
 
@@ -380,9 +378,9 @@ loop_timer0:
     // Update the overflow timestamp for next overflow
     addi t1, t2, -1
     andi t1, t1, 0xFF
-    addi t1, t1, 1      // Ticks until overflow
+    addi t1, t1, 1 // Ticks until overflow
     li   t2, APU_TIMER1 // Cycles per timer tick
-    mult t1, t2         // Cycles until overflow
+    mult t1, t2 // Cycles until overflow
     mflo t2
     sub  t0, t0, t2
     sw   t0, apu_ocycles + 0
@@ -396,7 +394,7 @@ inc_timer0:
 
 update_timer1:
     // Check if timer 1 is enabled
-    andi t0, t5, 0x02
+    andi t0, t5, 0x2
     beqz t0, early_exit
     move t4, t6 // Ticks left
 
@@ -424,9 +422,9 @@ loop_timer1:
     // Update the overflow timestamp for next overflow
     addi t1, t2, -1
     andi t1, t1, 0xFF
-    addi t1, t1, 1      // Ticks until overflow
+    addi t1, t1, 1 // Ticks until overflow
     li   t2, APU_TIMER1 // Cycles per timer tick
-    mult t1, t2         // Cycles until overflow
+    mult t1, t2 // Cycles until overflow
     mflo t2
     sub  t0, t0, t2
     sw   t0, apu_ocycles + 4
@@ -560,17 +558,17 @@ write_control: // a1: value
     // Reset timers 0-2 if bit 0-2 turns from 0 to 1
     xor  t1, t0, a1
     and  t1, t1, a1
-    andi t0, t1, 0x01
+    andi t0, t1, 0x1
     beqz t0, timer1
     sb   zero, apu_timers + 0
     sb   zero, apu_tmouts + 0
 timer1:
-    andi t0, t1, 0x02
+    andi t0, t1, 0x2
     beqz t0, timer2
     sb   zero, apu_timers + 1
     sb   zero, apu_tmouts + 1
 timer2:
-    andi t0, t1, 0x04
+    andi t0, t1, 0x4
     beqz t0, reset0
     sb   zero, apu_timers + 2
     sb   zero, apu_tmouts + 2
