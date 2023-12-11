@@ -168,11 +168,11 @@
 
 .macro ORA // OR A,op
     // Bitwise or a value with the accumulator and set flags
-    jal  apu_read8
-    lbu  a0, apu_accum
-    or   a0, a0, v0
-    sb   a0, apu_accum
-    j    apu_set_nz
+    jal apu_read8
+    lbu a0, apu_accum
+    or a0, a0, v0
+    sb a0, apu_accum
+    j apu_set_nz
 .endm
 
 apu_orimm: IMM; ORA // OR A,#nn
@@ -188,11 +188,11 @@ apu_oridy: IDY; ORA // OR A,[aa]+Y
 
 .macro ORM // OR aa,op
     // Bitwise or a value with another memory value and set flags
-    jal  apu_read8
-    or   a1, a1, v0
-    jal  apu_write8
+    jal apu_read8
+    or a1, a1, v0
+    jal apu_write8
     move a0, a1
-    j    apu_set_nz
+    j apu_set_nz
 .endm
 
 apu_ordri: DRI; ORM // OR aa,#nn
@@ -202,11 +202,11 @@ apu_orbxy: BXY; ORM // OR (X),(Y)
 
 .macro ANDA // AND A,op
     // Bitwise and a value with the accumulator and set flags
-    jal  apu_read8
-    lbu  a0, apu_accum
-    and  a0, a0, v0
-    sb   a0, apu_accum
-    j    apu_set_nz
+    jal apu_read8
+    lbu a0, apu_accum
+    and a0, a0, v0
+    sb a0, apu_accum
+    j apu_set_nz
 .endm
 
 apu_andimm: IMM; ANDA // AND A,#nn
@@ -222,11 +222,11 @@ apu_andidy: IDY; ANDA // AND A,[aa]+Y
 
 .macro ANDM // AND aa,op
     // Bitwise and a value with another memory value and set flags
-    jal  apu_read8
-    and  a1, a1, v0
-    jal  apu_write8
+    jal apu_read8
+    and a1, a1, v0
+    jal apu_write8
     move a0, a1
-    j    apu_set_nz
+    j apu_set_nz
 .endm
 
 apu_anddri: DRI; ANDM // AND aa,#nn
@@ -236,11 +236,11 @@ apu_andbxy: BXY; ANDM // AND (X),(Y)
 
 .macro EORA // EOR A,op
     // Bitwise exclusive or a value with the accumulator and set flags
-    jal  apu_read8
-    lbu  a0, apu_accum
-    xor  a0, a0, v0
-    sb   a0, apu_accum
-    j    apu_set_nz
+    jal apu_read8
+    lbu a0, apu_accum
+    xor a0, a0, v0
+    sb a0, apu_accum
+    j apu_set_nz
 .endm
 
 apu_eorimm: IMM; EORA // EOR A,#nn
@@ -256,11 +256,11 @@ apu_eoridy: IDY; EORA // EOR A,[aa]+Y
 
 .macro EORM // EOR aa,op
     // Bitwise exclusive or a value with another memory value and set flags
-    jal  apu_read8
-    xor  a1, a1, v0
-    jal  apu_write8
+    jal apu_read8
+    xor a1, a1, v0
+    jal apu_write8
     move a0, a1
-    j    apu_set_nz
+    j apu_set_nz
 .endm
 
 apu_eordri: DRI; EORM // EOR aa,#nn
@@ -270,15 +270,15 @@ apu_eorbxy: BXY; EORM // EOR (X),(Y)
 
 .macro CMPA // CMP A,op
     // Compare a value with the accumulator and set flags
-    jal  apu_read8
-    lbu  t0, apu_accum
-    sub  a0, t0, v0
-    lbu  t1, apu_flags
+    jal apu_read8
+    lbu t0, apu_accum
+    sub a0, t0, v0
+    lbu t1, apu_flags
     andi t1, t1, 0xFE
     sleu t2, a0, t0 // C
-    or   t1, t1, t2
-    sb   t1, apu_flags
-    j    apu_set_nz
+    or t1, t1, t2
+    sb t1, apu_flags
+    j apu_set_nz
 .endm
 
 apu_cmpimm: IMM; CMPA // CMP A,#nn
@@ -294,14 +294,14 @@ apu_cmpidy: IDY; CMPA // CMP A,[aa]+Y
 
 .macro CMPM // CMP aa,op
     // Compare a value with another memory value and set flags
-    jal  apu_read8
-    sub  a0, v0, a1
-    lbu  t1, apu_flags
+    jal apu_read8
+    sub a0, v0, a1
+    lbu t1, apu_flags
     andi t1, t1, 0xFE
     sleu t2, a0, v0 // C
-    or   t1, t1, t2
-    sb   t1, apu_flags
-    j    apu_set_nz
+    or t1, t1, t2
+    sb t1, apu_flags
+    j apu_set_nz
 .endm
 
 apu_cmpdri: DRI; CMPM // CMP aa,#nn
@@ -311,15 +311,15 @@ apu_cmpbxy: BXY; CMPM // CMP (X),(Y)
 
 .macro CMPX // CMP X,op
     // Compare a value with register X and set flags
-    jal  apu_read8
-    lbu  t0, apu_reg_x
-    sub  a0, t0, v0
-    lbu  t1, apu_flags
+    jal apu_read8
+    lbu t0, apu_reg_x
+    sub a0, t0, v0
+    lbu t1, apu_flags
     andi t1, t1, 0xFE
     sleu t2, a0, t0 // C
-    or   t1, t1, t2
-    sb   t1, apu_flags
-    j    apu_set_nz
+    or t1, t1, t2
+    sb t1, apu_flags
+    j apu_set_nz
 .endm
 
 apu_cpximm: IMM; CMPX // CMP X,#nn
@@ -329,15 +329,15 @@ apu_cpxabs: ABS; CMPX // CMP X,aaaa
 
 .macro CMPY // CMP Y,op
     // Compare a value with register Y and set flags
-    jal  apu_read8
-    lbu  t0, apu_reg_y
-    sub  a0, t0, v0
-    lbu  t1, apu_flags
+    jal apu_read8
+    lbu t0, apu_reg_y
+    sub a0, t0, v0
+    lbu t1, apu_flags
     andi t1, t1, 0xFE
     sleu t2, a0, t0 // C
-    or   t1, t1, t2
-    sb   t1, apu_flags
-    j    apu_set_nz
+    or t1, t1, t2
+    sb t1, apu_flags
+    j apu_set_nz
 .endm
 
 apu_cpyimm: IMM; CMPY // CMP Y,#nn
@@ -347,27 +347,27 @@ apu_cpyabs: ABS; CMPY // CMP Y,aaaa
 
 .macro ADCA // ADC A,op
     // Add a value with carry to the accumulator
-    jal  apu_read8
-    lbu  t0, apu_accum
-    add  a0, t0, v0
-    lbu  t2, apu_flags
+    jal apu_read8
+    lbu t0, apu_accum
+    add a0, t0, v0
+    lbu t2, apu_flags
     andi t1, t2, 0x1 // C
-    add  a0, a0, t1
-    sb   a0, apu_accum
+    add a0, a0, t1
+    sb a0, apu_accum
 
     // Set flags for addition
     // TODO: set the H flag
     andi t2, t2, 0xB6
-    sgt  t1, a0, 0xFF // C
-    or   t2, t2, t1
-    xor  t1, a0, t0
-    xor  t3, a0, v0
-    and  t1, t1, t3
-    srl  t1, t1, 1
+    sgt t1, a0, 0xFF // C
+    or t2, t2, t1
+    xor t1, a0, t0
+    xor t3, a0, v0
+    and t1, t1, t3
+    srl t1, t1, 1
     andi t1, t1, 0x40 // V
-    or   t2, t2, t1
-    sb   t2, apu_flags
-    j    apu_set_nz
+    or t2, t2, t1
+    sb t2, apu_flags
+    j apu_set_nz
 .endm
 
 apu_adcimm: IMM; ADCA // ADC A,#nn
@@ -383,28 +383,28 @@ apu_adcidy: IDY; ADCA // ADC A,[aa]+Y
 
 .macro ADCM // ADC aa,op
     // Add a value with carry to another memory value
-    jal  apu_read8
+    jal apu_read8
     move s1, a1
-    add  a1, v0, s1
-    lbu  t2, apu_flags
+    add a1, v0, s1
+    lbu t2, apu_flags
     andi t1, t2, 0x1 // C
-    add  a1, a1, t1
-    jal  apu_write8
+    add a1, a1, t1
+    jal apu_write8
     move a0, a1
 
     // Set flags for addition
     // TODO: set the H flag
     andi t2, t2, 0xB6
-    sgt  t1, a0, 0xFF // C
-    or   t2, t2, t1
-    xor  t1, a0, v0
-    xor  t3, a0, s1
-    and  t1, t1, t3
-    srl  t1, t1, 1
+    sgt t1, a0, 0xFF // C
+    or t2, t2, t1
+    xor t1, a0, v0
+    xor t3, a0, s1
+    and t1, t1, t3
+    srl t1, t1, 1
     andi t1, t1, 0x40 // V
-    or   t2, t2, t1
-    sb   t2, apu_flags
-    j    apu_set_nz
+    or t2, t2, t1
+    sb t2, apu_flags
+    j apu_set_nz
 .endm
 
 apu_adcdri: DRI; ADCM // ADC aa,#nn
@@ -414,28 +414,28 @@ apu_adcbxy: BXY; ADCM // ADC (X),(Y)
 
 .macro SBCA // SBC A,op
     // Subtract a value with carry from the accumulator
-    jal  apu_read8
-    lbu  t0, apu_accum
-    sub  a0, t0, v0
+    jal apu_read8
+    lbu t0, apu_accum
+    sub a0, t0, v0
     addi a0, a0, -1
-    lbu  t2, apu_flags
+    lbu t2, apu_flags
     andi t1, t2, 0x1 // C
-    add  a0, a0, t1
-    sb   a0, apu_accum
+    add a0, a0, t1
+    sb a0, apu_accum
 
     // Set flags for subtraction
     // TODO: set the H flag
     andi t2, t2, 0xB6
     sleu t1, a0, t0 // C
-    or   t2, t2, t1
-    xor  t1, t0, v0
-    xor  t3, t0, a0
-    and  t1, t1, t3
-    srl  t1, t1, 1
+    or t2, t2, t1
+    xor t1, t0, v0
+    xor t3, t0, a0
+    and t1, t1, t3
+    srl t1, t1, 1
     andi t1, t1, 0x40 // V
-    or   t2, t2, t1
-    sb   t2, apu_flags
-    j    apu_set_nz
+    or t2, t2, t1
+    sb t2, apu_flags
+    j apu_set_nz
 .endm
 
 apu_sbcimm: IMM; SBCA // SBC A,#nn
@@ -451,29 +451,29 @@ apu_sbcidy: IDY; SBCA // SBC A,[aa]+Y
 
 .macro SBCM // SBC aa,op
     // Subtract a value with carry from another memory value
-    jal  apu_read8
+    jal apu_read8
     move s1, a1
-    sub  a1, v0, s1
+    sub a1, v0, s1
     addi a1, a1, -1
-    lbu  t2, apu_flags
+    lbu t2, apu_flags
     andi t1, t2, 0x1 // C
-    add  a1, a1, t1
-    jal  apu_write8
+    add a1, a1, t1
+    jal apu_write8
     move a0, a1
 
     // Set flags for subtraction
     // TODO: set the H flag
     andi t2, t2, 0xB6
     sleu t1, a1, v0 // C
-    or   t2, t2, t1
-    xor  t1, v0, s1
-    xor  t3, v0, a1
-    and  t1, t1, t3
-    srl  t1, t1, 1
+    or t2, t2, t1
+    xor t1, v0, s1
+    xor t3, v0, a1
+    and t1, t1, t3
+    srl t1, t1, 1
     andi t1, t1, 0x40 // V
-    or   t2, t2, t1
-    sb   t2, apu_flags
-    j    apu_set_nz
+    or t2, t2, t1
+    sb t2, apu_flags
+    j apu_set_nz
 .endm
 
 apu_sbcdri: DRI; SBCM // SBC aa,#nn
@@ -484,29 +484,29 @@ apu_sbcbxy: BXY; SBCM // SBC (X),(Y)
 apu_asla: // ASL A
     // Shift the accumulator left and set flags
     NONE
-    lbu  t0, apu_accum
-    sll  a0, t0, 1
-    sb   a0, apu_accum
-    lbu  t1, apu_flags
-    srl  t0, t0, 7 // C
+    lbu t0, apu_accum
+    sll a0, t0, 1
+    sb a0, apu_accum
+    lbu t1, apu_flags
+    srl t0, t0, 7 // C
     andi t1, t1, 0xFE
-    or   t1, t1, t0
-    sb   t1, apu_flags
-    j    apu_set_nz
+    or t1, t1, t0
+    sb t1, apu_flags
+    j apu_set_nz
 
 
 .macro ASL // ASL op
     // Shift a memory value left and set flags
-    jal  apu_read8
-    sll  a1, v0, 1
-    lbu  t1, apu_flags
-    srl  t0, v0, 7 // C
+    jal apu_read8
+    sll a1, v0, 1
+    lbu t1, apu_flags
+    srl t0, v0, 7 // C
     andi t1, t1, 0xFE
-    or   t1, t1, t0
-    sb   t1, apu_flags
-    jal  apu_write8
+    or t1, t1, t0
+    sb t1, apu_flags
+    jal apu_write8
     move a0, a1
-    j    apu_set_nz
+    j apu_set_nz
 .endm
 
 apu_asldir: DIR; ASL // ASL aa
@@ -517,29 +517,29 @@ apu_aslabs: ABS; ASL // ASL aaaa
 apu_lsra: // LSR A
     // Shift the accumulator right and set flags
     NONE
-    lbu  t0, apu_accum
-    srl  a0, t0, 1
-    sb   a0, apu_accum
-    lbu  t1, apu_flags
+    lbu t0, apu_accum
+    srl a0, t0, 1
+    sb a0, apu_accum
+    lbu t1, apu_flags
     andi t0, t0, 0x1 // C
     andi t1, t1, 0xFE
-    or   t1, t1, t0
-    sb   t1, apu_flags
-    j    apu_set_nz
+    or t1, t1, t0
+    sb t1, apu_flags
+    j apu_set_nz
 
 
 .macro LSR // LSR op
     // Shift a memory value left and set flags
-    jal  apu_read8
-    srl  a1, v0, 1
-    lbu  t1, apu_flags
+    jal apu_read8
+    srl a1, v0, 1
+    lbu t1, apu_flags
     andi t0, v0, 0x1 // C
     andi t1, t1, 0xFE
-    or   t1, t1, t0
-    sb   t1, apu_flags
-    jal  apu_write8
+    or t1, t1, t0
+    sb t1, apu_flags
+    jal apu_write8
     move a0, a1
-    j    apu_set_nz
+    j apu_set_nz
 .endm
 
 apu_lsrdir: DIR; LSR // LSR aa
@@ -550,33 +550,33 @@ apu_lsrabs: ABS; LSR // LSR aaaa
 apu_rola: // ROL A
     // Rotate the accumulator left and set flags
     NONE
-    lbu  t0, apu_accum
-    lbu  t1, apu_flags
-    sll  a0, t0, 1
+    lbu t0, apu_accum
+    lbu t1, apu_flags
+    sll a0, t0, 1
     andi t2, t1, 0x1
-    or   a0, a0, t2
-    sb   a0, apu_accum
+    or a0, a0, t2
+    sb a0, apu_accum
     andi t1, t1, 0xFE
-    srl  t0, t0, 7 // C
-    or   t1, t1, t0
-    sb   t1, apu_flags
-    j    apu_set_nz
+    srl t0, t0, 7 // C
+    or t1, t1, t0
+    sb t1, apu_flags
+    j apu_set_nz
 
 
 .macro ROL // ROL op
     // Rotate a memory value left and set flags
-    jal  apu_read8
-    lbu  t1, apu_flags
-    sll  a1, v0, 1
+    jal apu_read8
+    lbu t1, apu_flags
+    sll a1, v0, 1
     andi t2, t1, 0x1
-    or   a1, a1, t2
+    or a1, a1, t2
     andi t1, t1, 0xFE
-    srl  t0, v0, 7 // C
-    or   t1, t1, t0
-    sb   t1, apu_flags
-    jal  apu_write8
+    srl t0, v0, 7 // C
+    or t1, t1, t0
+    sb t1, apu_flags
+    jal apu_write8
     move a0, a1
-    j    apu_set_nz
+    j apu_set_nz
 .endm
 
 apu_roldir: DIR; ROL // ROL aa
@@ -587,33 +587,33 @@ apu_rolabs: ABS; ROL // ROL aaaa
 apu_rora: // ROR A
     // Rotate the accumulator right and set flags
     NONE
-    lbu  t0, apu_accum
-    lbu  t1, apu_flags
-    srl  a0, t0, 1
-    sll  t2, t1, 7
-    or   a0, a0, t2
-    sb   a0, apu_accum
+    lbu t0, apu_accum
+    lbu t1, apu_flags
+    srl a0, t0, 1
+    sll t2, t1, 7
+    or a0, a0, t2
+    sb a0, apu_accum
     andi t1, t1, 0xFE
     andi t0, t0, 0x1 // C
-    or   t1, t1, t0
-    sb   t1, apu_flags
-    j    apu_set_nz
+    or t1, t1, t0
+    sb t1, apu_flags
+    j apu_set_nz
 
 
 .macro ROR // ROR op
     // Rotate a memory value right and set flags
-    jal  apu_read8
-    lbu  t1, apu_flags
-    srl  a1, v0, 1
-    sll  t2, t1, 7
-    or   a1, a1, t2
+    jal apu_read8
+    lbu t1, apu_flags
+    srl a1, v0, 1
+    sll t2, t1, 7
+    or a1, a1, t2
     andi t1, t1, 0xFE
     andi t0, v0, 0x1 // C
-    or   t1, t1, t0
-    sb   t1, apu_flags
-    jal  apu_write8
+    or t1, t1, t0
+    sb t1, apu_flags
+    jal apu_write8
     move a0, a1
-    j    apu_set_nz
+    j apu_set_nz
 .endm
 
 apu_rordir: DIR; ROR // ROL aa
@@ -624,37 +624,37 @@ apu_rorabs: ABS; ROR // ROL aaaa
 apu_deca: // DEC A
     // Decrement the accumulator and set flags
     NONE
-    lbu  a0, apu_accum
+    lbu a0, apu_accum
     addi a0, a0, -1
-    sb   a0, apu_accum
-    j    apu_set_nz
+    sb a0, apu_accum
+    j apu_set_nz
 
 
 apu_decx: // DEC X
     // Decrement the X register and set flags
     NONE
-    lbu  a0, apu_reg_x
+    lbu a0, apu_reg_x
     addi a0, a0, -1
-    sb   a0, apu_reg_x
-    j    apu_set_nz
+    sb a0, apu_reg_x
+    j apu_set_nz
 
 
 apu_decy: // DEC Y
     // Decrement the Y register and set flags
     NONE
-    lbu  a0, apu_reg_y
+    lbu a0, apu_reg_y
     addi a0, a0, -1
-    sb   a0, apu_reg_y
-    j    apu_set_nz
+    sb a0, apu_reg_y
+    j apu_set_nz
 
 
 .macro DEC // DEC op
     // Decrement a memory value and set flags
-    jal  apu_read8
+    jal apu_read8
     addi a1, v0, -1
-    jal  apu_write8
+    jal apu_write8
     move a0, a1
-    j    apu_set_nz
+    j apu_set_nz
 .endm
 
 apu_decdir: DIR; DEC // DEC aa
@@ -665,37 +665,37 @@ apu_decabs: ABS; DEC // DEC aaaa
 apu_inca: // INC A
     // Increment the accumulator and set flags
     NONE
-    lbu  a0, apu_accum
+    lbu a0, apu_accum
     addi a0, a0, 1
-    sb   a0, apu_accum
-    j    apu_set_nz
+    sb a0, apu_accum
+    j apu_set_nz
 
 
 apu_incx: // INC X
     // Increment the X register and set flags
     NONE
-    lbu  a0, apu_reg_x
+    lbu a0, apu_reg_x
     addi a0, a0, 1
-    sb   a0, apu_reg_x
-    j    apu_set_nz
+    sb a0, apu_reg_x
+    j apu_set_nz
 
 
 apu_incy: // INC Y
     // Increment the Y register and set flags
     NONE
-    lbu  a0, apu_reg_y
+    lbu a0, apu_reg_y
     addi a0, a0, 1
-    sb   a0, apu_reg_y
-    j    apu_set_nz
+    sb a0, apu_reg_y
+    j apu_set_nz
 
 
 .macro INC // INC op
     // Increment a memory value and set flags
-    jal  apu_read8
+    jal apu_read8
     addi a1, v0, 1
-    jal  apu_write8
+    jal apu_write8
     move a0, a1
-    j    apu_set_nz
+    j apu_set_nz
 .endm
 
 apu_incdir: DIR; INC // INC aa
@@ -707,187 +707,187 @@ apu_addw: // ADDW YA,aa
     // Load a 16-bit value from memory
     DIR
     addi a0, a0, 1
-    jal  apu_read8
-    sll  s1, v0, 8
+    jal apu_read8
+    sll s1, v0, 8
     addi a0, a0, -1
-    jal  apu_read8
-    or   a1, v0, s1
+    jal apu_read8
+    or a1, v0, s1
 
     // Add the value from register YA and set flags
     // TODO: set the H flag
-    lhu  t0, apu_reg_y
-    add  a0, t0, a1
-    sh   a0, apu_reg_y
-    lbu  t1, apu_flags
+    lhu t0, apu_reg_y
+    add a0, t0, a1
+    sh a0, apu_reg_y
+    lbu t1, apu_flags
     andi t1, t1, 0xB6
-    sgt  t2, a0, 0xFFFF // C
-    or   t1, t1, t2
-    xor  t2, a0, t0
-    xor  t3, a0, a1
-    and  t2, t2, t3
-    srl  t2, t2, 9
+    sgt t2, a0, 0xFFFF // C
+    or t1, t1, t2
+    xor t2, a0, t0
+    xor t3, a0, a1
+    and t2, t2, t3
+    srl t2, t2, 9
     andi t2, t2, 0x40 // V
-    or   t1, t1, t2
-    sb   t1, apu_flags
+    or t1, t1, t2
+    sb t1, apu_flags
 
     // Adjust the 16-bit value for 8-bit flag logic and set flags
-    sne  t0, a0, zero
-    srl  t1, a0, 8
-    or   a0, t0, t1
-    j    apu_set_nz
+    sne t0, a0, zero
+    srl t1, a0, 8
+    or a0, t0, t1
+    j apu_set_nz
 
 
 apu_subw: // SUBW YA,aa
     // Load a 16-bit value from memory
     DIR
     addi a0, a0, 1
-    jal  apu_read8
-    sll  s1, v0, 8
+    jal apu_read8
+    sll s1, v0, 8
     addi a0, a0, -1
-    jal  apu_read8
-    or   a1, v0, s1
+    jal apu_read8
+    or a1, v0, s1
 
     // Subtract the value from register YA and set flags
     // TODO: set the H flag
-    lhu  t0, apu_reg_y
-    sub  a0, t0, a1
-    sh   a0, apu_reg_y
-    lbu  t1, apu_flags
+    lhu t0, apu_reg_y
+    sub a0, t0, a1
+    sh a0, apu_reg_y
+    lbu t1, apu_flags
     andi t1, t1, 0xB6
     sleu t2, a0, t0 // C
-    or   t1, t1, t2
-    xor  t2, t0, a1
-    xor  t3, t0, a0
-    and  t2, t2, t3
-    srl  t2, t2, 9
+    or t1, t1, t2
+    xor t2, t0, a1
+    xor t3, t0, a0
+    and t2, t2, t3
+    srl t2, t2, 9
     andi t2, t2, 0x40 // V
-    or   t1, t1, t2
-    sb   t1, apu_flags
+    or t1, t1, t2
+    sb t1, apu_flags
 
     // Adjust the 16-bit value for 8-bit flag logic and set flags
-    sne  t0, a0, zero
-    srl  t1, a0, 8
-    or   a0, t0, t1
-    j    apu_set_nz
+    sne t0, a0, zero
+    srl t1, a0, 8
+    or a0, t0, t1
+    j apu_set_nz
 
 
 apu_cmpw: // CMPW YA,aa
     // Load a 16-bit value from memory
     DIR
     addi a0, a0, 1
-    jal  apu_read8
-    sll  s1, v0, 8
+    jal apu_read8
+    sll s1, v0, 8
     addi a0, a0, -1
-    jal  apu_read8
-    or   a1, v0, s1
+    jal apu_read8
+    or a1, v0, s1
 
     // Compare the value with register YA and set flags
-    lhu  t0, apu_reg_y
-    sub  a0, t0, a1
-    lbu  t1, apu_flags
+    lhu t0, apu_reg_y
+    sub a0, t0, a1
+    lbu t1, apu_flags
     andi t1, t1, 0xFE
     sleu t2, a0, t0 // C
-    or   t1, t1, t2
-    sb   t1, apu_flags
+    or t1, t1, t2
+    sb t1, apu_flags
 
     // Adjust the 16-bit value for 8-bit flag logic and set flags
-    sne  t0, a0, zero
-    srl  t1, a0, 8
-    or   a0, t0, t1
-    j    apu_set_nz
+    sne t0, a0, zero
+    srl t1, a0, 8
+    or a0, t0, t1
+    j apu_set_nz
 
 
 apu_decw: // DECW aa
     // Load a 16-bit value from memory
     DIR
     addi a0, a0, 1
-    jal  apu_read8
-    sll  s1, v0, 8
+    jal apu_read8
+    sll s1, v0, 8
     addi a0, a0, -1
-    jal  apu_read8
-    or   a1, v0, s1
+    jal apu_read8
+    or a1, v0, s1
 
     // Decrement the value and store it back in memory
     addi a1, a1, -1
     move s1, a1
-    jal  apu_write8
+    jal apu_write8
     addi a0, a0, 1
-    srl  a1, a1, 8
-    jal  apu_write8
+    srl a1, a1, 8
+    jal apu_write8
 
     // Adjust the 16-bit value for 8-bit flag logic and set flags
-    sne  t0, s1, zero
-    or   a0, t0, a1
-    j    apu_set_nz
+    sne t0, s1, zero
+    or a0, t0, a1
+    j apu_set_nz
 
 
 apu_incw: // INCW aa
     // Load a 16-bit value from memory
     DIR
     addi a0, a0, 1
-    jal  apu_read8
-    sll  s1, v0, 8
+    jal apu_read8
+    sll s1, v0, 8
     addi a0, a0, -1
-    jal  apu_read8
-    or   a1, v0, s1
+    jal apu_read8
+    or a1, v0, s1
 
     // Increment the value and store it back in memory
     addi a1, a1, 1
     andi s1, a1, 0xFFFF
-    jal  apu_write8
+    jal apu_write8
     addi a0, a0, 1
-    srl  a1, s1, 8
-    jal  apu_write8
+    srl a1, s1, 8
+    jal apu_write8
 
     // Adjust the 16-bit value for 8-bit flag logic and set flags
-    sne  t0, s1, zero
-    or   a0, t0, a1
-    j    apu_set_nz
+    sne t0, s1, zero
+    or a0, t0, a1
+    j apu_set_nz
 
 
 apu_div: // DIV YA,X
     // Divide register YA with X
     NONE
-    lhu  t0, apu_reg_y
-    lbu  t1, apu_reg_x
-    div  t0, t1
+    lhu t0, apu_reg_y
+    lbu t1, apu_reg_x
+    div t0, t1
     mflo a0 // Quotient
     mfhi t0 // Remainder
-    sb   a0, apu_accum
-    sb   t0, apu_reg_y
+    sb a0, apu_accum
+    sb t0, apu_reg_y
 
     // Set flags for the quotient
     // TODO: set the H flag
-    lbu  t1, apu_flags
-    sgt  t0, a0, 0xFF
-    sll  t0, t0, 6 // V
+    lbu t1, apu_flags
+    sgt t0, a0, 0xFF
+    sll t0, t0, 6 // V
     andi t1, t1, 0xB7
-    or   t1, t1, t0
-    sb   t1, apu_flags
-    j    apu_set_nz
+    or t1, t1, t0
+    sb t1, apu_flags
+    j apu_set_nz
 
 
 apu_mul: // MUL YA
     // Multiply register Y with the accumulator
     NONE
-    lbu  t0, apu_reg_y
-    lbu  t1, apu_accum
+    lbu t0, apu_reg_y
+    lbu t1, apu_accum
     mult t0, t1
     mflo t0
 
     // Move the 16-bit result to register YA and set flags for Y
-    sh   t0, apu_reg_y
-    srl  a0, t0, 8
-    j    apu_set_nz
+    sh t0, apu_reg_y
+    srl a0, t0, 8
+    j apu_set_nz
 
 
 .macro CLR1 mask // CLR1 aa.b
     // Clear a bit in a memory value
     DIR
-    jal  apu_read8
+    jal apu_read8
     andi a1, v0, ~\mask & 0xFF
-    jal  apu_write8
-    j    cpu_execute
+    jal apu_write8
+    j cpu_execute
 .endm
 
 apu_clr0: CLR1 0x01 // CLR1 aa.0
@@ -903,10 +903,10 @@ apu_clr7: CLR1 0x80 // CLR1 aa.7
 .macro SET1 mask // SET1 aa.b
     // Set a bit in a memory value
     DIR
-    jal  apu_read8
-    ori  a1, v0, \mask
-    jal  apu_write8
-    j    cpu_execute
+    jal apu_read8
+    ori a1, v0, \mask
+    jal apu_write8
+    j cpu_execute
 .endm
 
 apu_set0: SET1 0x01 // SET1 aa.0
@@ -922,169 +922,169 @@ apu_set7: SET1 0x80 // SET1 aa.7
 apu_not1: // NOT1 aaa.b
     // Invert a bit in a memory value
     DRB
-    jal  apu_read8
-    xor  a1, a1, v0
-    jal  apu_write8
-    j    cpu_execute
+    jal apu_read8
+    xor a1, a1, v0
+    jal apu_write8
+    j cpu_execute
 
 
 apu_mov1a: // MOV1 aaa.b,C
     // Set a bit in a memory value to the carry flag
     DRB
-    jal  apu_read8
-    lbu  t0, apu_flags
+    jal apu_read8
+    lbu t0, apu_flags
     xori t1, a1, 0xFF
-    and  v0, v0, t1
+    and v0, v0, t1
     andi t0, t0, 0x1
-    sub  t0, zero, t0
-    and  t0, t0, a1
-    or   a1, v0, t0
-    jal  apu_write8
-    j    cpu_execute
+    sub t0, zero, t0
+    and t0, t0, a1
+    or a1, v0, t0
+    jal apu_write8
+    j cpu_execute
 
 
 apu_mov1b: // MOV1 C,aaa.b
     // Set the carry flag to a bit from a memory value
     DRB
-    jal  apu_read8
-    lbu  t0, apu_flags
-    and  t1, v0, a1
+    jal apu_read8
+    lbu t0, apu_flags
+    and t1, v0, a1
     sltu t1, zero, t1
     andi t0, t0, 0xFE
-    or   t0, t0, t1
-    sb   t0, apu_flags
-    j    cpu_execute
+    or t0, t0, t1
+    sb t0, apu_flags
+    j cpu_execute
 
 
 apu_or1a: // OR1 C,aaa.b
     // Bitwise or the carry flag with a bit from a memory value
     DRB
-    jal  apu_read8
-    lbu  t0, apu_flags
-    and  t1, v0, a1
+    jal apu_read8
+    lbu t0, apu_flags
+    and t1, v0, a1
     sltu t1, zero, t1
-    or   t0, t0, t1
-    sb   t0, apu_flags
-    j    cpu_execute
+    or t0, t0, t1
+    sb t0, apu_flags
+    j cpu_execute
 
 
 apu_or1b: // OR1 C,/aaa.b
     // Bitwise or the carry flag with a negated bit from a memory value
     DRB
-    jal  apu_read8
-    lbu  t0, apu_flags
+    jal apu_read8
+    lbu t0, apu_flags
     xori v0, v0, 0xFF
-    and  t1, v0, a1
+    and t1, v0, a1
     sltu t1, zero, t1
-    or   t0, t0, t1
-    sb   t0, apu_flags
-    j    cpu_execute
+    or t0, t0, t1
+    sb t0, apu_flags
+    j cpu_execute
 
 
 apu_and1a: // AND1 C,aaa.b
     // Bitwise and the carry flag with a bit from a memory value
     DRB
-    jal  apu_read8
-    lbu  t0, apu_flags
-    and  t1, v0, a1
+    jal apu_read8
+    lbu t0, apu_flags
+    and t1, v0, a1
     sltu t1, zero, t1
-    ori  t1, t1, 0xFE
-    and  t0, t0, t1
-    sb   t0, apu_flags
-    j    cpu_execute
+    ori t1, t1, 0xFE
+    and t0, t0, t1
+    sb t0, apu_flags
+    j cpu_execute
 
 
 apu_and1b: // AND1 C,/aaa.b
     // Bitwise and the carry flag with a negated bit from a memory value
     DRB
-    jal  apu_read8
-    lbu  t0, apu_flags
+    jal apu_read8
+    lbu t0, apu_flags
     xori v0, v0, 0xFF
-    and  t1, v0, a1
+    and t1, v0, a1
     sltu t1, zero, t1
-    ori  t1, t1, 0xFE
-    and  t0, t0, t1
-    sb   t0, apu_flags
-    j    cpu_execute
+    ori t1, t1, 0xFE
+    and t0, t0, t1
+    sb t0, apu_flags
+    j cpu_execute
 
 
 apu_eor1: // EOR1 C,aaa.b
     // Bitwise exclusive or the carry flag with a bit from a memory value
     DRB
-    jal  apu_read8
-    lbu  t0, apu_flags
-    and  t1, v0, a1
+    jal apu_read8
+    lbu t0, apu_flags
+    and t1, v0, a1
     sltu t1, zero, t1
-    xor  t0, t0, t1
-    sb   t0, apu_flags
-    j    cpu_execute
+    xor t0, t0, t1
+    sb t0, apu_flags
+    j cpu_execute
 
 
 apu_clrc: // CLRC
     // Clear the C flag
     NONE
-    lbu  t0, apu_flags
+    lbu t0, apu_flags
     andi t0, t0, 0xFE
-    sb   t0, apu_flags
-    j    cpu_execute
+    sb t0, apu_flags
+    j cpu_execute
 
 
 apu_setc: // SETC
     // Set the C flag
     NONE
-    lbu  t0, apu_flags
-    ori  t0, t0, 0x1
-    sb   t0, apu_flags
-    j    cpu_execute
+    lbu t0, apu_flags
+    ori t0, t0, 0x1
+    sb t0, apu_flags
+    j cpu_execute
 
 
 apu_notc: // NOTC
     // Negate the C flag
     NONE
-    lbu  t0, apu_flags
+    lbu t0, apu_flags
     xori t0, t0, 0x1
-    sb   t0, apu_flags
-    j    cpu_execute
+    sb t0, apu_flags
+    j cpu_execute
 
 
 apu_clrv: // CLRV
     // Clear the V and H flags
     NONE
-    lbu  t0, apu_flags
+    lbu t0, apu_flags
     andi t0, t0, 0xB7
-    sb   t0, apu_flags
-    j    cpu_execute
+    sb t0, apu_flags
+    j cpu_execute
 
 
 apu_xcn: // XCN A
     // Reverse the accumulator's high and low nibbles
     NONE
-    lbu  t0, apu_accum
-    srl  t1, t0, 4
-    sll  t0, t0, 4
-    or   a0, t0, t1
-    sb   a0, apu_accum
-    j    apu_set_nz
+    lbu t0, apu_accum
+    srl t1, t0, 4
+    sll t0, t0, 4
+    or a0, t0, t1
+    sb a0, apu_accum
+    j apu_set_nz
 
 
 apu_tclr1: // TCLR1 aaaa
     // Clear bits in a memory value and set flags
     ABS
-    jal  apu_read8
-    lbu  s1, apu_accum
+    jal apu_read8
+    lbu s1, apu_accum
     xori t0, s1, 0xFF
-    and  a1, v0, t0
-    jal  apu_write8
-    sub  a0, s1, v0 // CMP
-    j    apu_set_nz
+    and a1, v0, t0
+    jal apu_write8
+    sub a0, s1, v0 // CMP
+    j apu_set_nz
 
 
 apu_tset1: // TSET1 aaaa
     // Set bits in a memory value and set flags
     ABS
-    jal  apu_read8
-    lbu  s1, apu_accum
-    or   a1, v0, s1
-    jal  apu_write8
-    sub  a0, s1, v0 // CMP
-    j    apu_set_nz
+    jal apu_read8
+    lbu s1, apu_accum
+    or a1, v0, s1
+    jal apu_write8
+    sub a0, s1, v0 // CMP
+    j apu_set_nz

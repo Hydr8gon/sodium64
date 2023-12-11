@@ -183,225 +183,225 @@ write_iomap:
 memory_init:
     // Detect HiROM headers with a rudimentary checksum check
     // TODO: improve this?
-    lw   t0, 0xB020FFDC
+    lw t0, 0xB020FFDC
     andi t1, t0, 0xFFFF
-    srl  t0, t0, 16
-    xor  t0, t0, t1
+    srl t0, t0, 16
+    xor t0, t0, t1
     xori t0, t0, 0xFFFF
     beqz t0, map_hirom
-    b    map_lorom
+    b map_lorom
 
 
 map_lorom:
     // Set initial values for building the memory map
-    li   t0, 0x000000 // Current address
-    li   t1, 0xFFFFFF // Maximum address
-    li   t2, 0x2000 // Block size (8KB)
+    li t0, 0x000000 // Current address
+    li t1, 0xFFFFFF // Maximum address
+    li t2, 0x2000 // Block size (8KB)
 
     // Set the SRAM mask using the header size
-    lw   t9, 0xB0207FD8
-    srl  t9, t9, 24
+    lw t9, 0xB0207FD8
+    srl t9, t9, 24
     beqz t9, build_lomap
-    li   t3, 0x400
-    sll  t9, t3, t9
+    li t3, 0x400
+    sll t9, t3, t9
     addi t9, t9, -1
 
 build_lomap:
     // Determine the LoROM memory area from the address bank
-    li   t3, 0x400000
-    blt  t0, t3, losys_area // 0x00-0x3F: System, WS1 LoROM
-    li   t3, 0x700000
-    blt  t0, t3, lorom_area // 0x40-0x6F: WS1 LoROM
-    li   t3, 0x7E0000
-    blt  t0, t3, losram_area // 0x70-0x7D: 8KB SRAM, WS1 LoROM
-    li   t3, 0x800000
-    li   t4, 0x1FFFF // WRAM mask
-    blt  t0, t3, lowram_area // 0x7E-0x7F: 128KB WRAM
-    li   t3, 0xC00000
-    blt  t0, t3, losys_area // 0x80-0xBF: System, WS2 LoROM
-    li   t3, 0xF00000
-    blt  t0, t3, lorom_area // 0xC0-0xEF: WS2 LoROM
-    b    losram_area // 0xF0-0xFF: 8KB SRAM, WS2 LoROM
+    li t3, 0x400000
+    blt t0, t3, losys_area // 0x00-0x3F: System, WS1 LoROM
+    li t3, 0x700000
+    blt t0, t3, lorom_area // 0x40-0x6F: WS1 LoROM
+    li t3, 0x7E0000
+    blt t0, t3, losram_area // 0x70-0x7D: 8KB SRAM, WS1 LoROM
+    li t3, 0x800000
+    li t4, 0x1FFFF // WRAM mask
+    blt t0, t3, lowram_area // 0x7E-0x7F: 128KB WRAM
+    li t3, 0xC00000
+    blt t0, t3, losys_area // 0x80-0xBF: System, WS2 LoROM
+    li t3, 0xF00000
+    blt t0, t3, lorom_area // 0xC0-0xEF: WS2 LoROM
+    b losram_area // 0xF0-0xFF: 8KB SRAM, WS2 LoROM
 
 losys_area:
     // Further break down the 16-bit system area address
     andi t3, t0, 0xFFFF
-    li   t4, 0x1FFF // WRAM mask
-    blt  t3, t4, lowram_area // 0x0000-0x1FFF: 8KB WRAM mirror
-    li   t4, 0x8000
-    bge  t3, t4, lorom_area // 0x8000-0xFFFF: WS1/WS2 LoROM
-    b    loio_area // 0x2000-0x7FFF: I/O registers
+    li t4, 0x1FFF // WRAM mask
+    blt t3, t4, lowram_area // 0x0000-0x1FFF: 8KB WRAM mirror
+    li t4, 0x8000
+    bge t3, t4, lorom_area // 0x8000-0xFFFF: WS1/WS2 LoROM
+    b loio_area // 0x2000-0x7FFF: I/O registers
 
 lowram_area:
     // Get a pointer to a WRAM block, with bit 0 set to indicate writability
-    la   t3, wram
-    and  t4, t4, t0 // Apply mask
-    add  t3, t3, t4
-    ori  t3, t3, 1 // Write bit
-    b    map_loblock
+    la t3, wram
+    and t4, t4, t0 // Apply mask
+    add t3, t3, t4
+    ori t3, t3, 1 // Write bit
+    b map_loblock
 
 lorom_area:
     // Special case LoROM; the exception handler will dynamically load blocks
-    li   t3, 0x10200000 // ROM appended to file
-    li   t4, 0x7F0000
-    and  t4, t4, t0 // Mirrored bank
-    srl  t4, t4, 1 // 32KB every 64KB bank
-    add  t3, t3, t4
-    li   t4, 0x7FFF
-    and  t4, t4, t0 // Offset within 32KB
-    add  t3, t3, t4
-    b    map_lonone
+    li t3, 0x10200000 // ROM appended to file
+    li t4, 0x7F0000
+    and t4, t4, t0 // Mirrored bank
+    srl t4, t4, 1 // 32KB every 64KB bank
+    add t3, t3, t4
+    li t4, 0x7FFF
+    and t4, t4, t0 // Offset within 32KB
+    add t3, t3, t4
+    b map_lonone
 
 losram_area:
     // Check if this is a ROM or SRAM area
     andi t4, t0, 0xFFFF
-    li   t5, 0x8000
-    bge  t4, t5, lorom_area // 0x8000-0xFFFF: WS1/WS2 LoROM
+    li t5, 0x8000
+    bge t4, t5, lorom_area // 0x8000-0xFFFF: WS1/WS2 LoROM
 
     // Special case SRAM so writes can be tracked
     beqz t9, loempty_area
-    sll  t3, t9, 2 // Valid not set
-    b    map_lonone
+    sll t3, t9, 2 // Valid not set
+    b map_lonone
 
 loio_area:
     // Set no pointer; this will fall back to I/O registers
-    li   t3, 0
-    b    map_lonone
+    li t3, 0
+    b map_lonone
 
 loempty_area:
     // Get a pointer to the empty placeholder block
-    la   t3, empty
+    la t3, empty
 
 map_loblock:
     // Convert the pointer to a TLB EntryLo0 value
-    lui  t4, 0x8000 // Physical offset
-    sub  t3, t3, t4
+    lui t4, 0x8000 // Physical offset
+    sub t3, t3, t4
     andi t4, t3, 0xFFF // 4KB-aligned
-    sub  t3, t3, t4
-    srl  t3, t3, 6
+    sub t3, t3, t4
+    srl t3, t3, 6
     andi t4, t4, 1
-    sll  t4, t4, 2 // Dirty
-    ori  t4, t4, 0x1B // Cache, Valid, Global
-    or   t3, t3, t4
+    sll t4, t4, 2 // Dirty
+    ori t4, t4, 0x1B // Cache, Valid, Global
+    or t3, t3, t4
 
 map_lonone:
     // Store the pointer to the block in the memory map
-    la   t4, memory_map
-    srl  t5, t0, 11 // Pointer offset
-    add  t4, t4, t5
-    sw   t3, (t4)
+    la t4, memory_map
+    srl t5, t0, 11 // Pointer offset
+    add t4, t4, t5
+    sw t3, (t4)
 
     // Move to the next address until the map is complete
-    add  t0, t0, t2
-    ble  t0, t1, build_lomap
-    jr   ra
+    add t0, t0, t2
+    ble t0, t1, build_lomap
+    jr ra
 
 
 map_hirom:
     // Set initial values for building the memory map
-    li   t0, 0x000000 // Current address
-    li   t1, 0xFFFFFF // Maximum address
-    li   t2, 0x2000 // Block size (8KB)
+    li t0, 0x000000 // Current address
+    li t1, 0xFFFFFF // Maximum address
+    li t2, 0x2000 // Block size (8KB)
 
     // Set the SRAM mask using the header size
-    lw   t9, 0xB020FFD8
-    srl  t9, t9, 24
+    lw t9, 0xB020FFD8
+    srl t9, t9, 24
     beqz t9, build_himap
-    li   t3, 0x400
-    sll  t9, t3, t9
+    li t3, 0x400
+    sll t9, t3, t9
     addi t9, t9, -1
 
 build_himap:
     // Determine the HiROM memory area from the address bank
-    li   t3, 0x400000
-    blt  t0, t3, hisys_area // 0x00-0x3F: System, WS1 HiROM
-    li   t3, 0x7E0000
-    blt  t0, t3, hirom_area // 0x40-0x7D: WS1 HiROM
-    li   t3, 0x800000
-    li   t4, 0x1FFFF // WRAM mask
-    blt  t0, t3, hiwram_area // 0x7E-0x7F: 128KB WRAM
-    li   t3, 0xC00000
-    blt  t0, t3, hisys_area // 0x80-0xBF: System, WS2 HiROM
-    b    hirom_area // 0xC0-0xFF: WS2 HiROM
+    li t3, 0x400000
+    blt t0, t3, hisys_area // 0x00-0x3F: System, WS1 HiROM
+    li t3, 0x7E0000
+    blt t0, t3, hirom_area // 0x40-0x7D: WS1 HiROM
+    li t3, 0x800000
+    li t4, 0x1FFFF // WRAM mask
+    blt t0, t3, hiwram_area // 0x7E-0x7F: 128KB WRAM
+    li t3, 0xC00000
+    blt t0, t3, hisys_area // 0x80-0xBF: System, WS2 HiROM
+    b hirom_area // 0xC0-0xFF: WS2 HiROM
 
 hisys_area:
     // Further break down the 16-bit system area address
     andi t3, t0, 0xFFFF
-    li   t4, 0x1FFF // WRAM mask
-    blt  t3, t4, hiwram_area // 0x0000-0x1FFF: 8KB WRAM mirror
-    li   t4, 0x8000
-    bge  t3, t4, hirom_area // 0x8000-0xFFFF: WS1/WS2 HiROM
-    li   t4, 0x6000
-    bge  t3, t4, hisram_area // 0x6000-0x7FFF: 2KB-32KB SRAM
-    b    hiio_area // 0x2000-0x5FFF: I/O registers
+    li t4, 0x1FFF // WRAM mask
+    blt t3, t4, hiwram_area // 0x0000-0x1FFF: 8KB WRAM mirror
+    li t4, 0x8000
+    bge t3, t4, hirom_area // 0x8000-0xFFFF: WS1/WS2 HiROM
+    li t4, 0x6000
+    bge t3, t4, hisram_area // 0x6000-0x7FFF: 2KB-32KB SRAM
+    b hiio_area // 0x2000-0x5FFF: I/O registers
 
 hiwram_area:
     // Get a pointer to a WRAM block, with bit 0 set to indicate writability
-    la   t3, wram
-    and  t4, t4, t0 // Apply mask
-    add  t3, t3, t4
-    ori  t3, t3, 1 // Write bit
-    b    map_hiblock
+    la t3, wram
+    and t4, t4, t0 // Apply mask
+    add t3, t3, t4
+    ori t3, t3, 1 // Write bit
+    b map_hiblock
 
 hirom_area:
     // Special case HiROM; the exception handler will dynamically load blocks
-    li   t3, 0x10200000 // ROM appended to file
-    li   t4, 0x3FFFFF // ROM mask
-    and  t4, t4, t0
-    add  t3, t3, t4
-    b    map_hinone
+    li t3, 0x10200000 // ROM appended to file
+    li t4, 0x3FFFFF // ROM mask
+    and t4, t4, t0
+    add t3, t3, t4
+    b map_hinone
 
 hisram_area:
     // Special case SRAM so writes can be tracked
     beqz t9, hiempty_area
-    sll  t3, t9, 2 // Valid not set
-    b    map_hinone
+    sll t3, t9, 2 // Valid not set
+    b map_hinone
 
 hiio_area:
     // Set no pointer; this will fall back to I/O registers
-    li   t3, 0
-    b    map_hinone
+    li t3, 0
+    b map_hinone
 
 hiempty_area:
     // Get a pointer to the empty placeholder block
-    la   t3, empty
+    la t3, empty
 
 map_hiblock:
     // Convert the pointer to a TLB EntryLo0 value
-    lui  t4, 0x8000 // Physical offset
-    sub  t3, t3, t4
+    lui t4, 0x8000 // Physical offset
+    sub t3, t3, t4
     andi t4, t3, 0xFFF // 4KB-aligned
-    sub  t3, t3, t4
-    srl  t3, t3, 6
+    sub t3, t3, t4
+    srl t3, t3, 6
     andi t4, t4, 1
-    sll  t4, t4, 2 // Dirty
-    ori  t4, t4, 0x1B // Cache, Valid, Global
-    or   t3, t3, t4
+    sll t4, t4, 2 // Dirty
+    ori t4, t4, 0x1B // Cache, Valid, Global
+    or t3, t3, t4
 
 map_hinone:
     // Store the pointer to the block in the memory map
-    la   t4, memory_map
-    srl  t5, t0, 11 // Pointer offset
-    add  t4, t4, t5
-    sw   t3, (t4)
+    la t4, memory_map
+    srl t5, t0, 11 // Pointer offset
+    add t4, t4, t5
+    sw t3, (t4)
 
     // Move to the next address until the map is complete
-    add  t0, t0, t2
-    ble  t0, t1, build_himap
-    jr   ra
+    add t0, t0, t2
+    ble t0, t1, build_himap
+    jr ra
 
 
 tlbl_exception:
     // Look up the EntryLo0 value for the missed address
     mfc0 a0, $8 // BadVAddr
-    srl  k0, a0, 13
-    sll  k0, k0, 2
-    lw   k1, memory_map(k0)
+    srl k0, a0, 13
+    sll k0, k0, 2
+    lw k1, memory_map(k0)
 
     // Check for special cases (I/O, ROM, SRAM)
     beqz k1, tlbl_io
-    lui  k0, 0x1000
-    sub  k0, k0, k1
+    lui k0, 0x1000
+    sub k0, k0, k1
     blez k0, tlbl_rom
     andi k0, k1, 0x2
     beqz k0, tlbl_sram
@@ -423,36 +423,36 @@ tlbl_set:
 
 tlbl_rom:
     // DMA the requested 8KB block of ROM to memory
-    lui  k0, 0xA460 // PI register upper address
-    sw   k1, 0x0004(k0) // PI_CART_ADDR
-    lbu  k1, rom_pointer
+    lui k0, 0xA460 // PI register upper address
+    sw k1, 0x0004(k0) // PI_CART_ADDR
+    lbu k1, rom_pointer
     addi k1, k1, (ROM_BUFFER >> 13) & 0x7FF
-    sll  k1, k1, 13 // ROM buffer address
-    sw   k1, 0x0000(k0) // PI_DRAM_ADDR
-    li   k1, 0x00001FFF // 8KB
-    sw   k1, 0x000C(k0) // PI_WR_LEN
+    sll k1, k1, 13 // ROM buffer address
+    sw k1, 0x0000(k0) // PI_DRAM_ADDR
+    li k1, 0x00001FFF // 8KB
+    sw k1, 0x000C(k0) // PI_WR_LEN
 
     // Create an EntryLo0 value and increment the ROM pointer
-    lbu  k0, rom_pointer
+    lbu k0, rom_pointer
     addi k1, k0, 1
-    sb   k1, rom_pointer
+    sb k1, rom_pointer
     addi k1, k0, (ROM_BUFFER >> 13) & 0x7FF
-    sll  k1, k1, 7
-    ori  k1, k1, 0x1B // Cache, Valid, Global
+    sll k1, k1, 7
+    ori k1, k1, 0x1B // Cache, Valid, Global
 
     // Restore the ROM entry that will be overwritten, if any
-    sll  k0, k0, 2 // Word offset
-    lw   t0, rom_entries(k0)
+    sll k0, k0, 2 // Word offset
+    lw t0, rom_entries(k0)
     beqz t0, set_entry
-    lw   t1, rom_addrs(k0)
-    sw   t0, memory_map(t1)
+    lw t1, rom_addrs(k0)
+    sw t0, memory_map(t1)
 
     // Save the EntryHi and Index registers
     mfc0 t2, $10 // EntryHi
     mfc0 t3, $0 // Index
 
     // Probe for the overwritten entry in the TLB
-    sll  t1, t1, 11
+    sll t1, t1, 11
     mtc0 t1, $10 // EntryHi
     nop
     tlbp
@@ -461,9 +461,9 @@ tlbl_rom:
     mfc0 t1, $0 // Index
 
     // Reset the TLB entry if it exists
-    srl  t1, t1, 31
+    srl t1, t1, 31
     bnez t1, not_found
-    li   t0, 0x80000000
+    li t0, 0x80000000
     mtc0 t0, $10 // EntryHi
     nop
     tlbwi
@@ -475,25 +475,25 @@ not_found:
 
 set_entry:
     // Update the new entry in the memory map
-    srl  t0, a0, 13
-    sll  t0, t0, 2
-    lw   t1, memory_map(t0)
-    sw   t1, rom_entries(k0)
-    sw   t0, rom_addrs(k0)
-    sw   k1, memory_map(t0)
+    srl t0, a0, 13
+    sll t0, t0, 2
+    lw t1, memory_map(t0)
+    sw t1, rom_entries(k0)
+    sw t0, rom_addrs(k0)
+    sw k1, memory_map(t0)
 
 pi_wait:
     // Wait for the DMA to complete
-    lw   k0, 0xA4600010 // PI_STATUS
+    lw k0, 0xA4600010 // PI_STATUS
     andi k0, k0, 0x1 // DMA busy
     bnez k0, pi_wait
-    b    tlbl_set
+    b tlbl_set
 
 tlbl_io:
     // Fall back to the I/O read handler if nothing is mapped
     mfc0 k0, $14 // EPC
     addi ra, k0, 4
-    la   k0, io_read8
+    la k0, io_read8
     mtc0 k0, $14 // EPC
     addi s5, s5, RAM_CYCLE - IO_CYCLE
     nop
@@ -503,24 +503,24 @@ tlbl_sram:
     // Fall back to the SRAM read handler if small SRAM is mapped
     mfc0 k0, $14 // EPC
     addi ra, k0, 4
-    la   k0, sram_read8
+    la k0, sram_read8
     mtc0 k0, $14 // EPC
-    srl  k1, k1, 2 // Size
-    and  t0, a0, k1
+    srl k1, k1, 2 // Size
+    and t0, a0, k1
     eret
 
 
 tlbs_exception:
     // Look up the EntryLo0 value for the missed address
     mfc0 a0, $8 // BadVAddr
-    srl  k0, a0, 13
-    sll  k0, k0, 2
-    lw   k1, memory_map(k0)
+    srl k0, a0, 13
+    sll k0, k0, 2
+    lw k1, memory_map(k0)
 
     // Check for special cases (I/O, ROM, SRAM)
     beqz k1, tlbs_io
-    lui  k0, 0x1000
-    sub  k0, k0, k1
+    lui k0, 0x1000
+    sub k0, k0, k1
     blez k0, tlbm_exception // Ignore unmapped ROM
     andi k0, k1, 0x2
     beqz k0, tlbs_sram
@@ -543,7 +543,7 @@ tlbs_io:
     // Fall back to the I/O write handler if nothing is mapped
     mfc0 k0, $14 // EPC
     addi ra, k0, 4
-    la   k0, io_write8
+    la k0, io_write8
     mtc0 k0, $14 // EPC
     addi s5, s5, RAM_CYCLE - IO_CYCLE
     nop
@@ -553,10 +553,10 @@ tlbs_sram:
     // Fall back to the SRAM write handler if small SRAM is mapped
     mfc0 k0, $14 // EPC
     addi ra, k0, 4
-    la   k0, sram_write8
+    la k0, sram_write8
     mtc0 k0, $14 // EPC
-    srl  k1, k1, 2 // Size
-    and  t0, a0, k1
+    srl k1, k1, 2 // Size
+    and t0, a0, k1
     eret
 
 
@@ -572,16 +572,16 @@ tlbm_exception:
 
 sram_read8: // t0: address - v0: value
     // Read an 8-bit value from SRAM
-    lbu  v0, UNCACHED(sram)(t0)
-    jr   ra
+    lbu v0, UNCACHED(sram)(t0)
+    jr ra
 
 
 sram_write8: // t0: address, a1: value
     // Write an 8-bit value to SRAM and mark it as dirty
-    sb   a1, UNCACHED(sram)(t0) // Uncached
-    li   t0, 1
-    sb   t0, sram_dirty
-    jr   ra
+    sb a1, UNCACHED(sram)(t0) // Uncached
+    li t0, 1
+    sb t0, sram_dirty
+    jr ra
 
 
 io_read8: // a0: address - v0: value
@@ -589,30 +589,30 @@ io_read8: // a0: address - v0: value
     andi a0, a0, 0xFFFF
     addi t0, a0, -0x2100
     bgeu t0, 0x4380 - 0x2100, read_unk
-    sll  t0, t0, 2 // Word offset
-    lw   t0, read_iomap(t0)
-    jr   t0
+    sll t0, t0, 2 // Word offset
+    lw t0, read_iomap(t0)
+    jr t0
 
 
 read_unk:
     // Unknown I/O register read; use upper address byte to approximate open bus
-    srl  v0, a0, 8
-    jr   ra
+    srl v0, a0, 8
+    jr ra
 
 
 read_wmdata: // v0: value
     // Increment the WRAM address
-    lw   t0, wmadd
+    lw t0, wmadd
     addi t1, t0, 1
-    li   t2, 0x1FFFF
-    and  t1, t1, t2
-    sw   t1, wmadd
+    li t2, 0x1FFFF
+    and t1, t1, t2
+    sw t1, wmadd
 
     // Read a byte from WRAM
-    li   a0, 0x7E0000
-    add  a0, a0, t0
-    lbu  v0, (a0)
-    jr   ra
+    li a0, 0x7E0000
+    add a0, a0, t0
+    lbu v0, (a0)
+    jr ra
 
 
 io_write8: // a0: address, a1: value
@@ -620,45 +620,45 @@ io_write8: // a0: address, a1: value
     andi a0, a0, 0xFFFF
     addi t0, a0, -0x2100
     bgeu t0, 0x4380 - 0x2100, write_unk
-    sll  t0, t0, 2 // Word offset
-    lw   t0, write_iomap(t0)
-    jr   t0
+    sll t0, t0, 2 // Word offset
+    lw t0, write_iomap(t0)
+    jr t0
 
 
 write_unk:
     // Unknown I/O register write; do nothing
-    jr   ra
+    jr ra
 
 
 write_wmdata: // a1: value
     // Increment the WRAM address
-    lw   t0, wmadd
+    lw t0, wmadd
     addi t1, t0, 1
-    li   t2, 0x1FFFF
-    and  t1, t1, t2
-    sw   t1, wmadd
+    li t2, 0x1FFFF
+    and t1, t1, t2
+    sw t1, wmadd
 
     // Write a byte to WRAM
-    li   a0, 0x7E0000
-    add  a0, a0, t0
-    sb   a1, (a0)
-    jr   ra
+    li a0, 0x7E0000
+    add a0, a0, t0
+    sb a1, (a0)
+    jr ra
 
 
 write_wmaddl: // a1: value
     // Set the low byte of the WRAM address
-    sb   a1, wmadd + 3
-    jr   ra
+    sb a1, wmadd + 3
+    jr ra
 
 
 write_wmaddm: // a1: value
     // Set the middle byte of the WRAM address
-    sb   a1, wmadd + 2
-    jr   ra
+    sb a1, wmadd + 2
+    jr ra
 
 
 write_wmaddh: // a1: value
     // Set the high bit of the WRAM address
     andi t0, a1, 0x1
-    sb   t0, wmadd + 1
-    jr   ra
+    sb t0, wmadd + 1
+    jr ra

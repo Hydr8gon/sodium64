@@ -127,21 +127,21 @@ char_9:
 
 .macro DRAW line
     // Copy a line of character pixels to the framebuffer
-    ld   t3, \line * 16 + 0(t2)
-    ld   t4, \line * 16 + 8(t2)
-    sd   t3, \line * 560 + 0(a1)
-    sd   t4, \line * 560 + 8(a1)
+    ld t3, \line * 16 + 0(t2)
+    ld t4, \line * 16 + 8(t2)
+    sd t3, \line * 560 + 0(a1)
+    sd t4, \line * 560 + 8(a1)
 .endm
 
 draw_value: // a0: value, a1: top-right offset
     // Isolate the lowest base-10 digit and convert to sprite address
-    li   t1, 10
-    div  a0, t1
+    li t1, 10
+    div a0, t1
     addi a1, a1, -16
     mfhi t2 // Remainder
-    sll  t2, t2, 7
-    la   t3, char_0
-    add  t2, t2, t3
+    sll t2, t2, 7
+    la t3, char_0
+    add t2, t2, t3
 
     // Copy a character sprite to the framebuffer
     DRAW 0
@@ -156,4 +156,4 @@ draw_value: // a0: value, a1: top-right offset
     // Move to the next digit if there is one
     mflo a0 // Quotient
     bnez a0, draw_value
-    jr   ra
+    jr ra

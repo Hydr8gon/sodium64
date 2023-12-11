@@ -76,57 +76,57 @@
 apu_movax: // MOV A,X
     // Move a value to the accumulator from register X and set flags
     NONE
-    lbu  a0, apu_reg_x
-    sb   a0, apu_accum
-    j    apu_set_nz
+    lbu a0, apu_reg_x
+    sb a0, apu_accum
+    j apu_set_nz
 
 
 apu_movxa: // MOV X,A
     // Move a value to register X from the accumulator and set flags
     NONE
-    lbu  a0, apu_accum
-    sb   a0, apu_reg_x
-    j    apu_set_nz
+    lbu a0, apu_accum
+    sb a0, apu_reg_x
+    j apu_set_nz
 
 
 apu_movay: // MOV A,Y
     // Move a value to the accumulator from register Y and set flags
     NONE
-    lbu  a0, apu_reg_y
-    sb   a0, apu_accum
-    j    apu_set_nz
+    lbu a0, apu_reg_y
+    sb a0, apu_accum
+    j apu_set_nz
 
 
 apu_movya: // MOV Y,A
     // Move a value to register Y from the accumulator and set flags
     NONE
-    lbu  a0, apu_accum
-    sb   a0, apu_reg_y
-    j    apu_set_nz
+    lbu a0, apu_accum
+    sb a0, apu_reg_y
+    j apu_set_nz
 
 
 apu_movxs: // MOV X,SP
     // Move a value to register X from the stack pointer and set flags
     NONE
-    lbu  a0, apu_stack + 1
-    sb   a0, apu_reg_x
-    j    apu_set_nz
+    lbu a0, apu_stack + 1
+    sb a0, apu_reg_x
+    j apu_set_nz
 
 
 apu_movsx: // MOV SP,X
     // Move a value to the stack pointer from register X
     NONE
-    lbu  a0, apu_reg_x
-    sb   a0, apu_stack + 1
-    j    cpu_execute
+    lbu a0, apu_reg_x
+    sb a0, apu_stack + 1
+    j cpu_execute
 
 
 .macro MOVA // MOV A,op
     // Move a value to the accumulator and set flags
-    jal  apu_read8
+    jal apu_read8
     move a0, v0
-    sb   a0, apu_accum
-    j    apu_set_nz
+    sb a0, apu_accum
+    j apu_set_nz
 .endm
 
 apu_mvaimm: IMM; MOVA // MOV A,#nn
@@ -143,10 +143,10 @@ apu_mvaidy: IDY; MOVA // MOV A,[aa]+Y
 
 .macro MOVX // MOV X,op
     // Move a value to register X and set flags
-    jal  apu_read8
+    jal apu_read8
     move a0, v0
-    sb   a0, apu_reg_x
-    j    apu_set_nz
+    sb a0, apu_reg_x
+    j apu_set_nz
 .endm
 
 apu_mvximm: IMM; MOVX // MOV X,#nn
@@ -157,10 +157,10 @@ apu_mvxabs: ABS; MOVX // MOV X,aaaa
 
 .macro MOVY // MOV Y,op
     // Move a value to register Y and set flags
-    jal  apu_read8
+    jal apu_read8
     move a0, v0
-    sb   a0, apu_reg_y
-    j    apu_set_nz
+    sb a0, apu_reg_y
+    j apu_set_nz
 .endm
 
 apu_mvyimm: IMM; MOVY // MOV Y,#nn
@@ -173,24 +173,24 @@ apu_movwya: // MOVW YA,aa
     // Move a 16-bit value to register YA
     DIR
     addi a0, a0, 1
-    jal  apu_read8
-    sll  s1, v0, 8
+    jal apu_read8
+    sll s1, v0, 8
     addi a0, a0, -1
-    jal  apu_read8
-    or   a0, v0, s1
-    sh   a0, apu_reg_y
+    jal apu_read8
+    or a0, v0, s1
+    sh a0, apu_reg_y
 
     // Adjust the 16-bit value for 8-bit flag logic and set flags
-    sne  t0, a0, zero
-    srl  t1, a0, 8
-    or   a0, t0, t1
-    j    apu_set_nz
+    sne t0, a0, zero
+    srl t1, a0, 8
+    or a0, t0, t1
+    j apu_set_nz
 
 
 .macro MOVM // MOV aa,op
     // Move a value to another memory address
-    jal  apu_write8
-    j    cpu_execute
+    jal apu_write8
+    j cpu_execute
 .endm
 
 apu_movdri: DRI; MOVM // MOV aa,#nn
@@ -199,9 +199,9 @@ apu_movdr2: DR2; MOVM // MOV aa,bb
 
 .macro AMOV // MOV op,A
     // Move a value to memory from the accumulator
-    lbu  a1, apu_accum
-    jal  apu_write8
-    j    cpu_execute
+    lbu a1, apu_accum
+    jal apu_write8
+    j cpu_execute
 .endm
 
 apu_amvdir: DIR; AMOV // MOV aa,A
@@ -217,9 +217,9 @@ apu_amvidy: IDY; AMOV // MOV [aa]+Y,A
 
 .macro XMOV // MOV op,X
     // Move a value to memory from register X
-    lbu  a1, apu_reg_x
-    jal  apu_write8
-    j    cpu_execute
+    lbu a1, apu_reg_x
+    jal apu_write8
+    j cpu_execute
 .endm
 
 apu_xmvdir: DIR; XMOV // MOV aa,X
@@ -229,9 +229,9 @@ apu_xmvabs: ABS; XMOV // MOV aaaa,X
 
 .macro YMOV // MOV op,Y
     // Move a value to memory from register Y
-    lbu  a1, apu_reg_y
-    jal  apu_write8
-    j    cpu_execute
+    lbu a1, apu_reg_y
+    jal apu_write8
+    j cpu_execute
 .endm
 
 apu_ymvdir: DIR; YMOV // MOV aa,Y
@@ -242,99 +242,99 @@ apu_ymvabs: ABS; YMOV // MOV aaaa,Y
 apu_movway: // MOVW aa,YA
     // Move a 16-bit value to memory from register YA
     DIR
-    lhu  s1, apu_reg_y
+    lhu s1, apu_reg_y
     move s2, a0
     andi a1, s1, 0xFF
-    jal  apu_write8
+    jal apu_write8
     addi a0, s2, 1
-    srl  a1, s1, 8
-    jal  apu_write8
-    j    cpu_execute
+    srl a1, s1, 8
+    jal apu_write8
+    j cpu_execute
 
 
 apu_pha: // PUSH A
     // Push the accumulator to the stack
     NONE
-    lhu  a0, apu_stack
-    lbu  a1, apu_accum
+    lhu a0, apu_stack
+    lbu a1, apu_accum
     addi t0, a0, -1
-    sb   t0, apu_stack + 1
-    jal  apu_write8
-    j    cpu_execute
+    sb t0, apu_stack + 1
+    jal apu_write8
+    j cpu_execute
 
 
 apu_phx: // PUSH X
     // Push register X to the stack
     NONE
-    lhu  a0, apu_stack
-    lbu  a1, apu_reg_x
+    lhu a0, apu_stack
+    lbu a1, apu_reg_x
     addi t0, a0, -1
-    sb   t0, apu_stack + 1
-    jal  apu_write8
-    j    cpu_execute
+    sb t0, apu_stack + 1
+    jal apu_write8
+    j cpu_execute
 
 
 apu_phy: // PUSH Y
     // Push register Y to the stack
     NONE
-    lhu  a0, apu_stack
-    lbu  a1, apu_reg_y
+    lhu a0, apu_stack
+    lbu a1, apu_reg_y
     addi t0, a0, -1
-    sb   t0, apu_stack + 1
-    jal  apu_write8
-    j    cpu_execute
+    sb t0, apu_stack + 1
+    jal apu_write8
+    j cpu_execute
 
 
 apu_php: // PUSH PSW
     // Push the flags to the stack
     NONE
-    lhu  a0, apu_stack
-    lbu  a1, apu_flags
+    lhu a0, apu_stack
+    lbu a1, apu_flags
     addi t0, a0, -1
-    sb   t0, apu_stack + 1
-    jal  apu_write8
-    j    cpu_execute
+    sb t0, apu_stack + 1
+    jal apu_write8
+    j cpu_execute
 
 
 apu_ppa: // POP A
     // Pop the accumulator from the stack
     NONE
-    lhu  a0, apu_stack
+    lhu a0, apu_stack
     addi a0, a0, 1
-    sb   a0, apu_stack + 1
-    jal  apu_read8
-    sb   v0, apu_accum
-    j    cpu_execute
+    sb a0, apu_stack + 1
+    jal apu_read8
+    sb v0, apu_accum
+    j cpu_execute
 
 
 apu_ppx: // POP X
     // Pop register X from the stack
     NONE
-    lhu  a0, apu_stack
+    lhu a0, apu_stack
     addi a0, a0, 1
-    sb   a0, apu_stack + 1
-    jal  apu_read8
-    sb   v0, apu_reg_x
-    j    cpu_execute
+    sb a0, apu_stack + 1
+    jal apu_read8
+    sb v0, apu_reg_x
+    j cpu_execute
 
 
 apu_ppy: // POP Y
     // Pop register Y from the stack
     NONE
-    lhu  a0, apu_stack
+    lhu a0, apu_stack
     addi a0, a0, 1
-    sb   a0, apu_stack + 1
-    jal  apu_read8
-    sb   v0, apu_reg_y
-    j    cpu_execute
+    sb a0, apu_stack + 1
+    jal apu_read8
+    sb v0, apu_reg_y
+    j cpu_execute
 
 
 apu_ppp: // POP PSW
     // Pop the flags from the stack
     NONE
-    lhu  a0, apu_stack
+    lhu a0, apu_stack
     addi a0, a0, 1
-    sb   a0, apu_stack + 1
-    jal  apu_read8
-    sb   v0, apu_flags
-    j    cpu_execute
+    sb a0, apu_stack + 1
+    jal apu_read8
+    sb v0, apu_flags
+    j cpu_execute

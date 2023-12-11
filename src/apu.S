@@ -130,224 +130,224 @@ write_iomap:
 
 apu_execute:
     // Generate a DSP sample once enough cycles have passed
-    ble  s3, a3, dsp_sample
+    ble s3, a3, dsp_sample
 
     // Fetch the current opcode
-    lhu  a0, apu_count
+    lhu a0, apu_count
     move s0, a0 // Save PC
-    jal  apu_read8
+    jal apu_read8
 
     // Jump to the opcode's function in the lookup table
-    sll  t0, v0, 2 // Word offset
-    lw   t0, apu_opcodes(t0)
-    jr   t0
+    sll t0, v0, 2 // Word offset
+    lw t0, apu_opcodes(t0)
+    jr t0
 
 
 apu_set_nz: // a0: value
     // Set the NZ flags and finish executing an APU opcode
-    lbu  t0, apu_flags
+    lbu t0, apu_flags
     andi a0, a0, 0xFF
     andi t0, t0, 0x7D
-    seq  t1, a0, zero
-    sll  t1, t1, 1 // Z
-    or   t0, t0, t1
+    seq t1, a0, zero
+    sll t1, t1, 1 // Z
+    or t0, t0, t1
     andi t1, a0, 0x80 // N
-    or   t0, t0, t1
-    sb   t0, apu_flags
-    j    cpu_execute
+    or t0, t0, t1
+    sb t0, apu_flags
+    j cpu_execute
 
 
 apu_unk:
     // Do nothing for unimplemented opcodes; this essentially hangs the APU
-    j    cpu_execute
+    j cpu_execute
 
 
 apu_read8: // a0: address - v0: value
     // Read a byte from memory and decrease the APU cycle count
-    srl  t0, a0, 6
-    lbu  t1, apu_map(t0)
+    srl t0, a0, 6
+    lbu t1, apu_map(t0)
     addi s3, s3, -APU_CYCLE
-    add  t0, a0, t1
-    lbu  v0, apu_ram(t0)
+    add t0, a0, t1
+    lbu v0, apu_ram(t0)
 
     // Check if the address is an I/O port
     andi t0, a0, 0xFFF0
-    beq  t0, 0xF0, io_read8
-    jr   ra
+    beq t0, 0xF0, io_read8
+    jr ra
 
 io_read8:
     // Read from an I/O register in the lookup table
     andi t0, a0, 0xF
-    sll  t0, t0, 2 // Word offset
-    lw   t0, read_iomap(t0)
-    jr   t0
+    sll t0, t0, 2 // Word offset
+    lw t0, read_iomap(t0)
+    jr t0
 
 read_unk:
     // Unknown I/O register read; do nothing
-    jr   ra
+    jr ra
 
 
 apu_write8: // a0: address, a1: value
     // Write a byte to memory and decrease the APU cycle count
-    sb   a1, apu_ram(a0)
+    sb a1, apu_ram(a0)
     addi s3, s3, -APU_CYCLE
 
     // Check if the address is an I/O port
     andi t0, a0, 0xFFF0
-    beq  t0, 0xF0, io_write8
-    jr   ra
+    beq t0, 0xF0, io_write8
+    jr ra
 
 io_write8:
     // Write to an I/O register in the lookup table
     andi t0, a0, 0xF
-    sll  t0, t0, 2 // Word offset
-    lw   t0, write_iomap(t0)
-    jr   t0
+    sll t0, t0, 2 // Word offset
+    lw t0, write_iomap(t0)
+    jr t0
 
 write_unk:
     // Unknown I/O register write; do nothing
-    jr   ra
+    jr ra
 
 
 update_overflows:
     // Never overflow timer 0 if it's disabled
-    lbu  t0, apu_control
+    lbu t0, apu_control
     andi t1, t0, 0x1
     bnez t1, stamp_timer0
-    li   t1, INT_MIN
-    sw   t1, apu_ocycles + 0
-    b    overflow_timer1
+    li t1, INT_MIN
+    sw t1, apu_ocycles + 0
+    b overflow_timer1
 
 stamp_timer0:
     // Update the overflow timestamp for timer 0
-    lbu  t1, apu_timers + 0
-    lbu  t2, apu_tmdivs + 0
+    lbu t1, apu_timers + 0
+    lbu t2, apu_tmdivs + 0
     addi t1, t1, 1
-    sub  t1, t2, t1
+    sub t1, t2, t1
     andi t1, t1, 0xFF
     addi t1, t1, 1 // Ticks until overflow
-    li   t2, APU_TIMER1 // Cycles per timer tick
+    li t2, APU_TIMER1 // Cycles per timer tick
     mult t1, t2 // Cycles until overflow
-    lw   t1, apu_cycle1
+    lw t1, apu_cycle1
     mflo t2
-    sub  t1, t1, t2
-    sw   t1, apu_ocycles + 0
+    sub t1, t1, t2
+    sw t1, apu_ocycles + 0
 
 overflow_timer1:
     // Never overflow timer 1 if it's disabled
     andi t1, t0, 0x2
     bnez t1, stamp_timer1
-    li   t1, INT_MIN
-    sw   t1, apu_ocycles + 4
-    b    overflow_timer2
+    li t1, INT_MIN
+    sw t1, apu_ocycles + 4
+    b overflow_timer2
 
 stamp_timer1:
     // Update the overflow timestamp for timer 1
-    lbu  t1, apu_timers + 1
-    lbu  t2, apu_tmdivs + 1
+    lbu t1, apu_timers + 1
+    lbu t2, apu_tmdivs + 1
     addi t1, t1, 1
-    sub  t1, t2, t1
+    sub t1, t2, t1
     andi t1, t1, 0xFF
     addi t1, t1, 1 // Ticks until overflow
-    li   t2, APU_TIMER1 // Cycles per timer tick
+    li t2, APU_TIMER1 // Cycles per timer tick
     mult t1, t2 // Cycles until overflow
-    lw   t1, apu_cycle1
+    lw t1, apu_cycle1
     mflo t2
-    sub  t1, t1, t2
-    sw   t1, apu_ocycles + 4
+    sub t1, t1, t2
+    sw t1, apu_ocycles + 4
 
 overflow_timer2:
     // Never overflow timer 2 if it's disabled
     andi t1, t0, 0x4
     bnez t1, stamp_timer2
-    li   t1, INT_MIN
-    sw   t1, apu_ocycles + 8
-    jr   ra
+    li t1, INT_MIN
+    sw t1, apu_ocycles + 8
+    jr ra
 
 stamp_timer2:
     // Update the overflow timestamp for timer 2
-    lbu  t1, apu_timers + 2
-    lbu  t2, apu_tmdivs + 2
+    lbu t1, apu_timers + 2
+    lbu t2, apu_tmdivs + 2
     addi t1, t1, 1
-    sub  t1, t2, t1
+    sub t1, t2, t1
     andi t1, t1, 0xFF
     addi t1, t1, 1 // Ticks until overflow
-    li   t2, APU_TIMER2 // Cycles per timer tick
+    li t2, APU_TIMER2 // Cycles per timer tick
     mult t1, t2 // Cycles until overflow
-    lw   t1, apu_cycle2
+    lw t1, apu_cycle2
     mflo t2
-    sub  t1, t1, t2
-    sw   t1, apu_ocycles + 8
-    jr   ra
+    sub t1, t1, t2
+    sw t1, apu_ocycles + 8
+    jr ra
 
 
 update_timers:
     // Get how many timer 2 ticks passed since the last update
-    lw   t7, apu_cycle2
-    sub  t0, t7, s3 // Cycles since last update
-    li   t1, APU_TIMER2 // Cycles per timer tick
-    blt  t0, t1, early_exit
-    div  t0, t1
+    lw t7, apu_cycle2
+    sub t0, t7, s3 // Cycles since last update
+    li t1, APU_TIMER2 // Cycles per timer tick
+    blt t0, t1, early_exit
+    div t0, t1
     mflo t6 // Ticks passed
     mfhi t1 // Cycles since latest tick
-    add  t1, t1, s3
-    sw   t1, apu_cycle2
+    add t1, t1, s3
+    sw t1, apu_cycle2
 
     // Check if timer 2 is enabled
-    lbu  t5, apu_control
+    lbu t5, apu_control
     andi t0, t5, 0x4
     beqz t0, update_timer0
     move t4, t6 // Ticks left
 
 loop_timer2:
     // Check if timer 2 will overflow
-    lw   t0, apu_ocycles + 8
-    bgt  s3, t0, inc_timer2
+    lw t0, apu_ocycles + 8
+    bgt s3, t0, inc_timer2
 
     // Adjust the ticks left for after overflow
-    lbu  t1, apu_timers + 2
-    lbu  t2, apu_tmdivs + 2
+    lbu t1, apu_timers + 2
+    lbu t2, apu_tmdivs + 2
     addi t1, t1, 1
-    sub  t1, t2, t1
+    sub t1, t2, t1
     andi t1, t1, 0xFF
     addi t1, t1, 1 // Ticks until overflow
-    sub  t4, t4, t1
+    sub t4, t4, t1
 
     // Overflow timer 2
-    lbu  t1, apu_tmouts + 2
+    lbu t1, apu_tmouts + 2
     addi t1, t1, 1
     andi t1, t1, 0xF
-    sb   t1, apu_tmouts + 2
-    sb   zero, apu_timers + 2
+    sb t1, apu_tmouts + 2
+    sb zero, apu_timers + 2
 
     // Update the overflow timestamp for next overflow
     addi t1, t2, -1
     andi t1, t1, 0xFF
     addi t1, t1, 1 // Ticks until overflow
-    li   t2, APU_TIMER2 // Cycles per timer tick
+    li t2, APU_TIMER2 // Cycles per timer tick
     mult t1, t2 // Cycles until overflow
     mflo t2
-    sub  t0, t0, t2
-    sw   t0, apu_ocycles + 8
-    b    loop_timer2
+    sub t0, t0, t2
+    sw t0, apu_ocycles + 8
+    b loop_timer2
 
 inc_timer2:
     // Increment timer 2 without overflow
-    lbu  t0, apu_timers + 2
-    add  t0, t0, t4
-    sb   t0, apu_timers + 2
+    lbu t0, apu_timers + 2
+    add t0, t0, t4
+    sb t0, apu_timers + 2
 
 update_timer0:
     // Get how many timer 0/1 ticks passed since the last update
-    lw   t7, apu_cycle1
-    sub  t0, t7, s3 // Cycles since last update
-    li   t1, APU_TIMER1 // Cycles per timer tick
-    blt  t0, t1, early_exit
-    div  t0, t1
+    lw t7, apu_cycle1
+    sub t0, t7, s3 // Cycles since last update
+    li t1, APU_TIMER1 // Cycles per timer tick
+    blt t0, t1, early_exit
+    div t0, t1
     mflo t6 // Ticks passed
     mfhi t1 // Cycles since latest tick
-    add  t1, t1, s3
-    sw   t1, apu_cycle1
+    add t1, t1, s3
+    sw t1, apu_cycle1
 
     // Check if timer 0 is enabled
     andi t0, t5, 0x1
@@ -356,41 +356,41 @@ update_timer0:
 
 loop_timer0:
     // Check if timer 0 will overflow
-    lw   t0, apu_ocycles + 0
-    bgt  s3, t0, inc_timer0
+    lw t0, apu_ocycles + 0
+    bgt s3, t0, inc_timer0
 
     // Adjust the ticks left for after overflow
-    lbu  t1, apu_timers + 0
-    lbu  t2, apu_tmdivs + 0
+    lbu t1, apu_timers + 0
+    lbu t2, apu_tmdivs + 0
     addi t1, t1, 1
-    sub  t1, t2, t1
+    sub t1, t2, t1
     andi t1, t1, 0xFF
     addi t1, t1, 1 // Ticks until overflow
-    sub  t4, t4, t1
+    sub t4, t4, t1
 
     // Overflow timer 0
-    lbu  t1, apu_tmouts + 0
+    lbu t1, apu_tmouts + 0
     addi t1, t1, 1
     andi t1, t1, 0xF
-    sb   t1, apu_tmouts + 0
-    sb   zero, apu_timers + 0
+    sb t1, apu_tmouts + 0
+    sb zero, apu_timers + 0
 
     // Update the overflow timestamp for next overflow
     addi t1, t2, -1
     andi t1, t1, 0xFF
     addi t1, t1, 1 // Ticks until overflow
-    li   t2, APU_TIMER1 // Cycles per timer tick
+    li t2, APU_TIMER1 // Cycles per timer tick
     mult t1, t2 // Cycles until overflow
     mflo t2
-    sub  t0, t0, t2
-    sw   t0, apu_ocycles + 0
-    b    loop_timer0
+    sub t0, t0, t2
+    sw t0, apu_ocycles + 0
+    b loop_timer0
 
 inc_timer0:
     // Increment timer 0 without overflow
-    lbu  t0, apu_timers + 0
-    add  t0, t0, t4
-    sb   t0, apu_timers + 0
+    lbu t0, apu_timers + 0
+    add t0, t0, t4
+    sb t0, apu_timers + 0
 
 update_timer1:
     // Check if timer 1 is enabled
@@ -400,286 +400,286 @@ update_timer1:
 
 loop_timer1:
     // Check if timer 1 will overflow
-    lw   t0, apu_ocycles + 4
-    bgt  s3, t0, inc_timer1
+    lw t0, apu_ocycles + 4
+    bgt s3, t0, inc_timer1
 
     // Adjust the ticks left for after overflow
-    lbu  t1, apu_timers + 1
-    lbu  t2, apu_tmdivs + 1
+    lbu t1, apu_timers + 1
+    lbu t2, apu_tmdivs + 1
     addi t1, t1, 1
-    sub  t1, t2, t1
+    sub t1, t2, t1
     andi t1, t1, 0xFF
     addi t1, t1, 1 // Ticks until overflow
-    sub  t4, t4, t1
+    sub t4, t4, t1
 
     // Overflow timer 1
-    lbu  t1, apu_tmouts + 1
+    lbu t1, apu_tmouts + 1
     addi t1, t1, 1
     andi t1, t1, 0xF
-    sb   t1, apu_tmouts + 1
-    sb   zero, apu_timers + 1
+    sb t1, apu_tmouts + 1
+    sb zero, apu_timers + 1
 
     // Update the overflow timestamp for next overflow
     addi t1, t2, -1
     andi t1, t1, 0xFF
     addi t1, t1, 1 // Ticks until overflow
-    li   t2, APU_TIMER1 // Cycles per timer tick
+    li t2, APU_TIMER1 // Cycles per timer tick
     mult t1, t2 // Cycles until overflow
     mflo t2
-    sub  t0, t0, t2
-    sw   t0, apu_ocycles + 4
-    b    loop_timer1
+    sub t0, t0, t2
+    sw t0, apu_ocycles + 4
+    b loop_timer1
 
 inc_timer1:
     // Increment timer 1 without overflow
-    lbu  t0, apu_timers + 1
-    add  t0, t0, t4
-    sb   t0, apu_timers + 1
+    lbu t0, apu_timers + 1
+    add t0, t0, t4
+    sb t0, apu_timers + 1
 early_exit:
-    jr   ra
+    jr ra
 
 
 offset_timers: // a0: cycles
     // Offset timer update timestamps for the next event
-    lw   t0, apu_cycle1
-    lw   t1, apu_cycle2
-    add  t0, t0, a0
-    add  t1, t1, a0
-    sw   t0, apu_cycle1
-    sw   t1, apu_cycle2
+    lw t0, apu_cycle1
+    lw t1, apu_cycle2
+    add t0, t0, a0
+    add t1, t1, a0
+    sw t0, apu_cycle1
+    sw t1, apu_cycle2
 
     // Offset timer 0's overflow timestamp if enabled
-    la   t0, apu_ocycles
-    li   t1, INT_MIN
-    lw   t2, 0(t0)
-    beq  t2, t1, offset1
-    add  t2, t2, a0
-    sw   t2, 0(t0)
+    la t0, apu_ocycles
+    li t1, INT_MIN
+    lw t2, 0(t0)
+    beq t2, t1, offset1
+    add t2, t2, a0
+    sw t2, 0(t0)
 
 offset1:
     // Offset timer 1's overflow timestamp if enabled
-    lw   t3, 4(t0)
-    beq  t3, t1, offset2
-    add  t3, t3, a0
-    sw   t3, 4(t0)
+    lw t3, 4(t0)
+    beq t3, t1, offset2
+    add t3, t3, a0
+    sw t3, 4(t0)
 
 offset2:
     // Offset timer 2's overflow timestamp if enabled
-    lw   t4, 8(t0)
-    beq  t4, t1, offset3
-    add  t4, t4, a0
-    sw   t4, 8(t0)
+    lw t4, 8(t0)
+    beq t4, t1, offset3
+    add t4, t4, a0
+    sw t4, 8(t0)
 offset3:
-    jr   ra
+    jr ra
 
 
 read_cpuio0: // v0: value
     // Read APU input communication value 0
-    lbu  v0, apu_inputs + 0
-    jr   ra
+    lbu v0, apu_inputs + 0
+    jr ra
 
 
 read_cpuio1: // v0: value
     // Read APU input communication value 1
-    lbu  v0, apu_inputs + 1
-    jr   ra
+    lbu v0, apu_inputs + 1
+    jr ra
 
 
 read_cpuio2: // v0: value
     // Read APU input communication value 2
-    lbu  v0, apu_inputs + 2
-    jr   ra
+    lbu v0, apu_inputs + 2
+    jr ra
 
 
 read_cpuio3: // v0: value
     // Read APU input communication value 3
-    lbu  v0, apu_inputs + 3
-    jr   ra
+    lbu v0, apu_inputs + 3
+    jr ra
 
 
 read_t0out: // v0: value
     // Update timers if timer 0 should overflow
-    lw   t0, apu_ocycles + 0
-    bgt  s3, t0, end_t0out
+    lw t0, apu_ocycles + 0
+    bgt s3, t0, end_t0out
     move t9, ra
-    jal  update_timers
+    jal update_timers
     move ra, t9
 
 end_t0out:
     // Read timer 0's overflow count and reset it
-    lbu  v0, apu_tmouts + 0
-    sb   zero, apu_tmouts + 0
-    jr   ra
+    lbu v0, apu_tmouts + 0
+    sb zero, apu_tmouts + 0
+    jr ra
 
 
 read_t1out: // v0: value
     // Update timers if timer 1 should overflow
-    lw   t0, apu_ocycles + 4
-    bgt  s3, t0, end_t1out
+    lw t0, apu_ocycles + 4
+    bgt s3, t0, end_t1out
     move t9, ra
-    jal  update_timers
+    jal update_timers
     move ra, t9
 
 end_t1out:
     // Read timer 1's overflow count and reset it
-    lbu  v0, apu_tmouts + 1
-    sb   zero, apu_tmouts + 1
-    jr   ra
+    lbu v0, apu_tmouts + 1
+    sb zero, apu_tmouts + 1
+    jr ra
 
 
 read_t2out: // v0: value
     // Update timers if timer 2 should overflow
-    lw   t0, apu_ocycles + 8
-    bgt  s3, t0, end_t2out
+    lw t0, apu_ocycles + 8
+    bgt s3, t0, end_t2out
     move t9, ra
-    jal  update_timers
+    jal update_timers
     move ra, t9
 
 end_t2out:
     // Read timer 2's overflow count and reset it
-    lbu  v0, apu_tmouts + 2
-    sb   zero, apu_tmouts + 2
-    jr   ra
+    lbu v0, apu_tmouts + 2
+    sb zero, apu_tmouts + 2
+    jr ra
 
 
 write_control: // a1: value
     // Update timers and write to the APU control register
     move t9, ra
-    jal  update_timers
-    lbu  t0, apu_control
+    jal update_timers
+    lbu t0, apu_control
     move ra, t9
-    sb   a1, apu_control
+    sb a1, apu_control
 
     // Update the APU ROM mapping
     andi t1, a1, 0x80 // ROM enabled
-    srl  t1, t1, 1
-    sb   t1, apu_map + 0x3FF
+    srl t1, t1, 1
+    sb t1, apu_map + 0x3FF
 
     // Reset timers 0-2 if bit 0-2 turns from 0 to 1
-    xor  t1, t0, a1
-    and  t1, t1, a1
+    xor t1, t0, a1
+    and t1, t1, a1
     andi t0, t1, 0x1
     beqz t0, timer1
-    sb   zero, apu_timers + 0
-    sb   zero, apu_tmouts + 0
+    sb zero, apu_timers + 0
+    sb zero, apu_tmouts + 0
 timer1:
     andi t0, t1, 0x2
     beqz t0, timer2
-    sb   zero, apu_timers + 1
-    sb   zero, apu_tmouts + 1
+    sb zero, apu_timers + 1
+    sb zero, apu_tmouts + 1
 timer2:
     andi t0, t1, 0x4
     beqz t0, reset0
-    sb   zero, apu_timers + 2
-    sb   zero, apu_tmouts + 2
+    sb zero, apu_timers + 2
+    sb zero, apu_tmouts + 2
 
 reset0:
     // Clear the first/last 2 input latches if bit 4/5 is set
     andi t0, a1, 0x10
     beqz t0, reset1
-    sh   zero, apu_inputs + 0
+    sh zero, apu_inputs + 0
 reset1:
     andi t0, a1, 0x20
     beqz t0, reset2
-    sh   zero, apu_inputs + 2
+    sh zero, apu_inputs + 2
 reset2:
-    j    update_overflows
+    j update_overflows
 
 
 write_cpuio0: // a1: value
     // Write APU output communication value 0
-    sb   a1, apu_outputs + 0
-    jr   ra
+    sb a1, apu_outputs + 0
+    jr ra
 
 
 write_cpuio1: // a1: value
     // Write APU output communication value 1
-    sb   a1, apu_outputs + 1
-    jr   ra
+    sb a1, apu_outputs + 1
+    jr ra
 
 
 write_cpuio2: // a1: value
     // Write APU output communication value 2
-    sb   a1, apu_outputs + 2
-    jr   ra
+    sb a1, apu_outputs + 2
+    jr ra
 
 
 write_cpuio3: // a1: value
     // Write APU output communication value 3
-    sb   a1, apu_outputs + 3
-    jr   ra
+    sb a1, apu_outputs + 3
+    jr ra
 
 
 write_t0div: // a1: value
     // Update timers and write timer 0's divider value
     move t9, ra
-    jal  update_timers
-    sb   a1, apu_tmdivs + 0
+    jal update_timers
+    sb a1, apu_tmdivs + 0
     move ra, t9
-    j    update_overflows
+    j update_overflows
 
 
 write_t1div: // a1: value
     // Update timers and write timer 1's divider value
     move t9, ra
-    jal  update_timers
-    sb   a1, apu_tmdivs + 1
+    jal update_timers
+    sb a1, apu_tmdivs + 1
     move ra, t9
-    j    update_overflows
+    j update_overflows
 
 
 write_t2div: // a1: value
     // Update timers and write timer 2's divider value
     move t9, ra
-    jal  update_timers
-    sb   a1, apu_tmdivs + 2
+    jal update_timers
+    sb a1, apu_tmdivs + 2
     move ra, t9
-    j    update_overflows
+    j update_overflows
 
 
 read_apuio0: // v0: value
     // Read APU output communication value 0
-    lbu  v0, apu_outputs + 0
-    jr   ra
+    lbu v0, apu_outputs + 0
+    jr ra
 
 
 read_apuio1: // v0: value
     // Read APU output communication value 0
-    lbu  v0, apu_outputs + 1
-    jr   ra
+    lbu v0, apu_outputs + 1
+    jr ra
 
 
 read_apuio2: // v0: value
     // Read APU output communication value 0
-    lbu  v0, apu_outputs + 2
-    jr   ra
+    lbu v0, apu_outputs + 2
+    jr ra
 
 
 read_apuio3: // v0: value
     // Read APU output communication value 0
-    lbu  v0, apu_outputs + 3
-    jr   ra
+    lbu v0, apu_outputs + 3
+    jr ra
 
 
 write_apuio0: // a1: value
     // Write APU input communication value 0
-    sb   a1, apu_inputs + 0
-    jr   ra
+    sb a1, apu_inputs + 0
+    jr ra
 
 
 write_apuio1: // a1: value
     // Write APU input communication value 1
-    sb   a1, apu_inputs + 1
-    jr   ra
+    sb a1, apu_inputs + 1
+    jr ra
 
 
 write_apuio2: // a1: value
     // Write APU input communication value 2
-    sb   a1, apu_inputs + 2
-    jr   ra
+    sb a1, apu_inputs + 2
+    jr ra
 
 
 write_apuio3: // a1: value
     // Write APU input communication value 3
-    sb   a1, apu_inputs + 3
-    jr   ra
+    sb a1, apu_inputs + 3
+    jr ra

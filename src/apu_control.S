@@ -82,163 +82,163 @@
 apu_bpl: // BPL dest
     // Check the condition (N clear)
     NONE 2
-    lbu  t0, apu_flags
+    lbu t0, apu_flags
     andi t0, t0, 0x80 // N
     bnez t0, cpu_execute
 
     // Sign-extend the offset value and add it to the PC
     addi a0, s0, 1
-    jal  apu_read8
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  t0, t0, s0
+    jal apu_read8
+    sll t0, v0, 24
+    sra t0, t0, 24
+    add t0, t0, s0
     addi t0, t0, 2
-    sh   t0, apu_count
-    j    cpu_execute
+    sh t0, apu_count
+    j cpu_execute
 
 
 apu_bmi: // BMI dest
     // Check the condition (N set)
     NONE 2
-    lbu  t0, apu_flags
+    lbu t0, apu_flags
     andi t0, t0, 0x80 // N
     beqz t0, cpu_execute
 
     // Sign-extend the offset value and add it to the PC
     addi a0, s0, 1
-    jal  apu_read8
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  t0, t0, s0
+    jal apu_read8
+    sll t0, v0, 24
+    sra t0, t0, 24
+    add t0, t0, s0
     addi t0, t0, 2
-    sh   t0, apu_count
-    j    cpu_execute
+    sh t0, apu_count
+    j cpu_execute
 
 
 apu_bvc: // BVC dest
     // Check the condition (V clear)
     NONE 2
-    lbu  t0, apu_flags
+    lbu t0, apu_flags
     andi t0, t0, 0x40 // V
     bnez t0, cpu_execute
 
     // Sign-extend the offset value and add it to the PC
     addi a0, s0, 1
-    jal  apu_read8
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  t0, t0, s0
+    jal apu_read8
+    sll t0, v0, 24
+    sra t0, t0, 24
+    add t0, t0, s0
     addi t0, t0, 2
-    sh   t0, apu_count
-    j    cpu_execute
+    sh t0, apu_count
+    j cpu_execute
 
 
 apu_bvs: // BVS dest
     // Check the condition (V set)
     NONE 2
-    lbu  t0, apu_flags
+    lbu t0, apu_flags
     andi t0, t0, 0x40 // V
     beqz t0, cpu_execute
 
     // Sign-extend the offset value and add it to the PC
     addi a0, s0, 1
-    jal  apu_read8
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  t0, t0, s0
+    jal apu_read8
+    sll t0, v0, 24
+    sra t0, t0, 24
+    add t0, t0, s0
     addi t0, t0, 2
-    sh   t0, apu_count
-    j    cpu_execute
+    sh t0, apu_count
+    j cpu_execute
 
 
 apu_bcc: // BCC dest
     // Check the condition (C clear)
     NONE 2
-    lbu  t0, apu_flags
+    lbu t0, apu_flags
     andi t0, t0, 0x1 // C
     bnez t0, cpu_execute
 
     // Sign-extend the offset value and add it to the PC
     addi a0, s0, 1
-    jal  apu_read8
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  t0, t0, s0
+    jal apu_read8
+    sll t0, v0, 24
+    sra t0, t0, 24
+    add t0, t0, s0
     addi t0, t0, 2
-    sh   t0, apu_count
-    j    cpu_execute
+    sh t0, apu_count
+    j cpu_execute
 
 
 apu_bcs: // BCS dest
     // Check the condition (C set)
     NONE 2
-    lbu  t0, apu_flags
+    lbu t0, apu_flags
     andi t0, t0, 0x1 // C
     beqz t0, cpu_execute
 
     // Sign-extend the offset value and add it to the PC
     addi a0, s0, 1
-    jal  apu_read8
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  t0, t0, s0
+    jal apu_read8
+    sll t0, v0, 24
+    sra t0, t0, 24
+    add t0, t0, s0
     addi t0, t0, 2
-    sh   t0, apu_count
-    j    cpu_execute
+    sh t0, apu_count
+    j cpu_execute
 
 
 apu_bne: // BNE dest
     // Check the condition (Z clear)
     NONE 2
-    lbu  t0, apu_flags
+    lbu t0, apu_flags
     andi t0, t0, 0x2 // Z
     bnez t0, cpu_execute
 
     // Sign-extend the offset value and add it to the PC
     addi a0, s0, 1
-    jal  apu_read8
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  t0, t0, s0
+    jal apu_read8
+    sll t0, v0, 24
+    sra t0, t0, 24
+    add t0, t0, s0
     addi t0, t0, 2
-    sh   t0, apu_count
-    j    cpu_execute
+    sh t0, apu_count
+    j cpu_execute
 
 
 apu_beq: // BEQ dest
     // Check the condition (Z set)
     NONE 2
-    lbu  t0, apu_flags
+    lbu t0, apu_flags
     andi t0, t0, 0x2 // Z
     beqz t0, cpu_execute
 
     // Sign-extend the offset value and add it to the PC
     addi a0, s0, 1
-    jal  apu_read8
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  t0, t0, s0
+    jal apu_read8
+    sll t0, v0, 24
+    sra t0, t0, 24
+    add t0, t0, s0
     addi t0, t0, 2
-    sh   t0, apu_count
-    j    cpu_execute
+    sh t0, apu_count
+    j cpu_execute
 
 
 .macro BBC mask // BBC aa.b,dest
     // Check the condition (bit b in [aa] clear)
-    DIR  3
-    jal  apu_read8
+    DIR 3
+    jal apu_read8
     andi t0, v0, \mask
     bnez t0, cpu_execute
 
     // Sign-extend the offset value and add it to the PC
     addi a0, s0, 2
-    jal  apu_read8
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  t0, t0, s0
+    jal apu_read8
+    sll t0, v0, 24
+    sra t0, t0, 24
+    add t0, t0, s0
     addi t0, t0, 3
-    sh   t0, apu_count
-    j    cpu_execute
+    sh t0, apu_count
+    j cpu_execute
 .endm
 
 apu_bbc0: BBC 0x01 // BBC aa.0,dest
@@ -253,20 +253,20 @@ apu_bbc7: BBC 0x80 // BBC aa.7,dest
 
 .macro BBS mask // BBS aa.b,dest
     // Check the condition (bit b in [aa] set)
-    DIR  3
-    jal  apu_read8
+    DIR 3
+    jal apu_read8
     andi t0, v0, \mask
     beqz t0, cpu_execute
 
     // Sign-extend the offset value and add it to the PC
     addi a0, s0, 2
-    jal  apu_read8
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  t0, t0, s0
+    jal apu_read8
+    sll t0, v0, 24
+    sra t0, t0, 24
+    add t0, t0, s0
     addi t0, t0, 3
-    sh   t0, apu_count
-    j    cpu_execute
+    sh t0, apu_count
+    j cpu_execute
 .endm
 
 apu_bbs0: BBS 0x01 // BBS aa.0,dest
@@ -281,20 +281,20 @@ apu_bbs7: BBS 0x80 // BBS aa.7,dest
 
 .macro CBNE // CBNE op
     // Check the condition (accumulator not equal [aa])
-    jal  apu_read8
-    lbu  t0, apu_accum
-    xor  t0, t0, v0
+    jal apu_read8
+    lbu t0, apu_accum
+    xor t0, t0, v0
     beqz t0, cpu_execute
 
     // Sign-extend the offset value and add it to the PC
     addi a0, s0, 2
-    jal  apu_read8
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  t0, t0, s0
+    jal apu_read8
+    sll t0, v0, 24
+    sra t0, t0, 24
+    add t0, t0, s0
     addi t0, t0, 3
-    sh   t0, apu_count
-    j    cpu_execute
+    sh t0, apu_count
+    j cpu_execute
 .endm
 
 apu_cbnea: DIR 3; CBNE // CBNE aa,dest
@@ -304,113 +304,113 @@ apu_cbnex: DRX 3; CBNE // CBNE aa+X,dest
 apu_dbnzy: // DBNZ Y,dest
     // Decrement register Y and check the condition (Y not zero)
     NONE 2
-    lbu  t0, apu_reg_y
+    lbu t0, apu_reg_y
     addi t0, t0, -1
-    sb   t0, apu_reg_y
+    sb t0, apu_reg_y
     beqz t0, cpu_execute
 
     // Sign-extend the offset value and add it to the PC
     addi a0, s0, 1
-    jal  apu_read8
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  t0, t0, s0
+    jal apu_read8
+    sll t0, v0, 24
+    sra t0, t0, 24
+    add t0, t0, s0
     addi t0, t0, 2
-    sh   t0, apu_count
-    j    cpu_execute
+    sh t0, apu_count
+    j cpu_execute
 
 
 apu_dbnza: // DBNZ aa,dest
     // Decrement the memory value and check the condition ([aa] not zero)
-    DIR  3
-    jal  apu_read8
+    DIR 3
+    jal apu_read8
     addi a1, v0, -1
-    jal  apu_write8
+    jal apu_write8
     beqz a1, cpu_execute
 
     // Sign-extend the offset value and add it to the PC
     addi a0, s0, 2
-    jal  apu_read8
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  t0, t0, s0
+    jal apu_read8
+    sll t0, v0, 24
+    sra t0, t0, 24
+    add t0, t0, s0
     addi t0, t0, 3
-    sh   t0, apu_count
-    j    cpu_execute
+    sh t0, apu_count
+    j cpu_execute
 
 
 apu_bra: // BRA dest
     // Sign-extend the offset value and add it to the PC
     addi a0, s0, 1
-    jal  apu_read8
-    sll  t0, v0, 24
-    sra  t0, t0, 24
-    add  t0, t0, s0
+    jal apu_read8
+    sll t0, v0, 24
+    sra t0, t0, 24
+    add t0, t0, s0
     addi t0, t0, 2
-    sh   t0, apu_count
-    j    cpu_execute
+    sh t0, apu_count
+    j cpu_execute
 
 
 apu_jmpabs: // JMP aaaa
     // Jump to an absolute address
     ABS
-    sh   a0, apu_count
-    j    cpu_execute
+    sh a0, apu_count
+    j cpu_execute
 
 
 apu_jmpabx: // JMP [aaaa+X]
     // Jump to an absolute address from memory
     ABX
     addi s1, a0, 1
-    jal  apu_read8
+    jal apu_read8
     andi a0, s1, 0xFFFF
     move s1, v0
-    jal  apu_read8
-    sll  t0, v0, 8
-    or   t0, t0, s1
-    sh   t0, apu_count
-    j    cpu_execute
+    jal apu_read8
+    sll t0, v0, 8
+    or t0, t0, s1
+    sh t0, apu_count
+    j cpu_execute
 
 
 apu_call: // CALL aaaa
     // Jump to an absolute address
     ABS
-    sh   a0, apu_count
+    sh a0, apu_count
 
     // Push the old program counter to the stack
-    lhu  s1, apu_stack
+    lhu s1, apu_stack
     addi a0, s1, -1
     addi a1, s0, 3
-    jal  apu_write8
+    jal apu_write8
     move a0, s1
-    srl  a1, a1, 8
-    jal  apu_write8
+    srl a1, a1, 8
+    jal apu_write8
     addi t0, s1, -2
-    sb   t0, apu_stack + 1
-    j    cpu_execute
+    sb t0, apu_stack + 1
+    j cpu_execute
 
 
 .macro TCALL n // TCALL n
     // Jump to a 16-bit value from an address based on n
-    li   a0, 0xFFDE - (\n * 2) + 1
-    jal  apu_read8
-    sll  s1, v0, 8
+    li a0, 0xFFDE - (\n * 2) + 1
+    jal apu_read8
+    sll s1, v0, 8
     addi a0, a0, -1
-    jal  apu_read8
-    or   a1, v0, s1
-    sh   a1, apu_count
+    jal apu_read8
+    or a1, v0, s1
+    sh a1, apu_count
 
     // Push the old program counter to the stack
-    lhu  s1, apu_stack
+    lhu s1, apu_stack
     addi a0, s1, -1
     addi a1, s0, 1
-    jal  apu_write8
+    jal apu_write8
     move a0, s1
-    srl  a1, a1, 8
-    jal  apu_write8
+    srl a1, a1, 8
+    jal apu_write8
     addi t0, s1, -2
-    sb   t0, apu_stack + 1
-    j    cpu_execute
+    sb t0, apu_stack + 1
+    j cpu_execute
 .endm
 
 apu_tcall0: TCALL 0x0
@@ -434,124 +434,124 @@ apu_tcallF: TCALL 0xF
 apu_pcall: // PCALL uu
     // Jump to an address in the highest page of RAM
     addi a0, s0, 1
-    jal  apu_read8
-    ori  t0, v0, 0xFF00
-    sh   t0, apu_count
+    jal apu_read8
+    ori t0, v0, 0xFF00
+    sh t0, apu_count
 
     // Push the old program counter to the stack
-    lhu  s1, apu_stack
+    lhu s1, apu_stack
     addi a0, s1, -1
     addi a1, s0, 2
-    jal  apu_write8
+    jal apu_write8
     move a0, s1
-    srl  a1, a1, 8
-    jal  apu_write8
+    srl a1, a1, 8
+    jal apu_write8
     addi t0, s1, -2
-    sb   t0, apu_stack + 1
-    j    cpu_execute
+    sb t0, apu_stack + 1
+    j cpu_execute
 
 
 apu_ret: // RET
     // Pop the program counter from the stack
-    lhu  s1, apu_stack
+    lhu s1, apu_stack
     addi a0, s1, 2
-    sb   a0, apu_stack + 1
-    jal  apu_read8
+    sb a0, apu_stack + 1
+    jal apu_read8
     addi a0, s1, 1
-    sll  s1, v0, 8
-    jal  apu_read8
-    or   t0, v0, s1
-    sh   t0, apu_count
-    j    cpu_execute
+    sll s1, v0, 8
+    jal apu_read8
+    or t0, v0, s1
+    sh t0, apu_count
+    j cpu_execute
 
 
 apu_ret1: // RET1
     // Pop the flags from the stack
-    lhu  s1, apu_stack
+    lhu s1, apu_stack
     addi a0, s1, 1
-    jal  apu_read8
-    sb   v0, apu_flags
+    jal apu_read8
+    sb v0, apu_flags
 
     // Pop the program counter from the stack
     addi a0, s1, 3
-    sb   a0, apu_stack + 1
-    jal  apu_read8
+    sb a0, apu_stack + 1
+    jal apu_read8
     addi a0, s1, 2
-    sll  s1, v0, 8
-    jal  apu_read8
-    or   t0, v0, s1
-    sh   t0, apu_count
-    j    cpu_execute
+    sll s1, v0, 8
+    jal apu_read8
+    or t0, v0, s1
+    sh t0, apu_count
+    j cpu_execute
 
 
 apu_brk: // BRK
     // Jump to the address stored at 0xFFDE
-    li   a0, 0xFFDF
-    jal  apu_read8
-    sll  s1, v0, 8
-    li   a0, 0xFFDE
-    jal  apu_read8
-    or   t0, v0, s1
-    sh   t0, apu_count
+    li a0, 0xFFDF
+    jal apu_read8
+    sll s1, v0, 8
+    li a0, 0xFFDE
+    jal apu_read8
+    or t0, v0, s1
+    sh t0, apu_count
 
     // Push the old program counter to the stack
-    lhu  s1, apu_stack
+    lhu s1, apu_stack
     addi a0, s1, -1
     addi a1, s0, 1
-    jal  apu_write8
+    jal apu_write8
     move a0, s1
-    srl  a1, a1, 8
-    jal  apu_write8
+    srl a1, a1, 8
+    jal apu_write8
 
     // Push the flags to the stack and modify current ones
-    lbu  a1, apu_flags
+    lbu a1, apu_flags
     andi t0, a1, 0xFB // Clear I
-    ori  t0, t0, 0x10 // Set B
-    sb   t0, apu_flags
+    ori t0, t0, 0x10 // Set B
+    sb t0, apu_flags
     addi a0, s1, -2
-    jal  apu_write8
+    jal apu_write8
     addi t0, s1, -3
-    sb   t0, apu_stack + 1
-    j    cpu_execute
+    sb t0, apu_stack + 1
+    j cpu_execute
 
 
 apu_nop: // NOP
     // Do nothing except advance the program counter
     NONE
-    j    cpu_execute
+    j cpu_execute
 
 
 apu_clrp: // CLRP
     // Clear the P flag
     NONE
-    lbu  t0, apu_flags
+    lbu t0, apu_flags
     andi t0, t0, 0xDF
-    sb   t0, apu_flags
-    j    cpu_execute
+    sb t0, apu_flags
+    j cpu_execute
 
 
 apu_setp: // SETP
     // Set the P flag
     NONE
-    lbu  t0, apu_flags
-    ori  t0, t0, 0x20
-    sb   t0, apu_flags
-    j    cpu_execute
+    lbu t0, apu_flags
+    ori t0, t0, 0x20
+    sb t0, apu_flags
+    j cpu_execute
 
 
 apu_di: // DI
     // Clear the I flag
     NONE
-    lbu  t0, apu_flags
+    lbu t0, apu_flags
     andi t0, t0, 0xFB
-    sb   t0, apu_flags
-    j    cpu_execute
+    sb t0, apu_flags
+    j cpu_execute
 
 
 apu_ei: // EI
     // Set the I flag
     NONE
-    lbu  t0, apu_flags
-    ori  t0, t0, 0x4
-    sb   t0, apu_flags
-    j    cpu_execute
+    lbu t0, apu_flags
+    ori t0, t0, 0x4
+    sb t0, apu_flags
+    j cpu_execute
