@@ -2,7 +2,7 @@
 
 PROJ_NAME := sodium64
 BUILD_DIR := build
-SRC_DIRS  := src
+SRC_DIRS := src
 
 SFILES := $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.S))
 HFILES := $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.h))
