@@ -824,13 +824,14 @@ plp: // PLP
 
 
 mvp_8: // MVP ss,dd (8-bit)
-    // Get the immediate 8-bit value plus register Y as the destination address (8-bit)
+    // Set the data bank and add register Y to get the destination address (8-bit)
     MEM_READ8 1(s7)
+    sb v0, data_bank + 1
     sll s0, v0, 16
     lbu t0, register_y + 1
     add s0, s0, t0
 
-    // Get the next immediate 8-bit value plus register Y as the source address (8-bit)
+    // Add register Y to the source bank to get the source address (8-bit)
     MEM_READ8 2(s7)
     sll s1, v0, 16
     lbu t0, register_x + 1
@@ -858,13 +859,14 @@ mvp8_cont:
 
 
 mvp_16: // MVP ss,dd (16-bit)
-    // Get the immediate 8-bit value plus register Y as the destination address (16-bit)
+    // Set the data bank and add register Y to get the destination address (16-bit)
     MEM_READ8 1(s7)
+    sb v0, data_bank + 1
     sll s0, v0, 16
     lhu t0, register_y
     add s0, s0, t0
 
-    // Get the next immediate 8-bit value plus register Y as the source address (16-bit)
+    // Add register Y to the source bank to get the source address (16-bit)
     MEM_READ8 2(s7)
     sll s1, v0, 16
     lhu t0, register_x
@@ -892,13 +894,14 @@ mvp16_cont:
 
 
 mvn_8: // MVN ss,dd (8-bit)
-    // Get the immediate 8-bit value plus register Y as the destination address (8-bit)
+    // Set the data bank and add register Y to get the destination address (8-bit)
     MEM_READ8 1(s7)
+    sb v0, data_bank + 1
     sll s0, v0, 16
     lbu t0, register_y + 1
     add s0, s0, t0
 
-    // Get the next immediate 8-bit value plus register Y as the source address (8-bit)
+    // Add register Y to the source bank to get the source address (8-bit)
     MEM_READ8 2(s7)
     sll s1, v0, 16
     lbu t0, register_x + 1
@@ -926,13 +929,14 @@ mvn8_cont:
 
 
 mvn_16: // MVN ss,dd (16-bit)
-    // Get the immediate 8-bit value plus register Y as the destination address (16-bit)
+    // Set the data bank and add register Y to get the destination address (16-bit)
     MEM_READ8 1(s7)
+    sb v0, data_bank + 1
     sll s0, v0, 16
     lhu t0, register_y
     add s0, s0, t0
 
-    // Get the next immediate 8-bit value plus register Y as the source address (16-bit)
+    // Add register Y to the source bank to get the source address (16-bit)
     MEM_READ8 2(s7)
     sll s1, v0, 16
     lhu t0, register_x
