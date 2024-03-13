@@ -19,7 +19,8 @@
 
 // Addresses of data in RDRAM that are shared between CPU and RSP
 #define ROM_BUFFER 0xA0200000
-#define TILE_CACHE_BG4 (ROM_BUFFER - 0x10000)
+#define JIT_BUFFER (ROM_BUFFER - 0x40000)
+#define TILE_CACHE_BG4 (JIT_BUFFER - 0x10000)
 #define TILE_CACHE_BG3 (TILE_CACHE_BG4 - 0x10000)
 #define TILE_CACHE_BG2 (TILE_CACHE_BG3 - 0x10000)
 #define TILE_CACHE_BG1 (TILE_CACHE_BG2 - 0x10000)
@@ -101,8 +102,9 @@
 #define ALIGN_GAP (LAYER_CHART + 0x90)
 #define VEC_DATA 0xF80
 
+// Macros that convert addresses between cached and uncached
+#define CACHED(addr) ((addr) - 0x20000000)
+#define UNCACHED(addr) ((addr) + 0x20000000)
+
 // Macro that converts an RSP DMEM address to a CPU address
 #define DMEM(addr) (0xA4000000 + (addr))
-
-// Macro that converts a cached address to uncached
-#define UNCACHED(addr) ((addr) + 0x20000000)

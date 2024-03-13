@@ -19,6 +19,7 @@
 
 #include <regdef.h>
 #include <limits.h>
+#include "addresses.h"
 
 // Approximate master cycle counts for APU components (underclocked)
 #define APU_CYCLE 21 * 2 // 21477000Hz / 1024000Hz = 20.973632812
@@ -32,6 +33,7 @@
 .globl apu_stack
 .globl apu_flags
 .globl apu_count
+.globl apu_opcodes
 
 .globl apu_execute
 .globl apu_set_nz
@@ -132,14 +134,27 @@ apu_execute:
     // Generate a DSP sample once enough cycles have passed
     ble s3, a3, dsp_sample
 
-    // Fetch the current opcode
-    lhu a0, apu_count
-    move s0, a0 // Save PC
-    jal apu_read8
+    // Compile a new JIT block if one doesn't exist for the current PC
+    lhu s0, apu_count
+    sll t0, s0, 2
+    lw t0, jit_lookup(t0)
+    beqz t0, compile_block
 
-    // Jump to the opcode's function in the lookup table
-    sll t0, v0, 2 // Word offset
-    lw t0, apu_opcodes(t0)
+    // Compile a new JIT block if memory changed at the start
+    lhu t1, 0(t0)
+    lw t1, jit_tags(t1)
+    lw t2, 4(t0)
+    bne t1, t2, compile_block
+
+    // Compile a new JIT block if memory changed at the end
+    lhu t2, 2(t0)
+    lw t2, jit_tags(t2)
+    lw t1, 8(t0)
+    bne t1, t2, compile_block
+
+    // Jump to a cached JIT block's code
+    addi t0, t0, 12
+    addi s3, s3, -APU_CYCLE
     jr t0
 
 
@@ -191,6 +206,13 @@ apu_write8: // a0: address, a1: value
     // Write a byte to memory and decrease the APU cycle count
     sb a1, apu_ram(a0)
     addi s3, s3, -APU_CYCLE
+
+    // Increment the memory block's tag to indicate change
+    srl t0, a0, 6
+    sll t0, t0, 2
+    lw t1, jit_tags(t0)
+    addi t1, t1, 1
+    sw t1, jit_tags(t0)
 
     // Check if the address is an I/O port
     andi t0, a0, 0xFFF0
@@ -554,6 +576,9 @@ write_control: // a1: value
     andi t1, a1, 0x80 // ROM enabled
     srl t1, t1, 1
     sb t1, apu_map + 0x3FF
+    lw t1, jit_tags + 0xFFC
+    addi t1, t1, 1
+    sw t1, jit_tags + 0xFFC
 
     // Reset timers 0-2 if bit 0-2 turns from 0 to 1
     xor t1, t0, a1
