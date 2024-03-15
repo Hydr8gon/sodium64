@@ -17,11 +17,7 @@
     along with sodium64. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <regdef.h>
-#include "addresses.h"
-
-// Approximate master cycle count for DSP samples
-#define DSP_SAMPLE 672 // 21477000Hz / 32000Hz = 671.15625
+#include "defines.h"
 
 .globl dsp_sample
 .globl read_dspaddr

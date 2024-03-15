@@ -17,12 +17,7 @@
     along with sodium64. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <regdef.h>
-#include "addresses.h"
-
-// Values that control the cooldown between frame sections
-#define SECTION_MIN 4
-#define SECTION_INC 1
+#include "defines.h"
 
 .globl fps_emulate
 .globl fps_display

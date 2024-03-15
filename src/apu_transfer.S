@@ -74,51 +74,107 @@
 .text
 
 apu_movax: // MOV A,X
-    // Move a value to the accumulator from register X and set flags
-    NONE
-    lbu a0, apu_reg_x
-    sb a0, apu_accum
-    j apu_set_nz
+    // Emit code to move a value to the accumulator from register X and set flags
+    jal load_reg_x
+    li t0, T7
+    li t1, ZERO
+    li t2, T9
+    jal emit_or
+    li t1, T7
+    jal queue_nz
+
+    // Update the JIT status
+    ori s1, s1, FLAG_SA | FLAG_LA
+    addi s2, s2, -APU_CYCLE
+    addi a0, a0, 1
+    j finish_opcode
 
 
 apu_movxa: // MOV X,A
-    // Move a value to register X from the accumulator and set flags
-    NONE
-    lbu a0, apu_accum
-    sb a0, apu_reg_x
-    j apu_set_nz
+    // Emit code to move a value to register X from the accumulator and set flags
+    jal load_accum
+    li t0, T9
+    li t1, ZERO
+    li t2, T7
+    jal emit_or
+    li t1, T9
+    jal queue_nz
+
+    // Update the JIT status
+    ori s1, s1, FLAG_SX | FLAG_LX
+    addi s2, s2, -APU_CYCLE
+    addi a0, a0, 1
+    j finish_opcode
 
 
 apu_movay: // MOV A,Y
-    // Move a value to the accumulator from register Y and set flags
-    NONE
-    lbu a0, apu_reg_y
-    sb a0, apu_accum
-    j apu_set_nz
+    // Emit code to move a value to the accumulator from register Y and set flags
+    jal load_reg_y
+    li t0, T7
+    li t1, ZERO
+    li t2, T8
+    jal emit_or
+    li t1, T7
+    jal queue_nz
+
+    // Update the JIT status
+    ori s1, s1, FLAG_SA | FLAG_LA
+    addi s2, s2, -APU_CYCLE
+    addi a0, a0, 1
+    j finish_opcode
 
 
 apu_movya: // MOV Y,A
-    // Move a value to register Y from the accumulator and set flags
-    NONE
-    lbu a0, apu_accum
-    sb a0, apu_reg_y
-    j apu_set_nz
+    // Emit code to move a value to register Y from the accumulator and set flags
+    jal load_accum
+    li t0, T8
+    li t1, ZERO
+    li t2, T7
+    jal emit_or
+    li t1, T8
+    jal queue_nz
+
+    // Update the JIT status
+    ori s1, s1, FLAG_SY | FLAG_LY
+    addi s2, s2, -APU_CYCLE
+    addi a0, a0, 1
+    j finish_opcode
 
 
 apu_movxs: // MOV X,SP
-    // Move a value to register X from the stack pointer and set flags
-    NONE
-    lbu a0, apu_stack + 1
-    sb a0, apu_reg_x
-    j apu_set_nz
+    // Emit code to move a value to register X from the stack pointer and set flags
+    jal load_stack
+    li t0, T9
+    li t1, ZERO
+    li t2, S2
+    jal emit_or
+    li t1, T9
+    jal queue_nz
+
+    // Update the JIT status
+    ori s1, s1, FLAG_SX | FLAG_LX
+    addi s2, s2, -APU_CYCLE
+    addi a0, a0, 1
+    j finish_opcode
 
 
 apu_movsx: // MOV SP,X
-    // Move a value to the stack pointer from register X
-    NONE
-    lbu a0, apu_reg_x
-    sb a0, apu_stack + 1
-    j cpu_execute
+    // Emit code to move a value to the stack pointer from register X
+    jal load_reg_x
+    li t0, S2
+    li t1, T9
+    li t2, 0xFF
+    jal emit_andi
+    li t0, S2
+    li t1, S2
+    li t2, 0x100
+    jal emit_ori
+
+    // Update the JIT status
+    ori s1, s1, FLAG_SS | FLAG_LS
+    addi s2, s2, -APU_CYCLE
+    addi a0, a0, 1
+    j finish_opcode
 
 
 .macro MOVA // MOV A,op

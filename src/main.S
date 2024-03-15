@@ -17,8 +17,7 @@
     along with sodium64. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <regdef.h>
-#include "addresses.h"
+#include "defines.h"
 
 .globl _start
 

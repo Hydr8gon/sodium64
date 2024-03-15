@@ -17,15 +17,10 @@
     along with sodium64. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <regdef.h>
 #include <limits.h>
-#include "addresses.h"
+#include "defines.h"
 
-// Approximate master cycle counts for APU components (underclocked)
-#define APU_CYCLE 21 * 2 // 21477000Hz / 1024000Hz = 20.973632812
-#define APU_TIMER1 2688 // 21477000Hz / 8000Hz = 2684.625
-#define APU_TIMER2 336 // 21477000Hz / 64000Hz = 335.578125
-
+.globl apu_map
 .globl apu_ram
 .globl apu_reg_x
 .globl apu_reg_y
@@ -154,7 +149,6 @@ apu_execute:
 
     // Jump to a cached JIT block's code
     addi t0, t0, 12
-    addi s3, s3, -APU_CYCLE
     jr t0
 
 

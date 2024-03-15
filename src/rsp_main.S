@@ -18,7 +18,7 @@
 */
 
 #include <rsp.inc>
-#include "addresses.h"
+#include "defines.h"
 
 .set reorder
 

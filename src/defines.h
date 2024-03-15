@@ -17,6 +17,75 @@
     along with sodium64. If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <regdef.h>
+
+// Master cycle counts for CPU memory accesses
+#define RAM_CYCLE 8
+#define IO_CYCLE 6
+
+// Approximate master cycle counts for APU components (underclocked)
+#define APU_CYCLE 21 * 2 // 21477000Hz / 1024000Hz = 20.973632812
+#define APU_TIMER1 2688 // 21477000Hz / 8000Hz = 2684.625
+#define APU_TIMER2 336 // 21477000Hz / 64000Hz = 335.578125
+
+// Approximate master cycle count for DSP samples
+#define DSP_SAMPLE 672 // 21477000Hz / 32000Hz = 671.15625
+
+// Maximum opcode bytes that can be compiled in an APU JIT block
+#define BLOCK_SIZE 16
+
+// Values that control the cooldown between frame sections
+#define SECTION_MIN 4
+#define SECTION_INC 1
+
+// Flags for tracking JIT block state
+#define FLAG_SX (1 << 0)
+#define FLAG_SY (1 << 1)
+#define FLAG_SA (1 << 2)
+#define FLAG_SS (1 << 3)
+#define FLAG_SF (1 << 4)
+#define FLAG_LX (1 << 5)
+#define FLAG_LY (1 << 6)
+#define FLAG_LA (1 << 7)
+#define FLAG_LS (1 << 8)
+#define FLAG_LF (1 << 9)
+#define FLAG_PC (1 << 10)
+#define FLAG_NZ (1 << 11)
+
+// Register values for emitting JIT code
+#define ZERO 0
+#define AT_ 1
+#define V0 2
+#define V1 3
+#define A0 4
+#define A1 5
+#define A2 6
+#define A3 7
+#define T0 8
+#define T1 9
+#define T2 10
+#define T3 11
+#define T4 12
+#define T5 13
+#define T6 14
+#define T7 15
+#define S0 16
+#define S1 17
+#define S2 18
+#define S3 19
+#define S4 20
+#define S5 21
+#define S6 22
+#define S7 23
+#define T8 24
+#define T9 25
+#define K0 26
+#define K1 27
+#define GP 28
+#define SP 29
+#define S8 30
+#define RA 31
+
 // Addresses of data in RDRAM that are shared between CPU and RSP
 #define ROM_BUFFER 0xA0200000
 #define JIT_BUFFER (ROM_BUFFER - 0x40000)
