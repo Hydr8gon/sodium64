@@ -22,6 +22,7 @@
 .globl jit_tags
 .globl jit_lookup
 
+.globl jit_read8
 .globl compile_block
 .globl finish_opcode
 .globl finish_block
@@ -59,7 +60,7 @@ jit_opcodes: // Lookup table for addressing and operation functions
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x00-0x03
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x04-0x07
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x08-0x0B
-    .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x0C-0x0F
+    .word apu_fallback, 0,  apu_php, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x0C-0x0F
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x10-0x13
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x14-0x17
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x18-0x1B
@@ -67,7 +68,7 @@ jit_opcodes: // Lookup table for addressing and operation functions
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x20-0x23
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x24-0x27
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x28-0x2B
-    .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x2C-0x2F
+    .word apu_fallback, 0,  apu_pha, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x2C-0x2F
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x30-0x33
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x34-0x37
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x38-0x3B
@@ -75,7 +76,7 @@ jit_opcodes: // Lookup table for addressing and operation functions
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x40-0x43
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x44-0x47
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x48-0x4B
-    .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x4C-0x4F
+    .word apu_fallback, 0,  apu_phx, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x4C-0x4F
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x50-0x53
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x54-0x57
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x58-0x5B
@@ -83,7 +84,7 @@ jit_opcodes: // Lookup table for addressing and operation functions
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x60-0x63
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x64-0x67
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x68-0x6B
-    .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x6C-0x6F
+    .word apu_fallback, 0,  apu_phy, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x6C-0x6F
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x70-0x73
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x74-0x77
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x78-0x7B
@@ -91,7 +92,7 @@ jit_opcodes: // Lookup table for addressing and operation functions
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x80-0x83
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x84-0x87
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x88-0x8B
-    .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x8C-0x8F
+    .word apu_fallback, 0,  apu_imm, apu_movy,  apu_ppp, 0,  apu_dri, apu_movm // 0x8C-0x8F
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x90-0x93
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x94-0x97
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0x98-0x9B
@@ -99,29 +100,40 @@ jit_opcodes: // Lookup table for addressing and operation functions
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xA0-0xA3
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xA4-0xA7
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xA8-0xAB
-    .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xAC-0xAF
+    .word apu_fallback, 0,  apu_fallback, 0,  apu_ppa, 0,  apu_bxpa, apu_amov // 0xAC-0xAF
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xB0-0xB3
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xB4-0xB7
-    .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xB8-0xBB
-    .word apu_fallback, 0,  apu_movsx, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xBC-0xBF
+    .word apu_fallback, 0,  apu_fallback, 0,  apu_dirr, apu_movwya,  apu_fallback, 0 // 0xB8-0xBB
+    .word apu_fallback, 0,  apu_movsx, 0,  apu_fallback, 0,  apu_bxpr, apu_mova // 0xBC-0xBF
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xC0-0xC3
-    .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xC4-0xC7
-    .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xC8-0xCB
-    .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xCC-0xCF
+    .word apu_dira, apu_amov,  apu_absa, apu_amov,  apu_brxa, apu_amov,  apu_idxa, apu_amov // 0xC4-0xC7
+    .word apu_fallback, 0,  apu_absa, apu_xmov,  apu_fallback, 0,  apu_dira, apu_ymov // 0xC8-0xCB
+    .word apu_absa, apu_ymov,  apu_imm, apu_movx,  apu_ppx, 0,  apu_fallback, 0 // 0xCC-0xCF
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xD0-0xD3
-    .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xD4-0xD7
-    .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xD8-0xDB
+    .word apu_drxa, apu_amov,  apu_abxa, apu_amov,  apu_abya, apu_amov,  apu_idya, apu_amov // 0xD4-0xD7
+    .word apu_dira, apu_xmov,  apu_drya, apu_xmov,  apu_dira, apu_movway,  apu_drxa, apu_ymov // 0xD8-0xDB
     .word apu_fallback, 0,  apu_movay, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xDC-0xDF
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xE0-0xE3
-    .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xE4-0xE7
-    .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xE8-0xEB
-    .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xEC-0xEF
+    .word apu_dirr, apu_mova,  apu_absr, apu_mova,  apu_brxr, apu_mova,  apu_idxr, apu_mova // 0xE4-0xE7
+    .word apu_imm, apu_mova,  apu_absr, apu_movx,  apu_fallback, 0,  apu_dirr, apu_movy // 0xE8-0xEB
+    .word apu_absr, apu_movy,  apu_fallback, 0,  apu_ppy, 0,  apu_fallback, 0 // 0xEC-0xEF
     .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xF0-0xF3
-    .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xF4-0xF7
-    .word apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xF8-0xFB
+    .word apu_drxr, apu_mova,  apu_abxr, apu_mova,  apu_abyr, apu_mova,  apu_idyr, apu_mova // 0xF4-0xF7
+    .word apu_dirr, apu_movx,  apu_dryr, apu_movx,  apu_dr2, apu_movm,  apu_drxr, apu_movy // 0xF8-0xFB
     .word apu_fallback, 0,  apu_movya, 0,  apu_fallback, 0,  apu_fallback, 0 // 0xFC-0xFF
 
 .text
+
+jit_read8: // a0: address - v0: value
+    // Read a byte from memory, count cycles, and increment the address
+    srl t0, a0, 6
+    lbu t1, apu_map(t0)
+    addi s2, s2, -APU_CYCLE
+    add t0, a0, t1
+    lbu v0, apu_ram(t0)
+    addi a0, a0, 1
+    jr ra
+
 
 compile_block:
     // Round the JIT pointer to nearest cache line, offset by header size
@@ -151,13 +163,8 @@ compile_block:
     sw t1, 4(t0)
 
 next_opcode:
-    // Fetch the current opcode from memory
-    srl t0, a0, 6
-    lbu t1, apu_map(t0)
-    add t0, a0, t1
-    lbu v0, apu_ram(t0)
-
-    // Look up functions for the opcode and jump to them
+    // Read an opcode from memory and jump to its functions
+    jal jit_read8
     sll t0, v0, 3
     lw t1, jit_opcodes + 0(t0)
     lw gp, jit_opcodes + 4(t0)
@@ -273,18 +280,23 @@ reset_loop:
     // Reset the JIT pointer and restart compilation
     li t0, JIT_BUFFER
     sw t0, jit_pointer
-    b compile_block
+    j compile_block
 
 
 apu_fallback:
     // Compile a jump to an interpreter function as a fallback
-    bne a0, s0, finish_block
+    addi a0, a0, -1
+    bne a0, s0, not_alone
+    addi a0, a0, 3
     sll t0, v0, 2
     lw t0, apu_opcodes(t0)
-    jal emit_j
-    addi s2, s2, -APU_CYCLE
-    addi a0, a0, 3
-    b finish_fallback
+    la ra, finish_fallback
+    j emit_j
+
+not_alone:
+    // Exclude fallback from the block unless it's the only opcode
+    addi s2, s2, APU_CYCLE
+    j finish_block
 
 
 full_address: // t3: rt, t4: address, t5: function
@@ -450,7 +462,7 @@ emit_add: // t0: rd, t1: rs, t2: rt
     or t0, t0, t2
     li t1, 0x0020
     or t0, t0, t1
-    b emit_op
+    j emit_op
 
 
 emit_addi: // t0: rt, t1: rs, t2: immediate
@@ -462,7 +474,7 @@ emit_addi: // t0: rt, t1: rs, t2: immediate
     or t0, t0, t2
     lui t1, 0x2000
     or t0, t0, t1
-    b emit_op
+    j emit_op
 
 
 emit_andi: // t0: rt, t1: rs, t2: immediate
@@ -474,7 +486,7 @@ emit_andi: // t0: rt, t1: rs, t2: immediate
     or t0, t0, t2
     lui t1, 0x3000
     or t0, t0, t1
-    b emit_op
+    j emit_op
 
 
 emit_j: // t0: target
@@ -484,7 +496,7 @@ emit_j: // t0: target
     and t0, t0, t1
     lui t1, 0x0800
     or t0, t0, t1
-    b emit_op
+    j emit_op
 
 
 emit_jal: // t0: target
@@ -494,7 +506,7 @@ emit_jal: // t0: target
     and t0, t0, t1
     lui t1, 0x0C00
     or t0, t0, t1
-    b emit_op
+    j emit_op
 
 
 emit_lbu: // t0: rt, t1: base, t2: offset
@@ -506,7 +518,7 @@ emit_lbu: // t0: rt, t1: base, t2: offset
     or t0, t0, t2
     lui t1, 0x9000
     or t0, t0, t1
-    b emit_op
+    j emit_op
 
 
 emit_lhu: // t0: rt, t1: base, t2: offset
@@ -518,7 +530,7 @@ emit_lhu: // t0: rt, t1: base, t2: offset
     or t0, t0, t2
     lui t1, 0x9400
     or t0, t0, t1
-    b emit_op
+    j emit_op
 
 
 emit_lui: // t0: rt, t1: immediate
@@ -528,13 +540,13 @@ emit_lui: // t0: rt, t1: immediate
     or t0, t0, t1
     lui t1, 0x3C00
     or t0, t0, t1
-    b emit_op
+    j emit_op
 
 
 emit_nop:
     // Emit a "nop" opcode for the JIT
     move t0, zero
-    b emit_op
+    j emit_op
 
 
 emit_or: // t0: rd, t1: rs, t2: rt
@@ -546,7 +558,7 @@ emit_or: // t0: rd, t1: rs, t2: rt
     or t0, t0, t2
     li t1, 0x0025
     or t0, t0, t1
-    b emit_op
+    j emit_op
 
 
 emit_ori: // t0: rt, t1: rs, t2: immediate
@@ -558,7 +570,7 @@ emit_ori: // t0: rt, t1: rs, t2: immediate
     or t0, t0, t2
     lui t1, 0x3400
     or t0, t0, t1
-    b emit_op
+    j emit_op
 
 
 emit_sb: // t0: rt, t1: base, t2: offset
@@ -570,7 +582,7 @@ emit_sb: // t0: rt, t1: base, t2: offset
     or t0, t0, t2
     lui t1, 0xA000
     or t0, t0, t1
-    b emit_op
+    j emit_op
 
 
 emit_sh: // t0: rt, t1: base, t2: offset
@@ -582,7 +594,7 @@ emit_sh: // t0: rt, t1: base, t2: offset
     or t0, t0, t2
     lui t1, 0xA400
     or t0, t0, t1
-    b emit_op
+    j emit_op
 
 
 emit_sll: // t0: rd, t1: rt, t2: sa
@@ -592,7 +604,7 @@ emit_sll: // t0: rd, t1: rt, t2: sa
     sll t2, t2, 6
     or t0, t0, t1
     or t0, t0, t2
-    b emit_op
+    j emit_op
 
 
 emit_slt: // t0: rd, t1: rs, t2: rt
@@ -604,7 +616,7 @@ emit_slt: // t0: rd, t1: rs, t2: rt
     or t0, t0, t2
     li t1, 0x002A
     or t0, t0, t1
-    b emit_op
+    j emit_op
 
 
 emit_xori: // t0: rt, t1: rs, t2: immediate
@@ -616,4 +628,4 @@ emit_xori: // t0: rt, t1: rs, t2: immediate
     or t0, t0, t2
     lui t1, 0x3800
     or t0, t0, t1
-    b emit_op
+    j emit_op

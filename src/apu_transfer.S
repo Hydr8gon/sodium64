@@ -25,42 +25,14 @@
 .globl apu_movya
 .globl apu_movxs
 .globl apu_movsx
-.globl apu_mvaimm
-.globl apu_mvadir
-.globl apu_mvadrx
-.globl apu_mvabrx
-.globl apu_mvabxp
-.globl apu_mvaabs
-.globl apu_mvaabx
-.globl apu_mvaaby
-.globl apu_mvaidx
-.globl apu_mvaidy
-.globl apu_mvximm
-.globl apu_mvxdir
-.globl apu_mvxdry
-.globl apu_mvxabs
-.globl apu_mvyimm
-.globl apu_mvydir
-.globl apu_mvydrx
-.globl apu_mvyabs
+.globl apu_mova
+.globl apu_movx
+.globl apu_movy
 .globl apu_movwya
-.globl apu_movdri
-.globl apu_movdr2
-.globl apu_amvdir
-.globl apu_amvdrx
-.globl apu_amvbrx
-.globl apu_amvbxp
-.globl apu_amvabs
-.globl apu_amvabx
-.globl apu_amvaby
-.globl apu_amvidx
-.globl apu_amvidy
-.globl apu_xmvdir
-.globl apu_xmvdry
-.globl apu_xmvabs
-.globl apu_ymvdir
-.globl apu_ymvdrx
-.globl apu_ymvabs
+.globl apu_movm
+.globl apu_amov
+.globl apu_xmov
+.globl apu_ymov
 .globl apu_movway
 .globl apu_pha
 .globl apu_phx
@@ -74,6 +46,9 @@
 .text
 
 apu_movax: // MOV A,X
+    // Update the JIT register state
+    ori s1, s1, FLAG_SA | FLAG_LA
+
     // Emit code to move a value to the accumulator from register X and set flags
     jal load_reg_x
     li t0, T7
@@ -81,16 +56,14 @@ apu_movax: // MOV A,X
     li t2, T9
     jal emit_or
     li t1, T7
-    jal queue_nz
-
-    // Update the JIT status
-    ori s1, s1, FLAG_SA | FLAG_LA
-    addi s2, s2, -APU_CYCLE
-    addi a0, a0, 1
-    j finish_opcode
+    la ra, finish_opcode
+    j queue_nz
 
 
 apu_movxa: // MOV X,A
+    // Update the JIT register state
+    ori s1, s1, FLAG_SX | FLAG_LX
+
     // Emit code to move a value to register X from the accumulator and set flags
     jal load_accum
     li t0, T9
@@ -98,16 +71,14 @@ apu_movxa: // MOV X,A
     li t2, T7
     jal emit_or
     li t1, T9
-    jal queue_nz
-
-    // Update the JIT status
-    ori s1, s1, FLAG_SX | FLAG_LX
-    addi s2, s2, -APU_CYCLE
-    addi a0, a0, 1
-    j finish_opcode
+    la ra, finish_opcode
+    j queue_nz
 
 
 apu_movay: // MOV A,Y
+    // Update the JIT register state
+    ori s1, s1, FLAG_SA | FLAG_LA
+
     // Emit code to move a value to the accumulator from register Y and set flags
     jal load_reg_y
     li t0, T7
@@ -115,16 +86,14 @@ apu_movay: // MOV A,Y
     li t2, T8
     jal emit_or
     li t1, T7
-    jal queue_nz
-
-    // Update the JIT status
-    ori s1, s1, FLAG_SA | FLAG_LA
-    addi s2, s2, -APU_CYCLE
-    addi a0, a0, 1
-    j finish_opcode
+    la ra, finish_opcode
+    j queue_nz
 
 
 apu_movya: // MOV Y,A
+    // Update the JIT register state
+    ori s1, s1, FLAG_SY | FLAG_LY
+
     // Emit code to move a value to register Y from the accumulator and set flags
     jal load_accum
     li t0, T8
@@ -132,16 +101,14 @@ apu_movya: // MOV Y,A
     li t2, T7
     jal emit_or
     li t1, T8
-    jal queue_nz
-
-    // Update the JIT status
-    ori s1, s1, FLAG_SY | FLAG_LY
-    addi s2, s2, -APU_CYCLE
-    addi a0, a0, 1
-    j finish_opcode
+    la ra, finish_opcode
+    j queue_nz
 
 
 apu_movxs: // MOV X,SP
+    // Update the JIT register state
+    ori s1, s1, FLAG_SX | FLAG_LX
+
     // Emit code to move a value to register X from the stack pointer and set flags
     jal load_stack
     li t0, T9
@@ -149,248 +116,387 @@ apu_movxs: // MOV X,SP
     li t2, S2
     jal emit_or
     li t1, T9
-    jal queue_nz
-
-    // Update the JIT status
-    ori s1, s1, FLAG_SX | FLAG_LX
-    addi s2, s2, -APU_CYCLE
-    addi a0, a0, 1
-    j finish_opcode
+    la ra, finish_opcode
+    j queue_nz
 
 
 apu_movsx: // MOV SP,X
+    // Update the JIT register state
+    ori s1, s1, FLAG_SS | FLAG_LS
+
     // Emit code to move a value to the stack pointer from register X
     jal load_reg_x
     li t0, S2
+    li t1, ZERO
+    li t2, T9
+    la ra, finish_opcode
+    j emit_or
+
+
+apu_mova: // MOV A,op
+    // Update the JIT register state
+    ori s1, s1, FLAG_SA | FLAG_LA
+
+    // Emit code to move a value to the accumulator and set flags
+    li t0, T7
+    li t1, ZERO
+    li t2, V0
+    jal emit_or
+    li t1, T7
+    la ra, finish_opcode
+    j queue_nz
+
+
+apu_movx: // MOV X,op
+    // Update the JIT register state
+    ori s1, s1, FLAG_SX | FLAG_LX
+
+    // Emit code to move a value to register X and set flags
+    li t0, T9
+    li t1, ZERO
+    li t2, V0
+    jal emit_or
     li t1, T9
-    li t2, 0xFF
-    jal emit_andi
-    li t0, S2
-    li t1, S2
-    li t2, 0x100
-    jal emit_ori
-
-    // Update the JIT status
-    ori s1, s1, FLAG_SS | FLAG_LS
-    addi s2, s2, -APU_CYCLE
-    addi a0, a0, 1
-    j finish_opcode
+    la ra, finish_opcode
+    j queue_nz
 
 
-.macro MOVA // MOV A,op
-    // Move a value to the accumulator and set flags
-    jal apu_read8
-    move a0, v0
-    sb a0, apu_accum
-    j apu_set_nz
-.endm
+apu_movy: // MOV Y,op
+    // Update the JIT register state
+    ori s1, s1, FLAG_SY | FLAG_LY
 
-apu_mvaimm: IMM; MOVA // MOV A,#nn
-apu_mvadir: DIR; MOVA // MOV A,aa
-apu_mvadrx: DRX; MOVA // MOV A,aa+X
-apu_mvabrx: BRX; MOVA // MOV A,(X)
-apu_mvabxp: BXP; MOVA // MOV A,(X)+
-apu_mvaabs: ABS; MOVA // MOV A,aaaa
-apu_mvaabx: ABX; MOVA // MOV A,aaaa+X
-apu_mvaaby: ABY; MOVA // MOV A,aaaa+Y
-apu_mvaidx: IDX; MOVA // MOV A,[aa+X]
-apu_mvaidy: IDY; MOVA // MOV A,[aa]+Y
+    // Emit code to move a value to register Y and set flags
+    li t0, T8
+    li t1, ZERO
+    li t2, V0
+    jal emit_or
+    li t1, T8
+    la ra, finish_opcode
+    j queue_nz
 
 
-.macro MOVX // MOV X,op
-    // Move a value to register X and set flags
-    jal apu_read8
-    move a0, v0
-    sb a0, apu_reg_x
-    j apu_set_nz
-.endm
+apu_movwya: // MOVW YA,op
+    // Update the JIT register state
+    ori s1, s1, FLAG_SY | FLAG_SA | FLAG_LY | FLAG_LA
 
-apu_mvximm: IMM; MOVX // MOV X,#nn
-apu_mvxdir: DIR; MOVX // MOV X,aa
-apu_mvxdry: DRY; MOVX // MOV X,aa+Y
-apu_mvxabs: ABS; MOVX // MOV X,aaaa
+    // Emit code to move a 16-bit value to register YA
+    li t0, T7
+    li t1, ZERO
+    li t2, V0
+    jal emit_or
+    la t0, apu_read8
+    jal emit_jal
+    li t0, A0
+    li t1, A0
+    li t2, 1
+    jal emit_addi
+    li t0, T8
+    li t1, ZERO
+    li t2, V0
+    jal emit_or
 
-
-.macro MOVY // MOV Y,op
-    // Move a value to register Y and set flags
-    jal apu_read8
-    move a0, v0
-    sb a0, apu_reg_y
-    j apu_set_nz
-.endm
-
-apu_mvyimm: IMM; MOVY // MOV Y,#nn
-apu_mvydir: DIR; MOVY // MOV Y,aa
-apu_mvydrx: DRX; MOVY // MOV Y,aa+X
-apu_mvyabs: ABS; MOVY // MOV Y,aaaa
-
-
-apu_movwya: // MOVW YA,aa
-    // Move a 16-bit value to register YA
-    DIR
-    addi a0, a0, 1
-    jal apu_read8
-    sll s1, v0, 8
-    addi a0, a0, -1
-    jal apu_read8
-    or a0, v0, s1
-    sh a0, apu_reg_y
-
-    // Adjust the 16-bit value for 8-bit flag logic and set flags
-    sne t0, a0, zero
-    srl t1, a0, 8
-    or a0, t0, t1
-    j apu_set_nz
+    // Emit code to set flags for the 16-bit value
+    li t0, T0
+    li t1, ZERO
+    li t2, T8
+    jal emit_slt
+    li t0, T0
+    li t1, T0
+    li t2, T7
+    jal emit_or
+    li t1, T0
+    la ra, finish_opcode
+    j queue_nz
 
 
-.macro MOVM // MOV aa,op
-    // Move a value to another memory address
-    jal apu_write8
-    j cpu_execute
-.endm
-
-apu_movdri: DRI; MOVM // MOV aa,#nn
-apu_movdr2: DR2; MOVM // MOV aa,bb
-
-
-.macro AMOV // MOV op,A
-    // Move a value to memory from the accumulator
-    lbu a1, apu_accum
-    jal apu_write8
-    j cpu_execute
-.endm
-
-apu_amvdir: DIR; AMOV // MOV aa,A
-apu_amvdrx: DRX; AMOV // MOV aa+X,A
-apu_amvbrx: BRX; AMOV // MOV (X),A
-apu_amvbxp: BXP; AMOV // MOV (X)+,A
-apu_amvabs: ABS; AMOV // MOV aaaa,A
-apu_amvabx: ABX; AMOV // MOV aaaa+X,A
-apu_amvaby: ABY; AMOV // MOV aaaa+Y,A
-apu_amvidx: IDX; AMOV // MOV [aa+X],A
-apu_amvidy: IDY; AMOV // MOV [aa]+Y,A
+apu_movm: // MOV op
+    // Emit code to move a value to a memory address
+    la t0, apu_write8
+    jal emit_jal
+    li t0, A1
+    li t1, ZERO
+    li t2, V0
+    la ra, finish_opcode
+    j emit_or
 
 
-.macro XMOV // MOV op,X
-    // Move a value to memory from register X
-    lbu a1, apu_reg_x
-    jal apu_write8
-    j cpu_execute
-.endm
-
-apu_xmvdir: DIR; XMOV // MOV aa,X
-apu_xmvdry: DRY; XMOV // MOV aa+Y,X
-apu_xmvabs: ABS; XMOV // MOV aaaa,X
-
-
-.macro YMOV // MOV op,Y
-    // Move a value to memory from register Y
-    lbu a1, apu_reg_y
-    jal apu_write8
-    j cpu_execute
-.endm
-
-apu_ymvdir: DIR; YMOV // MOV aa,Y
-apu_ymvdrx: DRX; YMOV // MOV aa+X,Y
-apu_ymvabs: ABS; YMOV // MOV aaaa,Y
+apu_amov: // MOV op,A
+    // Emit code to move a value to memory from the accumulator
+    jal load_accum
+    la t0, apu_write8
+    jal emit_jal
+    li t0, A1
+    li t1, ZERO
+    li t2, T7
+    la ra, finish_opcode
+    j emit_or
 
 
-apu_movway: // MOVW aa,YA
-    // Move a 16-bit value to memory from register YA
-    DIR
-    lhu s1, apu_reg_y
-    move s2, a0
-    andi a1, s1, 0xFF
-    jal apu_write8
-    addi a0, s2, 1
-    srl a1, s1, 8
-    jal apu_write8
-    j cpu_execute
+apu_xmov: // MOV op,X
+    // Emit code to move a value to memory from register X
+    jal load_reg_x
+    la t0, apu_write8
+    jal emit_jal
+    li t0, A1
+    li t1, ZERO
+    li t2, T9
+    la ra, finish_opcode
+    j emit_or
+
+
+apu_ymov: // MOV op,Y
+    // Emit code to move a value to memory from register Y
+    jal load_reg_y
+    la t0, apu_write8
+    jal emit_jal
+    li t0, A1
+    li t1, ZERO
+    li t2, T8
+    la ra, finish_opcode
+    j emit_or
+
+
+apu_movway: // MOVW op,YA
+    // Emit code to move a 16-bit value to memory from register YA
+    jal load_reg_y
+    jal load_accum
+    la t0, apu_write8
+    jal emit_jal
+    li t0, A1
+    li t1, ZERO
+    li t2, T7
+    jal emit_or
+    li t0, A0
+    li t1, A0
+    li t2, 1
+    jal emit_addi
+    la t0, apu_write8
+    jal emit_jal
+    li t0, A1
+    li t1, ZERO
+    li t2, T8
+    la ra, finish_opcode
+    j emit_or
 
 
 apu_pha: // PUSH A
-    // Push the accumulator to the stack
-    NONE
-    lhu a0, apu_stack
-    lbu a1, apu_accum
-    addi t0, a0, -1
-    sb t0, apu_stack + 1
-    jal apu_write8
-    j cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_SS
+
+    // Emit code to push the accumulator to the stack
+    jal load_stack
+    jal load_accum
+    li t0, A0
+    li t1, S2
+    li t2, 0xFF
+    jal emit_andi
+    li t0, A0
+    li t1, A0
+    li t2, 0x100
+    jal emit_ori
+    li t0, A1
+    li t1, ZERO
+    li t2, T7
+    jal emit_or
+    la t0, apu_write8
+    jal emit_jal
+    li t0, S2
+    li t1, S2
+    li t2, -1
+    la ra, finish_opcode
+    j emit_addi
 
 
 apu_phx: // PUSH X
-    // Push register X to the stack
-    NONE
-    lhu a0, apu_stack
-    lbu a1, apu_reg_x
-    addi t0, a0, -1
-    sb t0, apu_stack + 1
-    jal apu_write8
-    j cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_SS
+
+    // Emit code to push register X to the stack
+    jal load_stack
+    jal load_reg_x
+    li t0, A0
+    li t1, S2
+    li t2, 0xFF
+    jal emit_andi
+    li t0, A0
+    li t1, A0
+    li t2, 0x100
+    jal emit_ori
+    li t0, A1
+    li t1, ZERO
+    li t2, T9
+    jal emit_or
+    la t0, apu_write8
+    jal emit_jal
+    li t0, S2
+    li t1, S2
+    li t2, -1
+    la ra, finish_opcode
+    j emit_addi
 
 
 apu_phy: // PUSH Y
-    // Push register Y to the stack
-    NONE
-    lhu a0, apu_stack
-    lbu a1, apu_reg_y
-    addi t0, a0, -1
-    sb t0, apu_stack + 1
-    jal apu_write8
-    j cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_SS
+
+    // Emit code to push register Y to the stack
+    jal load_stack
+    jal load_reg_y
+    li t0, A0
+    li t1, S2
+    li t2, 0xFF
+    jal emit_andi
+    li t0, A0
+    li t1, A0
+    li t2, 0x100
+    jal emit_ori
+    li t0, A1
+    li t1, ZERO
+    li t2, T8
+    jal emit_or
+    la t0, apu_write8
+    jal emit_jal
+    li t0, S2
+    li t1, S2
+    li t2, -1
+    la ra, finish_opcode
+    j emit_addi
 
 
 apu_php: // PUSH PSW
-    // Push the flags to the stack
-    NONE
-    lhu a0, apu_stack
-    lbu a1, apu_flags
-    addi t0, a0, -1
-    sb t0, apu_stack + 1
-    jal apu_write8
-    j cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_SS
+
+    // Emit code to push the flags to the stack
+    jal load_stack
+    jal load_flags
+    jal update_nz
+    li t0, A0
+    li t1, S2
+    li t2, 0xFF
+    jal emit_andi
+    li t0, A0
+    li t1, A0
+    li t2, 0x100
+    jal emit_ori
+    li t0, A1
+    li t1, ZERO
+    li t2, S1
+    jal emit_or
+    la t0, apu_write8
+    jal emit_jal
+    li t0, S2
+    li t1, S2
+    li t2, -1
+    la ra, finish_opcode
+    j emit_addi
 
 
 apu_ppa: // POP A
-    // Pop the accumulator from the stack
-    NONE
-    lhu a0, apu_stack
-    addi a0, a0, 1
-    sb a0, apu_stack + 1
-    jal apu_read8
-    sb v0, apu_accum
-    j cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_SS | FLAG_SA | FLAG_LA
+
+    // Emit code to pop the accumulator from the stack
+    jal load_stack
+    li t0, S2
+    li t1, S2
+    li t2, 1
+    jal emit_addi
+    li t0, A0
+    li t1, S2
+    li t2, 0xFF
+    jal emit_andi
+    la t0, apu_read8
+    jal emit_jal
+    li t0, A0
+    li t1, A0
+    li t2, 0x100
+    jal emit_ori
+    li t0, T7
+    li t1, ZERO
+    li t2, V0
+    la ra, finish_opcode
+    j emit_or
 
 
 apu_ppx: // POP X
-    // Pop register X from the stack
-    NONE
-    lhu a0, apu_stack
-    addi a0, a0, 1
-    sb a0, apu_stack + 1
-    jal apu_read8
-    sb v0, apu_reg_x
-    j cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_SS | FLAG_SX | FLAG_LX
+
+    // Emit code to pop register X from the stack
+    jal load_stack
+    li t0, S2
+    li t1, S2
+    li t2, 1
+    jal emit_addi
+    li t0, A0
+    li t1, S2
+    li t2, 0xFF
+    jal emit_andi
+    la t0, apu_read8
+    jal emit_jal
+    li t0, A0
+    li t1, A0
+    li t2, 0x100
+    jal emit_ori
+    li t0, T9
+    li t1, ZERO
+    li t2, V0
+    la ra, finish_opcode
+    j emit_or
 
 
 apu_ppy: // POP Y
-    // Pop register Y from the stack
-    NONE
-    lhu a0, apu_stack
-    addi a0, a0, 1
-    sb a0, apu_stack + 1
-    jal apu_read8
-    sb v0, apu_reg_y
-    j cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_SS | FLAG_SY | FLAG_LY
+
+    // Emit code to pop the accumulator from the stack
+    jal load_stack
+    li t0, S2
+    li t1, S2
+    li t2, 1
+    jal emit_addi
+    li t0, A0
+    li t1, S2
+    li t2, 0xFF
+    jal emit_andi
+    la t0, apu_read8
+    jal emit_jal
+    li t0, A0
+    li t1, A0
+    li t2, 0x100
+    jal emit_ori
+    li t0, T8
+    li t1, ZERO
+    li t2, V0
+    la ra, finish_opcode
+    j emit_or
 
 
 apu_ppp: // POP PSW
-    // Pop the flags from the stack
-    NONE
-    lhu a0, apu_stack
-    addi a0, a0, 1
-    sb a0, apu_stack + 1
-    jal apu_read8
-    sb v0, apu_flags
-    j cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_SS | FLAG_SF | FLAG_LF
+    li t0, ~FLAG_NZ
+    and s1, s1, t0
+
+    // Emit code to pop the flags from the stack
+    jal load_stack
+    li t0, S2
+    li t1, S2
+    li t2, 1
+    jal emit_addi
+    li t0, A0
+    li t1, S2
+    li t2, 0xFF
+    jal emit_andi
+    la t0, apu_read8
+    jal emit_jal
+    li t0, A0
+    li t1, A0
+    li t2, 0x100
+    jal emit_ori
+    li t0, S1
+    li t1, ZERO
+    li t2, V0
+    la ra, finish_opcode
+    j emit_or
