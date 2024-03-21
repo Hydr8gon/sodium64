@@ -40,8 +40,10 @@
 .globl apu_idxr
 .globl apu_idya
 .globl apu_idyr
+.globl apu_drb
 .globl apu_dri
 .globl apu_dr2
+.globl apu_bxy
 
 .text
 
@@ -199,7 +201,7 @@ apu_brx:
     jal emit_jal
 brx_skip:
     li t0, A0
-    li t1, ZERO
+    li t1, A0
     li t2, T9
     move ra, gp
     j emit_or
@@ -232,7 +234,7 @@ apu_bxp:
     li t2, 0xFF
     jal emit_andi
     li t0, A0
-    li t1, ZERO
+    li t1, A0
     li t2, T9
     jal emit_or
     beqz t8, bxp_skip
@@ -477,6 +479,33 @@ idy_skip:
     j emit_andi
 
 
+apu_drb: // aaa.b
+    // Get the 16-bit immediate value
+    jal jit_read8
+    move t7, v0
+    jal jit_read8
+    sll t0, v0, 8
+    or t7, t7, t0
+
+    // Get aaa as an address and b as a bitmask
+    andi t2, t7, 0x1FFF
+    li t0, 1
+    srl t7, t7, 13
+    sll t7, t0, t7
+
+    // Emit code to load a bitmask and a value from an address
+    la t0, apu_read8
+    jal emit_jal
+    li t0, A0
+    li t1, ZERO
+    jal emit_ori
+    li t0, A1
+    li t1, ZERO
+    move t2, t7
+    move ra, gp
+    j emit_ori
+
+
 apu_dri: // aa,#nn
     // Get the 8-bit immediate value and address
     jal jit_read8
@@ -535,3 +564,35 @@ apu_dr2: // aa,bb
     move t2, v0
     move ra, gp
     j emit_ori
+
+
+apu_bxy: // (X),(Y)
+    // Emit code to load a value from register Y as a zero page address
+    jal load_reg_y
+    jal load_flags
+    li t0, S0
+    li t1, S1
+    li t2, 3
+    jal emit_sll
+    li t0, S0
+    li t1, S0
+    li t2, 0x100
+    jal emit_andi
+    li t0, T8
+    li t1, T8
+    li t2, 0xFF
+    jal emit_andi
+    la t0, apu_read8
+    jal emit_jal
+    li t0, A0
+    li t1, S0
+    li t2, T8
+    jal emit_or
+
+    // Emit code to form a zero page address with register X
+    jal load_reg_x
+    li t0, A0
+    li t1, S0
+    li t2, T9
+    move ra, gp
+    j emit_or

@@ -78,38 +78,38 @@ apu_flags: .byte 0
 apu_count: .hword 0xFFC0
 
 apu_opcodes:
-    .word apu_nop, apu_tcall0, apu_set0, apu_bbs0, apu_ordir, apu_orabs, apu_orbrx, apu_oridx // 0x00-0x07
-    .word apu_orimm, apu_ordr2, apu_or1a, apu_asldir, apu_aslabs, 0, apu_tset1, apu_brk // 0x08-0x0F
-    .word apu_bpl, apu_tcall1, apu_clr0, apu_bbc0, apu_ordrx, apu_orabx, apu_oraby, apu_oridy // 0x10-0x17
-    .word apu_ordri, apu_orbxy, apu_decw, apu_asldrx, apu_asla, apu_decx, apu_cpxabs, apu_jmpabx // 0x18-0x1F
-    .word apu_clrp, apu_tcall2, apu_set1, apu_bbs1, apu_anddir, apu_andabs, apu_andbrx, apu_andidx // 0x20-0x27
-    .word apu_andimm, apu_anddr2, apu_or1b, apu_roldir, apu_rolabs, 0, apu_cbnea, apu_bra // 0x28-0x2F
-    .word apu_bmi, apu_tcall3, apu_clr1, apu_bbc1, apu_anddrx, apu_andabx, apu_andaby, apu_andidy // 0x30-0x37
-    .word apu_anddri, apu_andbxy, apu_incw, apu_roldrx, apu_rola, apu_incx, apu_cpxdir, apu_call // 0x38-0x3F
-    .word apu_setp, apu_tcall4, apu_set2, apu_bbs2, apu_eordir, apu_eorabs, apu_eorbrx, apu_eoridx // 0x40-0x47
-    .word apu_eorimm, apu_eordr2, apu_and1a, apu_lsrdir, apu_lsrabs, 0, apu_tclr1, apu_pcall // 0x48-0x4F
-    .word apu_bvc, apu_tcall5, apu_clr2, apu_bbc2, apu_eordrx, apu_eorabx, apu_eoraby, apu_eoridy // 0x50-0x57
-    .word apu_eordri, apu_eorbxy, apu_cmpw, apu_lsrdrx, apu_lsra, 0, apu_cpyabs, apu_jmpabs // 0x58-0x5F
-    .word apu_clrc, apu_tcall6, apu_set3, apu_bbs3, apu_cmpdir, apu_cmpabs, apu_cmpbrx, apu_cmpidx // 0x60-0x67
-    .word apu_cmpimm, apu_cmpdr2, apu_and1b, apu_rordir, apu_rorabs, 0, apu_dbnza, apu_ret // 0x68-0x6F
-    .word apu_bvs, apu_tcall7, apu_clr3, apu_bbc3, apu_cmpdrx, apu_cmpabx, apu_cmpaby, apu_cmpidy // 0x70-0x77
-    .word apu_cmpdri, apu_cmpbxy, apu_addw, apu_rordrx, apu_rora, 0, apu_cpydir, apu_ret1 // 0x78-0x7F
-    .word apu_setc, apu_tcall8, apu_set4, apu_bbs4, apu_adcdir, apu_adcabs, apu_adcbrx, apu_adcidx // 0x80-0x87
-    .word apu_adcimm, apu_adcdr2, apu_eor1, apu_decdir, apu_decabs, 0, 0, 0 // 0x88-0x8F
-    .word apu_bcc, apu_tcall9, apu_clr4, apu_bbc4, apu_adcdrx, apu_adcabx, apu_adcaby, apu_adcidy // 0x90-0x97
-    .word apu_adcdri, apu_adcbxy, apu_subw, apu_decdrx, apu_deca, 0, apu_div, apu_xcn // 0x98-0x9F
-    .word apu_ei, apu_tcallA, apu_set5, apu_bbs5, apu_sbcdir, apu_sbcabs, apu_sbcbrx, apu_sbcidx // 0xA0-0xA7
-    .word apu_sbcimm, apu_sbcdr2, apu_mov1b, apu_incdir, apu_incabs, apu_cpyimm, 0, 0 // 0xA8-0xAF
-    .word apu_bcs, apu_tcallB, apu_clr5, apu_bbc5, apu_sbcdrx, apu_sbcabx, apu_sbcaby, apu_sbcidy // 0xB0-0xB7
-    .word apu_sbcdri, apu_sbcbxy, apu_movwya, apu_incdrx, apu_inca, 0, apu_unk, 0 // 0xB8-0xBF
-    .word apu_di, apu_tcallC, apu_set6, apu_bbs6, 0, 0, 0, 0 // 0xC0-0xC7
-    .word apu_cpximm, 0, apu_mov1a, 0, 0, 0, 0, apu_mul // 0xC8-0xCF
-    .word apu_bne, apu_tcallD, apu_clr6, apu_bbc6, 0, 0, 0, 0 // 0xD0-0xD7
-    .word 0, 0, 0, 0, apu_decy, 0, apu_cbnex, apu_unk // 0xD8-0xDF
-    .word apu_clrv, apu_tcallE, apu_set7, apu_bbs7, 0, 0, 0, 0 // 0xE0-0xE7
-    .word 0, 0, apu_not1, 0, 0, apu_notc, 0, apu_unk // 0xE8-0xEF
-    .word apu_beq, apu_tcallF, apu_clr7, apu_bbc7, 0, 0, 0, 0 // 0xF0-0xF7
-    .word 0, 0, 0, 0, apu_incy, 0, apu_dbnzy, apu_unk // 0xF8-0xFF
+    .word apu_nop, apu_tcall0, 0, apu_bbs0, 0, 0, 0, 0 // 0x00-0x07
+    .word 0, 0, 0, 0, 0, 0, 0, apu_brk // 0x08-0x0F
+    .word apu_bpl, apu_tcall1, 0, apu_bbc0, 0, 0, 0, 0 // 0x10-0x17
+    .word 0, 0, 0, 0, 0, 0, 0, apu_jmpabx // 0x18-0x1F
+    .word apu_clrp, apu_tcall2, 0, apu_bbs1, 0, 0, 0, 0 // 0x20-0x27
+    .word 0, 0, 0, 0, 0, 0, apu_cbnea, apu_bra // 0x28-0x2F
+    .word apu_bmi, apu_tcall3, 0, apu_bbc1, 0, 0, 0, 0 // 0x30-0x37
+    .word 0, 0, 0, 0, 0, 0, 0, apu_call // 0x38-0x3F
+    .word apu_setp, apu_tcall4, 0, apu_bbs2, 0, 0, 0, 0 // 0x40-0x47
+    .word 0, 0, 0, 0, 0, 0, 0, apu_pcall // 0x48-0x4F
+    .word apu_bvc, apu_tcall5, 0, apu_bbc2, 0, 0, 0, 0 // 0x50-0x57
+    .word 0, 0, 0, 0, 0, 0, 0, apu_jmpabs // 0x58-0x5F
+    .word 0, apu_tcall6, 0, apu_bbs3, 0, 0, 0, 0 // 0x60-0x67
+    .word 0, 0, 0, 0, 0, 0, apu_dbnza, apu_ret // 0x68-0x6F
+    .word apu_bvs, apu_tcall7, 0, apu_bbc3, 0, 0, 0, 0 // 0x70-0x77
+    .word 0, 0, 0, 0, 0, 0, 0, apu_ret1 // 0x78-0x7F
+    .word 0, apu_tcall8, 0, apu_bbs4, 0, 0, 0, 0 // 0x80-0x87
+    .word 0, 0, 0, 0, 0, 0, 0, 0 // 0x88-0x8F
+    .word apu_bcc, apu_tcall9, 0, apu_bbc4, 0, 0, 0, 0 // 0x90-0x97
+    .word 0, 0, 0, 0, 0, 0, 0, 0 // 0x98-0x9F
+    .word apu_ei, apu_tcallA, 0, apu_bbs5, 0, 0, 0, 0 // 0xA0-0xA7
+    .word 0, 0, 0, 0, 0, 0, 0, 0 // 0xA8-0xAF
+    .word apu_bcs, apu_tcallB, 0, apu_bbc5, 0, 0, 0, 0 // 0xB0-0xB7
+    .word 0, 0, 0, 0, 0, 0, apu_unk, 0 // 0xB8-0xBF
+    .word apu_di, apu_tcallC, 0, apu_bbs6, 0, 0, 0, 0 // 0xC0-0xC7
+    .word 0, 0, 0, 0, 0, 0, 0, 0 // 0xC8-0xCF
+    .word apu_bne, apu_tcallD, 0, apu_bbc6, 0, 0, 0, 0 // 0xD0-0xD7
+    .word 0, 0, 0, 0, 0, 0, apu_cbnex, apu_unk // 0xD8-0xDF
+    .word 0, apu_tcallE, 0, apu_bbs7, 0, 0, 0, 0 // 0xE0-0xE7
+    .word 0, 0, 0, 0, 0, 0, 0, apu_unk // 0xE8-0xEF
+    .word apu_beq, apu_tcallF, 0, apu_bbc7, 0, 0, 0, 0 // 0xF0-0xF7
+    .word 0, 0, 0, 0, 0, 0, apu_dbnzy, apu_unk // 0xF8-0xFF
 
 read_iomap:
     .word read_unk, read_unk, read_dspaddr, read_dspdata // 0xF0-0xF3
