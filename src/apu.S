@@ -28,10 +28,8 @@
 .globl apu_stack
 .globl apu_flags
 .globl apu_count
-.globl apu_opcodes
 
 .globl apu_execute
-.globl apu_set_nz
 .globl apu_read8
 .globl apu_write8
 .globl offset_timers
@@ -77,40 +75,6 @@ apu_stack: .hword 0x1FF
 apu_flags: .byte 0
 apu_count: .hword 0xFFC0
 
-apu_opcodes:
-    .word apu_nop, apu_tcall0, 0, apu_bbs0, 0, 0, 0, 0 // 0x00-0x07
-    .word 0, 0, 0, 0, 0, 0, 0, apu_brk // 0x08-0x0F
-    .word apu_bpl, apu_tcall1, 0, apu_bbc0, 0, 0, 0, 0 // 0x10-0x17
-    .word 0, 0, 0, 0, 0, 0, 0, apu_jmpabx // 0x18-0x1F
-    .word apu_clrp, apu_tcall2, 0, apu_bbs1, 0, 0, 0, 0 // 0x20-0x27
-    .word 0, 0, 0, 0, 0, 0, apu_cbnea, apu_bra // 0x28-0x2F
-    .word apu_bmi, apu_tcall3, 0, apu_bbc1, 0, 0, 0, 0 // 0x30-0x37
-    .word 0, 0, 0, 0, 0, 0, 0, apu_call // 0x38-0x3F
-    .word apu_setp, apu_tcall4, 0, apu_bbs2, 0, 0, 0, 0 // 0x40-0x47
-    .word 0, 0, 0, 0, 0, 0, 0, apu_pcall // 0x48-0x4F
-    .word apu_bvc, apu_tcall5, 0, apu_bbc2, 0, 0, 0, 0 // 0x50-0x57
-    .word 0, 0, 0, 0, 0, 0, 0, apu_jmpabs // 0x58-0x5F
-    .word 0, apu_tcall6, 0, apu_bbs3, 0, 0, 0, 0 // 0x60-0x67
-    .word 0, 0, 0, 0, 0, 0, apu_dbnza, apu_ret // 0x68-0x6F
-    .word apu_bvs, apu_tcall7, 0, apu_bbc3, 0, 0, 0, 0 // 0x70-0x77
-    .word 0, 0, 0, 0, 0, 0, 0, apu_ret1 // 0x78-0x7F
-    .word 0, apu_tcall8, 0, apu_bbs4, 0, 0, 0, 0 // 0x80-0x87
-    .word 0, 0, 0, 0, 0, 0, 0, 0 // 0x88-0x8F
-    .word apu_bcc, apu_tcall9, 0, apu_bbc4, 0, 0, 0, 0 // 0x90-0x97
-    .word 0, 0, 0, 0, 0, 0, 0, 0 // 0x98-0x9F
-    .word apu_ei, apu_tcallA, 0, apu_bbs5, 0, 0, 0, 0 // 0xA0-0xA7
-    .word 0, 0, 0, 0, 0, 0, 0, 0 // 0xA8-0xAF
-    .word apu_bcs, apu_tcallB, 0, apu_bbc5, 0, 0, 0, 0 // 0xB0-0xB7
-    .word 0, 0, 0, 0, 0, 0, apu_unk, 0 // 0xB8-0xBF
-    .word apu_di, apu_tcallC, 0, apu_bbs6, 0, 0, 0, 0 // 0xC0-0xC7
-    .word 0, 0, 0, 0, 0, 0, 0, 0 // 0xC8-0xCF
-    .word apu_bne, apu_tcallD, 0, apu_bbc6, 0, 0, 0, 0 // 0xD0-0xD7
-    .word 0, 0, 0, 0, 0, 0, apu_cbnex, apu_unk // 0xD8-0xDF
-    .word 0, apu_tcallE, 0, apu_bbs7, 0, 0, 0, 0 // 0xE0-0xE7
-    .word 0, 0, 0, 0, 0, 0, 0, apu_unk // 0xE8-0xEF
-    .word apu_beq, apu_tcallF, 0, apu_bbc7, 0, 0, 0, 0 // 0xF0-0xF7
-    .word 0, 0, 0, 0, 0, 0, apu_dbnzy, apu_unk // 0xF8-0xFF
-
 read_iomap:
     .word read_unk, read_unk, read_dspaddr, read_dspdata // 0xF0-0xF3
     .word read_cpuio0, read_cpuio1, read_cpuio2, read_cpuio3 // 0xF4-0xF7
@@ -150,25 +114,6 @@ apu_execute:
     // Jump to a cached JIT block's code
     addi t0, t0, 12
     jr t0
-
-
-apu_set_nz: // a0: value
-    // Set the NZ flags and finish executing an APU opcode
-    lbu t0, apu_flags
-    andi a0, a0, 0xFF
-    andi t0, t0, 0x7D
-    seq t1, a0, zero
-    sll t1, t1, 1 // Z
-    or t0, t0, t1
-    andi t1, a0, 0x80 // N
-    or t0, t0, t1
-    sb t0, apu_flags
-    j cpu_execute
-
-
-apu_unk:
-    // Do nothing for unimplemented opcodes; this essentially hangs the APU
-    j cpu_execute
 
 
 apu_read8: // a0: address - v0: value

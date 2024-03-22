@@ -17,7 +17,7 @@
     along with sodium64. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "apu_address.h"
+#include "defines.h"
 
 .globl apu_movax
 .globl apu_movxa

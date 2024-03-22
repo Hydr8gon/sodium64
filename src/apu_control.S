@@ -17,7 +17,7 @@
     along with sodium64. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "apu_address.h"
+#include "defines.h"
 
 .globl apu_bpl
 .globl apu_bmi
@@ -27,51 +27,20 @@
 .globl apu_bcs
 .globl apu_bne
 .globl apu_beq
-.globl apu_bbc0
 .globl apu_bbc1
-.globl apu_bbc2
-.globl apu_bbc3
-.globl apu_bbc4
-.globl apu_bbc5
-.globl apu_bbc6
-.globl apu_bbc7
-.globl apu_bbs0
 .globl apu_bbs1
-.globl apu_bbs2
-.globl apu_bbs3
-.globl apu_bbs4
-.globl apu_bbs5
-.globl apu_bbs6
-.globl apu_bbs7
-.globl apu_cbnea
-.globl apu_cbnex
+.globl apu_cbne
 .globl apu_dbnzy
-.globl apu_dbnza
+.globl apu_dbnzm
 .globl apu_bra
-.globl apu_jmpabs
-.globl apu_jmpabx
+.globl apu_jmp
+.globl apu_jmpm
 .globl apu_call
-.globl apu_tcall0
 .globl apu_tcall1
-.globl apu_tcall2
-.globl apu_tcall3
-.globl apu_tcall4
-.globl apu_tcall5
-.globl apu_tcall6
-.globl apu_tcall7
-.globl apu_tcall8
-.globl apu_tcall9
-.globl apu_tcallA
-.globl apu_tcallB
-.globl apu_tcallC
-.globl apu_tcallD
-.globl apu_tcallE
-.globl apu_tcallF
 .globl apu_pcall
 .globl apu_ret
 .globl apu_ret1
 .globl apu_brk
-.globl apu_nop
 .globl apu_clrp
 .globl apu_setp
 .globl apu_ei
@@ -80,478 +49,872 @@
 .text
 
 apu_bpl: // BPL dest
-    // Check the condition (N clear)
-    NONE 2
-    lbu t0, apu_flags
-    andi t0, t0, 0x80 // N
-    bnez t0, cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_PC
 
     // Sign-extend the offset value and add it to the PC
-    addi a0, s0, 1
-    jal apu_read8
-    sll t0, v0, 24
-    sra t0, t0, 24
-    add t0, t0, s0
-    addi t0, t0, 2
-    sh t0, apu_count
-    j cpu_execute
+    jal jit_read8
+    sll v0, v0, 24
+    sra v0, v0, 24
+    add v0, v0, a0
+
+    // Emit code to branch if the N flag is clear
+    jal load_flags
+    jal update_nz
+    li t0, T0
+    li t1, S1
+    li t2, 0x80
+    jal emit_andi // N
+    li t0, T0
+    li t1, ZERO
+    li t2, 2
+    jal emit_beq
+    li t0, S0
+    li t1, ZERO
+    move t2, v0
+    jal emit_ori
+    li t0, S0
+    li t1, ZERO
+    move t2, a0
+    la ra, finish_block
+    j emit_ori
 
 
 apu_bmi: // BMI dest
-    // Check the condition (N set)
-    NONE 2
-    lbu t0, apu_flags
-    andi t0, t0, 0x80 // N
-    beqz t0, cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_PC
 
     // Sign-extend the offset value and add it to the PC
-    addi a0, s0, 1
-    jal apu_read8
-    sll t0, v0, 24
-    sra t0, t0, 24
-    add t0, t0, s0
-    addi t0, t0, 2
-    sh t0, apu_count
-    j cpu_execute
+    jal jit_read8
+    sll v0, v0, 24
+    sra v0, v0, 24
+    add v0, v0, a0
+
+    // Emit code to branch if the N flag is set
+    jal load_flags
+    jal update_nz
+    li t0, T0
+    li t1, S1
+    li t2, 0x80
+    jal emit_andi // N
+    li t0, T0
+    li t1, ZERO
+    li t2, 2
+    jal emit_beq
+    li t0, S0
+    li t1, ZERO
+    move t2, a0
+    jal emit_ori
+    li t0, S0
+    li t1, ZERO
+    move t2, v0
+    la ra, finish_block
+    j emit_ori
 
 
 apu_bvc: // BVC dest
-    // Check the condition (V clear)
-    NONE 2
-    lbu t0, apu_flags
-    andi t0, t0, 0x40 // V
-    bnez t0, cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_PC
 
     // Sign-extend the offset value and add it to the PC
-    addi a0, s0, 1
-    jal apu_read8
-    sll t0, v0, 24
-    sra t0, t0, 24
-    add t0, t0, s0
-    addi t0, t0, 2
-    sh t0, apu_count
-    j cpu_execute
+    jal jit_read8
+    sll v0, v0, 24
+    sra v0, v0, 24
+    add v0, v0, a0
+
+    // Emit code to branch if the V flag is clear
+    jal load_flags
+    li t0, T0
+    li t1, S1
+    li t2, 0x40
+    jal emit_andi // V
+    li t0, T0
+    li t1, ZERO
+    li t2, 2
+    jal emit_beq
+    li t0, S0
+    li t1, ZERO
+    move t2, v0
+    jal emit_ori
+    li t0, S0
+    li t1, ZERO
+    move t2, a0
+    la ra, finish_block
+    j emit_ori
 
 
 apu_bvs: // BVS dest
-    // Check the condition (V set)
-    NONE 2
-    lbu t0, apu_flags
-    andi t0, t0, 0x40 // V
-    beqz t0, cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_PC
 
     // Sign-extend the offset value and add it to the PC
-    addi a0, s0, 1
-    jal apu_read8
-    sll t0, v0, 24
-    sra t0, t0, 24
-    add t0, t0, s0
-    addi t0, t0, 2
-    sh t0, apu_count
-    j cpu_execute
+    jal jit_read8
+    sll v0, v0, 24
+    sra v0, v0, 24
+    add v0, v0, a0
+
+    // Emit code to branch if the V flag is set
+    jal load_flags
+    li t0, T0
+    li t1, S1
+    li t2, 0x40
+    jal emit_andi // V
+    li t0, T0
+    li t1, ZERO
+    li t2, 2
+    jal emit_beq
+    li t0, S0
+    li t1, ZERO
+    move t2, a0
+    jal emit_ori
+    li t0, S0
+    li t1, ZERO
+    move t2, v0
+    la ra, finish_block
+    j emit_ori
 
 
 apu_bcc: // BCC dest
-    // Check the condition (C clear)
-    NONE 2
-    lbu t0, apu_flags
-    andi t0, t0, 0x1 // C
-    bnez t0, cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_PC
 
     // Sign-extend the offset value and add it to the PC
-    addi a0, s0, 1
-    jal apu_read8
-    sll t0, v0, 24
-    sra t0, t0, 24
-    add t0, t0, s0
-    addi t0, t0, 2
-    sh t0, apu_count
-    j cpu_execute
+    jal jit_read8
+    sll v0, v0, 24
+    sra v0, v0, 24
+    add v0, v0, a0
+
+    // Emit code to branch if the C flag is clear
+    jal load_flags
+    li t0, T0
+    li t1, S1
+    li t2, 0x1
+    jal emit_andi // C
+    li t0, T0
+    li t1, ZERO
+    li t2, 2
+    jal emit_beq
+    li t0, S0
+    li t1, ZERO
+    move t2, v0
+    jal emit_ori
+    li t0, S0
+    li t1, ZERO
+    move t2, a0
+    la ra, finish_block
+    j emit_ori
 
 
 apu_bcs: // BCS dest
-    // Check the condition (C set)
-    NONE 2
-    lbu t0, apu_flags
-    andi t0, t0, 0x1 // C
-    beqz t0, cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_PC
 
     // Sign-extend the offset value and add it to the PC
-    addi a0, s0, 1
-    jal apu_read8
-    sll t0, v0, 24
-    sra t0, t0, 24
-    add t0, t0, s0
-    addi t0, t0, 2
-    sh t0, apu_count
-    j cpu_execute
+    jal jit_read8
+    sll v0, v0, 24
+    sra v0, v0, 24
+    add v0, v0, a0
+
+    // Emit code to branch if the C flag is set
+    jal load_flags
+    li t0, T0
+    li t1, S1
+    li t2, 0x1
+    jal emit_andi // C
+    li t0, T0
+    li t1, ZERO
+    li t2, 2
+    jal emit_beq
+    li t0, S0
+    li t1, ZERO
+    move t2, a0
+    jal emit_ori
+    li t0, S0
+    li t1, ZERO
+    move t2, v0
+    la ra, finish_block
+    j emit_ori
 
 
 apu_bne: // BNE dest
-    // Check the condition (Z clear)
-    NONE 2
-    lbu t0, apu_flags
-    andi t0, t0, 0x2 // Z
-    bnez t0, cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_PC
 
     // Sign-extend the offset value and add it to the PC
-    addi a0, s0, 1
-    jal apu_read8
-    sll t0, v0, 24
-    sra t0, t0, 24
-    add t0, t0, s0
-    addi t0, t0, 2
-    sh t0, apu_count
-    j cpu_execute
+    jal jit_read8
+    sll v0, v0, 24
+    sra v0, v0, 24
+    add v0, v0, a0
+
+    // Emit code to branch if the Z flag is clear
+    jal load_flags
+    jal update_nz
+    li t0, T0
+    li t1, S1
+    li t2, 0x2
+    jal emit_andi // Z
+    li t0, T0
+    li t1, ZERO
+    li t2, 2
+    jal emit_beq
+    li t0, S0
+    li t1, ZERO
+    move t2, v0
+    jal emit_ori
+    li t0, S0
+    li t1, ZERO
+    move t2, a0
+    la ra, finish_block
+    j emit_ori
 
 
 apu_beq: // BEQ dest
-    // Check the condition (Z set)
-    NONE 2
-    lbu t0, apu_flags
-    andi t0, t0, 0x2 // Z
-    beqz t0, cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_PC
 
     // Sign-extend the offset value and add it to the PC
-    addi a0, s0, 1
-    jal apu_read8
-    sll t0, v0, 24
-    sra t0, t0, 24
-    add t0, t0, s0
-    addi t0, t0, 2
-    sh t0, apu_count
-    j cpu_execute
+    jal jit_read8
+    sll v0, v0, 24
+    sra v0, v0, 24
+    add v0, v0, a0
+
+    // Emit code to branch if the Z flag is set
+    jal load_flags
+    jal update_nz
+    li t0, T0
+    li t1, S1
+    li t2, 0x2
+    jal emit_andi // Z
+    li t0, T0
+    li t1, ZERO
+    li t2, 2
+    jal emit_beq
+    li t0, S0
+    li t1, ZERO
+    move t2, a0
+    jal emit_ori
+    li t0, S0
+    li t1, ZERO
+    move t2, v0
+    la ra, finish_block
+    j emit_ori
 
 
-.macro BBC mask // BBC aa.b,dest
-    // Check the condition (bit b in [aa] clear)
-    DIR 3
-    jal apu_read8
-    andi t0, v0, \mask
-    bnez t0, cpu_execute
+apu_bbc1: // BBC op.b,dest
+    // Update the JIT register state
+    ori s1, s1, FLAG_PC
 
-    // Sign-extend the offset value and add it to the PC
-    addi a0, s0, 2
-    jal apu_read8
-    sll t0, v0, 24
-    sra t0, t0, 24
-    add t0, t0, s0
-    addi t0, t0, 3
-    sh t0, apu_count
-    j cpu_execute
-.endm
-
-apu_bbc0: BBC 0x01 // BBC aa.0,dest
-apu_bbc1: BBC 0x02 // BBC aa.1,dest
-apu_bbc2: BBC 0x04 // BBC aa.2,dest
-apu_bbc3: BBC 0x08 // BBC aa.3,dest
-apu_bbc4: BBC 0x10 // BBC aa.4,dest
-apu_bbc5: BBC 0x20 // BBC aa.5,dest
-apu_bbc6: BBC 0x40 // BBC aa.6,dest
-apu_bbc7: BBC 0x80 // BBC aa.7,dest
-
-
-.macro BBS mask // BBS aa.b,dest
-    // Check the condition (bit b in [aa] set)
-    DIR 3
-    jal apu_read8
-    andi t0, v0, \mask
-    beqz t0, cpu_execute
+    // Create a mask based on the opcode number
+    srl t0, v1, 8
+    li t1, 1
+    sll t2, t1, t0
 
     // Sign-extend the offset value and add it to the PC
-    addi a0, s0, 2
-    jal apu_read8
-    sll t0, v0, 24
-    sra t0, t0, 24
-    add t0, t0, s0
-    addi t0, t0, 3
-    sh t0, apu_count
-    j cpu_execute
-.endm
+    jal jit_read8
+    sll v0, v0, 24
+    sra v0, v0, 24
+    add v0, v0, a0
 
-apu_bbs0: BBS 0x01 // BBS aa.0,dest
-apu_bbs1: BBS 0x02 // BBS aa.1,dest
-apu_bbs2: BBS 0x04 // BBS aa.2,dest
-apu_bbs3: BBS 0x08 // BBS aa.3,dest
-apu_bbs4: BBS 0x10 // BBS aa.4,dest
-apu_bbs5: BBS 0x20 // BBS aa.5,dest
-apu_bbs6: BBS 0x40 // BBS aa.6,dest
-apu_bbs7: BBS 0x80 // BBS aa.7,dest
+    // Emit code to branch if a bit in a memory value is clear
+    li t0, T0
+    li t1, V0
+    jal emit_andi
+    li t0, T0
+    li t1, ZERO
+    li t2, 2
+    jal emit_beq
+    li t0, S0
+    li t1, ZERO
+    move t2, v0
+    jal emit_ori
+    li t0, S0
+    li t1, ZERO
+    move t2, a0
+    la ra, finish_block
+    j emit_ori
 
 
-.macro CBNE // CBNE op
-    // Check the condition (accumulator not equal [aa])
-    jal apu_read8
-    lbu t0, apu_accum
-    xor t0, t0, v0
-    beqz t0, cpu_execute
+apu_bbs1: // BBS op.b,dest
+    // Update the JIT register state
+    ori s1, s1, FLAG_PC
+
+    // Create a mask based on the opcode number
+    srl t0, v1, 8
+    li t1, 1
+    sll t2, t1, t0
 
     // Sign-extend the offset value and add it to the PC
-    addi a0, s0, 2
-    jal apu_read8
-    sll t0, v0, 24
-    sra t0, t0, 24
-    add t0, t0, s0
-    addi t0, t0, 3
-    sh t0, apu_count
-    j cpu_execute
-.endm
+    jal jit_read8
+    sll v0, v0, 24
+    sra v0, v0, 24
+    add v0, v0, a0
 
-apu_cbnea: DIR 3; CBNE // CBNE aa,dest
-apu_cbnex: DRX 3; CBNE // CBNE aa+X,dest
+    // Emit code to branch if a bit in a memory value is set
+    li t0, T0
+    li t1, V0
+    jal emit_andi
+    li t0, T0
+    li t1, ZERO
+    li t2, 2
+    jal emit_beq
+    li t0, S0
+    li t1, ZERO
+    move t2, a0
+    jal emit_ori
+    li t0, S0
+    li t1, ZERO
+    move t2, v0
+    la ra, finish_block
+    j emit_ori
+
+
+apu_cbne: // CBNE op,dest
+    // Update the JIT register state
+    ori s1, s1, FLAG_PC
+
+    // Sign-extend the offset value and add it to the PC
+    jal jit_read8
+    sll v0, v0, 24
+    sra v0, v0, 24
+    add v0, v0, a0
+
+    // Emit code to branch if the accumulator doesn't equal a memory value
+    jal load_accum
+    li t0, T7
+    li t1, T7
+    li t2, 0xFF
+    jal emit_andi
+    li t0, T7
+    li t1, V0
+    li t2, 2
+    jal emit_beq
+    li t0, S0
+    li t1, ZERO
+    move t2, a0
+    jal emit_ori
+    li t0, S0
+    li t1, ZERO
+    move t2, v0
+    la ra, finish_block
+    j emit_ori
 
 
 apu_dbnzy: // DBNZ Y,dest
-    // Decrement register Y and check the condition (Y not zero)
-    NONE 2
-    lbu t0, apu_reg_y
-    addi t0, t0, -1
-    sb t0, apu_reg_y
-    beqz t0, cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_SY | FLAG_PC
 
     // Sign-extend the offset value and add it to the PC
-    addi a0, s0, 1
-    jal apu_read8
-    sll t0, v0, 24
-    sra t0, t0, 24
-    add t0, t0, s0
-    addi t0, t0, 2
-    sh t0, apu_count
-    j cpu_execute
+    jal jit_read8
+    sll v0, v0, 24
+    sra v0, v0, 24
+    add v0, v0, a0
+
+    // Emit code to decrement register Y and branch if it's not zero
+    jal load_reg_y
+    li t0, T8
+    li t1, T8
+    li t2, 0xFF
+    jal emit_andi
+    li t0, T8
+    li t1, T8
+    li t2, -1
+    jal emit_addi
+    li t0, T8
+    li t1, ZERO
+    li t2, 2
+    jal emit_beq
+    li t0, S0
+    li t1, ZERO
+    move t2, a0
+    jal emit_ori
+    li t0, S0
+    li t1, ZERO
+    move t2, v0
+    la ra, finish_block
+    j emit_ori
 
 
-apu_dbnza: // DBNZ aa,dest
-    // Decrement the memory value and check the condition ([aa] not zero)
-    DIR 3
-    jal apu_read8
-    addi a1, v0, -1
-    jal apu_write8
-    beqz a1, cpu_execute
+apu_dbnzm: // DBNZ op,dest
+    // Update the JIT register state
+    ori s1, s1, FLAG_PC
 
     // Sign-extend the offset value and add it to the PC
-    addi a0, s0, 2
-    jal apu_read8
-    sll t0, v0, 24
-    sra t0, t0, 24
-    add t0, t0, s0
-    addi t0, t0, 3
-    sh t0, apu_count
-    j cpu_execute
+    jal jit_read8
+    sll v0, v0, 24
+    sra v0, v0, 24
+    add v0, v0, a0
+
+    // Emit code to decrement a memory value and branch if it's not zero
+    la t0, apu_write8
+    jal emit_jal
+    li t0, A1
+    li t1, V0
+    li t2, -1
+    jal emit_addi
+    li t0, A1
+    li t1, ZERO
+    li t2, 2
+    jal emit_beq
+    li t0, S0
+    li t1, ZERO
+    move t2, a0
+    jal emit_ori
+    li t0, S0
+    li t1, ZERO
+    move t2, v0
+    la ra, finish_block
+    j emit_ori
 
 
 apu_bra: // BRA dest
+    // Update the JIT register state
+    ori s1, s1, FLAG_PC
+
     // Sign-extend the offset value and add it to the PC
-    addi a0, s0, 1
-    jal apu_read8
-    sll t0, v0, 24
-    sra t0, t0, 24
-    add t0, t0, s0
-    addi t0, t0, 2
-    sh t0, apu_count
-    j cpu_execute
+    jal jit_read8
+    sll t2, v0, 24
+    sra t2, t2, 24
+    add t2, t2, a0
+
+    // Emit code to branch unconditionally
+    li t0, S0
+    li t1, ZERO
+    la ra, finish_block
+    j emit_ori
 
 
-apu_jmpabs: // JMP aaaa
-    // Jump to an absolute address
-    ABS
-    sh a0, apu_count
-    j cpu_execute
+apu_jmp: // JMP op
+    // Update the JIT register state
+    ori s1, s1, FLAG_PC
+
+    // Emit code to jump to an address
+    li t0, S0
+    li t1, ZERO
+    li t2, A0
+    la ra, finish_block
+    j emit_or
 
 
-apu_jmpabx: // JMP [aaaa+X]
-    // Jump to an absolute address from memory
-    ABX
-    addi s1, a0, 1
-    jal apu_read8
-    andi a0, s1, 0xFFFF
-    move s1, v0
-    jal apu_read8
-    sll t0, v0, 8
-    or t0, t0, s1
-    sh t0, apu_count
-    j cpu_execute
+apu_jmpm: // JMP [op]
+    // Update the JIT register state
+    ori s1, s1, FLAG_PC
+
+    // Emit code to jump to an address from memory
+    li t0, S0
+    li t1, ZERO
+    li t2, V0
+    jal emit_or
+    la t0, apu_read8
+    jal emit_jal
+    li t0, A0
+    li t1, A0
+    li t2, 1
+    jal emit_addi
+    li t0, T0
+    li t1, V0
+    li t2, 8
+    jal emit_sll
+    li t0, S0
+    li t1, S0
+    li t2, T0
+    la ra, finish_block
+    j emit_or
 
 
-apu_call: // CALL aaaa
-    // Jump to an absolute address
-    ABS
-    sh a0, apu_count
+apu_call: // CALL op
+    // Update the JIT register state
+    ori s1, s1, FLAG_SS | FLAG_PC
 
-    // Push the old program counter to the stack
-    lhu s1, apu_stack
-    addi a0, s1, -1
-    addi a1, s0, 3
-    jal apu_write8
-    move a0, s1
-    srl a1, a1, 8
-    jal apu_write8
-    addi t0, s1, -2
-    sb t0, apu_stack + 1
-    j cpu_execute
+    // Emit code to jump to an address
+    li t0, S0
+    li t1, ZERO
+    li t2, A0
+    jal emit_or
+
+    // Emit code to push the old program counter to the stack
+    jal load_stack
+    li t0, A0
+    li t1, S2
+    li t2, 0xFF
+    jal emit_andi
+    li t0, A0
+    li t1, A0
+    li t2, 0x100
+    jal emit_ori
+    la t0, apu_write8
+    jal emit_jal
+    li t0, A1
+    li t1, ZERO
+    srl t2, a0, 8
+    jal emit_ori
+    li t0, A0
+    li t1, A0
+    li t2, -1
+    jal emit_addi
+    la t0, apu_write8
+    jal emit_jal
+    li t0, A1
+    li t1, ZERO
+    andi t2, a0, 0xFF
+    jal emit_ori
+    li t0, S2
+    li t1, S2
+    li t2, -2
+    la ra, finish_block
+    j emit_addi
 
 
-.macro TCALL n // TCALL n
-    // Jump to a 16-bit value from an address based on n
-    li a0, 0xFFDE - (\n * 2) + 1
-    jal apu_read8
-    sll s1, v0, 8
-    addi a0, a0, -1
-    jal apu_read8
-    or a1, v0, s1
-    sh a1, apu_count
+apu_tcall1: // TCALL n
+    // Update the JIT register state
+    ori s1, s1, FLAG_SS | FLAG_PC
 
-    // Push the old program counter to the stack
-    lhu s1, apu_stack
-    addi a0, s1, -1
-    addi a1, s0, 1
-    jal apu_write8
-    move a0, s1
-    srl a1, a1, 8
-    jal apu_write8
-    addi t0, s1, -2
-    sb t0, apu_stack + 1
-    j cpu_execute
-.endm
+    // Create an address based on the opcode number
+    srl t0, v1, 7
+    sll t0, t0, 1
+    li t1, 0xFFDE
+    sub t7, t1, t0
 
-apu_tcall0: TCALL 0x0
-apu_tcall1: TCALL 0x1
-apu_tcall2: TCALL 0x2
-apu_tcall3: TCALL 0x3
-apu_tcall4: TCALL 0x4
-apu_tcall5: TCALL 0x5
-apu_tcall6: TCALL 0x6
-apu_tcall7: TCALL 0x7
-apu_tcall8: TCALL 0x8
-apu_tcall9: TCALL 0x9
-apu_tcallA: TCALL 0xA
-apu_tcallB: TCALL 0xB
-apu_tcallC: TCALL 0xC
-apu_tcallD: TCALL 0xD
-apu_tcallE: TCALL 0xE
-apu_tcallF: TCALL 0xF
+    // Emit code to jump to an address from memory
+    la t0, apu_read8
+    jal emit_jal
+    li t0, A0
+    li t1, ZERO
+    move t2, t7
+    jal emit_ori
+    li t0, S0
+    li t1, ZERO
+    li t2, V0
+    jal emit_or
+    la t0, apu_read8
+    jal emit_jal
+    li t0, A0
+    li t1, A0
+    li t2, 1
+    jal emit_addi
+    li t0, T0
+    li t1, V0
+    li t2, 8
+    jal emit_sll
+    li t0, S0
+    li t1, S0
+    li t2, T0
+    jal emit_or
+
+    // Emit code to push the old program counter to the stack
+    jal load_stack
+    li t0, A0
+    li t1, S2
+    li t2, 0xFF
+    jal emit_andi
+    li t0, A0
+    li t1, A0
+    li t2, 0x100
+    jal emit_ori
+    la t0, apu_write8
+    jal emit_jal
+    li t0, A1
+    li t1, ZERO
+    srl t2, a0, 8
+    jal emit_ori
+    li t0, A0
+    li t1, A0
+    li t2, -1
+    jal emit_addi
+    la t0, apu_write8
+    jal emit_jal
+    li t0, A1
+    li t1, ZERO
+    andi t2, a0, 0xFF
+    jal emit_ori
+    li t0, S2
+    li t1, S2
+    li t2, -2
+    la ra, finish_block
+    j emit_addi
 
 
 apu_pcall: // PCALL uu
-    // Jump to an address in the highest page of RAM
-    addi a0, s0, 1
-    jal apu_read8
-    ori t0, v0, 0xFF00
-    sh t0, apu_count
+    // Update the JIT register state
+    ori s1, s1, FLAG_SS | FLAG_PC
 
-    // Push the old program counter to the stack
-    lhu s1, apu_stack
-    addi a0, s1, -1
-    addi a1, s0, 2
-    jal apu_write8
-    move a0, s1
-    srl a1, a1, 8
-    jal apu_write8
-    addi t0, s1, -2
-    sb t0, apu_stack + 1
-    j cpu_execute
+    // Create an address based on the parameter
+    jal jit_read8
+    ori t2, v0, 0xFF00
+
+    // Emit code to jump to an address in the highest page of RAM
+    li t0, S0
+    li t1, ZERO
+    jal emit_ori
+
+    // Emit code to push the old program counter to the stack
+    jal load_stack
+    li t0, A0
+    li t1, S2
+    li t2, 0xFF
+    jal emit_andi
+    li t0, A0
+    li t1, A0
+    li t2, 0x100
+    jal emit_ori
+    la t0, apu_write8
+    jal emit_jal
+    li t0, A1
+    li t1, ZERO
+    srl t2, a0, 8
+    jal emit_ori
+    li t0, A0
+    li t1, A0
+    li t2, -1
+    jal emit_addi
+    la t0, apu_write8
+    jal emit_jal
+    li t0, A1
+    li t1, ZERO
+    andi t2, a0, 0xFF
+    jal emit_ori
+    li t0, S2
+    li t1, S2
+    li t2, -2
+    la ra, finish_block
+    j emit_addi
 
 
 apu_ret: // RET
-    // Pop the program counter from the stack
-    lhu s1, apu_stack
-    addi a0, s1, 2
-    sb a0, apu_stack + 1
-    jal apu_read8
-    addi a0, s1, 1
-    sll s1, v0, 8
-    jal apu_read8
-    or t0, v0, s1
-    sh t0, apu_count
-    j cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_SS | FLAG_PC
+
+    // Emit code to pop the program counter from the stack
+    jal load_stack
+    li t0, A0
+    li t1, S2
+    li t2, 1
+    jal emit_addi
+    li t0, A0
+    li t1, A0
+    li t2, 0xFF
+    jal emit_andi
+    li t0, apu_read8
+    jal emit_jal
+    li t0, A0
+    li t1, A0
+    li t2, 0x100
+    jal emit_ori
+    li t0, S0
+    li t1, ZERO
+    li t2, V0
+    jal emit_or
+    li t0, apu_read8
+    jal emit_jal
+    li t0, A0
+    li t1, A0
+    li t2, 1
+    jal emit_addi
+    li t0, T0
+    li t1, V0
+    li t2, 8
+    jal emit_sll
+    li t0, S0
+    li t1, S0
+    li t2, T0
+    jal emit_or
+    li t0, S2
+    li t1, S2
+    li t2, 2
+    la ra, finish_block
+    j emit_addi
 
 
 apu_ret1: // RET1
-    // Pop the flags from the stack
-    lhu s1, apu_stack
-    addi a0, s1, 1
-    jal apu_read8
-    sb v0, apu_flags
+    // Update the JIT register state
+    ori s1, s1, FLAG_SS | FLAG_SF | FLAG_LF | FLAG_PC
+    li t0, ~FLAG_NZ
+    and s1, s1, t0
 
-    // Pop the program counter from the stack
-    addi a0, s1, 3
-    sb a0, apu_stack + 1
-    jal apu_read8
-    addi a0, s1, 2
-    sll s1, v0, 8
-    jal apu_read8
-    or t0, v0, s1
-    sh t0, apu_count
-    j cpu_execute
+    // Emit code to pop the flags from the stack
+    jal load_stack
+    li t0, A0
+    li t1, S2
+    li t2, 1
+    jal emit_addi
+    li t0, A0
+    li t1, A0
+    li t2, 0xFF
+    jal emit_andi
+    la t0, apu_read8
+    jal emit_jal
+    li t0, A0
+    li t1, A0
+    li t2, 0x100
+    jal emit_ori
+    li t0, S1
+    li t1, ZERO
+    li t2, V0
+    jal emit_or
+
+    // Emit code to pop the program counter from the stack
+    li t0, apu_read8
+    jal emit_jal
+    li t0, A0
+    li t1, A0
+    li t2, 1
+    jal emit_addi
+    li t0, S0
+    li t1, ZERO
+    li t2, V0
+    jal emit_or
+    li t0, apu_read8
+    jal emit_jal
+    li t0, A0
+    li t1, A0
+    li t2, 1
+    jal emit_addi
+    li t0, T0
+    li t1, V0
+    li t2, 8
+    jal emit_sll
+    li t0, S0
+    li t1, S0
+    li t2, T0
+    jal emit_or
+    li t0, S2
+    li t1, S2
+    li t2, 3
+    la ra, finish_block
+    j emit_addi
 
 
 apu_brk: // BRK
-    // Jump to the address stored at 0xFFDE
-    li a0, 0xFFDF
-    jal apu_read8
-    sll s1, v0, 8
-    li a0, 0xFFDE
-    jal apu_read8
-    or t0, v0, s1
-    sh t0, apu_count
+    // Update the JIT register state
+    ori s1, s1, FLAG_SS | FLAG_SF | FLAG_PC
 
-    // Push the old program counter to the stack
-    lhu s1, apu_stack
-    addi a0, s1, -1
-    addi a1, s0, 1
-    jal apu_write8
-    move a0, s1
-    srl a1, a1, 8
-    jal apu_write8
+    // Emit code to jump to an address stored at 0xFFDE
+    la t0, apu_read8
+    jal emit_jal
+    li t0, A0
+    li t1, ZERO
+    li t2, 0xFFDE
+    jal emit_ori
+    li t0, S0
+    li t1, ZERO
+    li t2, V0
+    jal emit_or
+    la t0, apu_read8
+    jal emit_jal
+    li t0, A0
+    li t1, A0
+    li t2, 1
+    jal emit_addi
+    li t0, T0
+    li t1, V0
+    li t2, 8
+    jal emit_sll
+    li t0, S0
+    li t1, S0
+    li t2, T0
+    jal emit_or
 
-    // Push the flags to the stack and modify current ones
-    lbu a1, apu_flags
-    andi t0, a1, 0xFB // Clear I
-    ori t0, t0, 0x10 // Set B
-    sb t0, apu_flags
-    addi a0, s1, -2
-    jal apu_write8
-    addi t0, s1, -3
-    sb t0, apu_stack + 1
-    j cpu_execute
+    // Emit code to push the old program counter to the stack
+    jal load_stack
+    li t0, A0
+    li t1, S2
+    li t2, 0xFF
+    jal emit_andi
+    li t0, A0
+    li t1, A0
+    li t2, 0x100
+    jal emit_ori
+    la t0, apu_write8
+    jal emit_jal
+    li t0, A1
+    li t1, ZERO
+    srl t2, a0, 8
+    jal emit_ori
+    li t0, A0
+    li t1, A0
+    li t2, -1
+    jal emit_addi
+    la t0, apu_write8
+    jal emit_jal
+    li t0, A1
+    li t1, ZERO
+    andi t2, a0, 0xFF
+    jal emit_ori
 
-
-apu_nop: // NOP
-    // Do nothing except advance the program counter
-    NONE
-    j cpu_execute
+    // Emit code to push the flags to the stack and modify current ones
+    jal load_flags
+    jal update_nz
+    li t0, A0
+    li t1, A0
+    li t2, -1
+    jal emit_addi
+    la t0, apu_write8
+    jal emit_jal
+    li t0, A1
+    li t1, ZERO
+    li t2, S1
+    jal emit_or
+    li t0, S1
+    li t1, S1
+    li t2, 0xFB
+    jal emit_andi // Clear I
+    li t0, S1
+    li t1, S1
+    li t2, 0x10
+    jal emit_ori // Set B
+    li t0, S2
+    li t1, S2
+    li t2, -3
+    la ra, finish_block
+    j emit_addi
 
 
 apu_clrp: // CLRP
-    // Clear the P flag
-    NONE
-    lbu t0, apu_flags
-    andi t0, t0, 0xDF
-    sb t0, apu_flags
-    j cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_SF
+
+    // Emit code to clear the P flag
+    jal load_flags
+    li t0, S1
+    li t1, S1
+    li t2, 0xDF
+    la ra, finish_opcode
+    j emit_andi
 
 
 apu_setp: // SETP
-    // Set the P flag
-    NONE
-    lbu t0, apu_flags
-    ori t0, t0, 0x20
-    sb t0, apu_flags
-    j cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_SF
+
+    // Emit code to set the P flag
+    jal load_flags
+    li t0, S1
+    li t1, S1
+    li t2, 0x20
+    la ra, finish_opcode
+    j emit_ori
 
 
 apu_di: // DI
-    // Clear the I flag
-    NONE
-    lbu t0, apu_flags
-    andi t0, t0, 0xFB
-    sb t0, apu_flags
-    j cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_SF
+
+    // Emit code to clear the I flag
+    jal load_flags
+    li t0, S1
+    li t1, S1
+    li t2, 0xFB
+    la ra, finish_opcode
+    j emit_andi
 
 
 apu_ei: // EI
-    // Set the I flag
-    NONE
-    lbu t0, apu_flags
-    ori t0, t0, 0x4
-    sb t0, apu_flags
-    j cpu_execute
+    // Update the JIT register state
+    ori s1, s1, FLAG_SF
+
+    // Emit code to set the I flag
+    jal load_flags
+    li t0, S1
+    li t1, S1
+    li t2, 0x4
+    la ra, finish_opcode
+    j emit_ori
