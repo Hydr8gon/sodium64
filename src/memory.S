@@ -17,7 +17,7 @@
     along with sodium64. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "cpu_address.h"
+#include "defines.h"
 
 .globl sram
 .globl sram_dirty

@@ -17,61 +17,52 @@
     along with sodium64. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "defines.h"
+#include "memory.h"
 
-.macro MEM_READ8 addr=0(s0), lb=lbu // v0: value
-    // Read a byte from memory and decrease the cycle count
-    \lb v0, \addr
-    addi s5, s5, -RAM_CYCLE
-.endm
+.globl cpu_im8
+.globl cpu_i16
+.globl cpu_dir
+.globl cpu_drx
+.globl cpu_dry
+.globl cpu_drs
+.globl cpu_abs
+.globl cpu_abx
+.globl cpu_aby
+.globl cpu_lng
+.globl cpu_lnx
+.globl cpu_ind
+.globl cpu_idx
+.globl cpu_idy
+.globl cpu_isy
+.globl cpu_idl
+.globl cpu_ily
 
-.macro MEM_READ16 addr=0(s0) // v0: value
-    // Read 2 bytes from memory and form a 16-bit value
-    lbu v0, 0 + \addr
-    addi s5, s5, -RAM_CYCLE * 2
-    move a2, v0
-    lbu v0, 1 + \addr
-    sll v0, v0, 8
-    or v0, v0, a2
-.endm
+.text
 
-.macro MEM_WRITE8 addr=0(s0) // a1: value
-    // Write a byte to memory and decrease the cycle count
-    sb a1, \addr
-    addi s5, s5, -RAM_CYCLE
-.endm
-
-.macro MEM_WRITE16 addr=0(s0) // a1: value
-    // Write a 16-bit value to memory as 2 bytes
-    move a2, a1
-    sb a1, 0 + \addr
-    addi s5, s5, -RAM_CYCLE * 2
-    srl a1, a1, 8
-    sb a1, 1 + \addr
-    move a1, a2
-.endm
-
-.macro IM8 // #nn
+cpu_im8: // #nn
     // Get the address of the 8-bit immediate value
     addi s0, s7, 1
     addi s7, s7, 2
-.endm
+    jr gp
 
-.macro I16 // #nnnn
+
+cpu_i16: // #nnnn
     // Get the address of the 16-bit immediate value
     addi s0, s7, 1
     addi s7, s7, 3
-.endm
+    jr gp
 
-.macro DIR // nn
+
+cpu_dir: // nn
     // Get the 8-bit immediate value added to the direct offset as an address
     MEM_READ8 1(s7)
     add s0, s8, v0
     andi s0, s0, 0xFFFF
     addi s7, s7, 2
-.endm
+    jr gp
 
-.macro DRX // nn,X
+
+cpu_drx: // nn,X
     // Get the 8-bit immediate value plus register X added to the direct offset as an address
     MEM_READ8 1(s7)
     lhu t0, register_x
@@ -79,9 +70,10 @@
     add s0, s8, t0
     andi s0, s0, 0xFFFF
     addi s7, s7, 2
-.endm
+    jr gp
 
-.macro DRY // nn,Y
+
+cpu_dry: // nn,Y
     // Get the 8-bit immediate value plus register Y added to the direct offset as an address
     MEM_READ8 1(s7)
     lhu t0, register_y
@@ -89,25 +81,28 @@
     add s0, s8, t0
     andi s0, s0, 0xFFFF
     addi s7, s7, 2
-.endm
+    jr gp
 
-.macro DRS // nn,S
+
+cpu_drs: // nn,S
     // Get the 8-bit immediate value added to the stack pointer as an address
     MEM_READ8 1(s7)
     lhu s0, stack_ptr
     add s0, s0, v0
     addi s7, s7, 2
-.endm
+    jr gp
 
-.macro ABS // nnnn
+
+cpu_abs: // nnnn
     // Get the 16-bit immediate value added to the data bank as an address
     MEM_READ16 1(s7)
     lw s0, data_bank
     add s0, s0, v0
     addi s7, s7, 3
-.endm
+    jr gp
 
-.macro ABX // nnnn,X
+
+cpu_abx: // nnnn,X
     // Get the 16-bit immediate value plus register X added to the data bank as an address
     MEM_READ16 1(s7)
     lhu t0, register_x
@@ -115,9 +110,10 @@
     lw s0, data_bank
     add s0, s0, t0
     addi s7, s7, 3
-.endm
+    jr gp
 
-.macro ABY // nnnn,Y
+
+cpu_aby: // nnnn,Y
     // Get the 16-bit immediate value plus register Y added to the data bank as an address
     MEM_READ16 1(s7)
     lhu t0, register_y
@@ -125,18 +121,20 @@
     lw s0, data_bank
     add s0, s0, t0
     addi s7, s7, 3
-.endm
+    jr gp
 
-.macro LNG // nnnnnn
+
+cpu_lng: // nnnnnn
     // Get the 24-bit immediate value as an address
     MEM_READ8 3(s7)
     sll s0, v0, 16
     MEM_READ16 1(s7)
     or s0, s0, v0
     addi s7, s7, 4
-.endm
+    jr gp
 
-.macro LNX // nnnnnn,X
+
+cpu_lnx: // nnnnnn,X
     // Get the 24-bit immediate value plus register X as an address
     MEM_READ8 3(s7)
     sll s0, v0, 16
@@ -145,9 +143,10 @@
     add t0, t0, v0
     add s0, s0, t0
     addi s7, s7, 4
-.endm
+    jr gp
 
-.macro IND // (nn)
+
+cpu_ind: // (nn)
     // Get the 8-bit immediate value added to the direct offset as an address
     MEM_READ8 1(s7)
     add s0, s8, v0
@@ -158,9 +157,10 @@
     lw s0, data_bank
     add s0, s0, v0
     addi s7, s7, 2
-.endm
+    jr gp
 
-.macro IDX // (nn,X)
+
+cpu_idx: // (nn,X)
     // Get the 8-bit immediate value plus register X added to the direct offset as an address
     MEM_READ8 1(s7)
     lhu t0, register_x
@@ -173,9 +173,10 @@
     lw s0, data_bank
     add s0, s0, v0
     addi s7, s7, 2
-.endm
+    jr gp
 
-.macro IDY // (nn),Y
+
+cpu_idy: // (nn),Y
     // Get the 8-bit immediate value added to the direct offset as an address
     MEM_READ8 1(s7)
     add s0, s8, v0
@@ -188,9 +189,10 @@
     add s0, s0, v0
     add s0, s0, t0
     addi s7, s7, 2
-.endm
+    jr gp
 
-.macro ISY // (nn,S),Y
+
+cpu_isy: // (nn,S),Y
     // Get the 8-bit immediate value added to the stack pointer as an address
     MEM_READ8 1(s7)
     lhu s0, stack_ptr
@@ -203,9 +205,10 @@
     add s0, s0, v0
     add s0, s0, t0
     addi s7, s7, 2
-.endm
+    jr gp
 
-.macro IDL // [nn]
+
+cpu_idl: // [nn]
     // Get the 8-bit immediate value added to the direct offset as an address
     MEM_READ8 1(s7)
     add s0, s8, v0
@@ -217,9 +220,10 @@
     MEM_READ16
     or s0, s1, v0
     addi s7, s7, 2
-.endm
+    jr gp
 
-.macro ILY // [nn],Y
+
+cpu_ily: // [nn],Y
     // Get the 8-bit immediate value added to the direct offset as an address
     MEM_READ8 1(s7)
     add s0, s8, v0
@@ -233,4 +237,4 @@
     add t0, t0, v0
     add s0, s1, t0
     addi s7, s7, 2
-.endm
+    jr gp
