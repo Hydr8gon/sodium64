@@ -274,7 +274,7 @@ finish_fallback:
     sw t1, 8(t0)
 
     // Jump to the finished JIT block's code
-    addi t0, t0, 12
+    addi t0, t2, 12
     jr t0
 
 
