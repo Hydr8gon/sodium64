@@ -38,36 +38,37 @@ rdmpy: .hword 0
 
 .text
 
+.align 5
 read_rddivl: // v0: value
     // Read the low byte of the division quotient
     lbu v0, rddiv + 1
     jr ra
 
-
+.align 5
 read_rddivh: // v0: value
     // Read the high byte of the division quotient
     lbu v0, rddiv
     jr ra
 
-
+.align 5
 read_rdmpyl: // v0: value
     // Read the low byte of the multiply product/division remainder
     lbu v0, rdmpy + 1
     jr ra
 
-
+.align 5
 read_rdmpyh: // v0: value
     // Read the high byte of the multiply product/division remainder
     lbu v0, rdmpy
     jr ra
 
-
+.align 5
 write_wrmpya: // a1: value
     // Set the 8-bit multiplicand
     sb a1, wrmpya
     jr ra
 
-
+.align 5
 write_wrmpyb: // a1: value
     // Multiply the multiplicand by the value and set the product
     lbu t0, wrmpya
@@ -77,19 +78,19 @@ write_wrmpyb: // a1: value
     sh a1, rddiv
     jr ra
 
-
+.align 5
 write_wrdivl: // a1: value
     // Set the low byte of the 16-bit dividend
     sb a1, wrdiva + 1
     jr ra
 
-
+.align 5
 write_wrdivh: // a1: value
     // Set the high byte of the 16-bit dividend
     sb a1, wrdiva
     jr ra
 
-
+.align 5
 write_wrdivb: // a1: value
     // Divide the dividend by the value and set the quotient and remainder
     beqz a1, div_zero

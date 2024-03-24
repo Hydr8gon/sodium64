@@ -38,6 +38,7 @@ exception_vector:
 
 .text
 
+.align 5
 main:
     // Disable interrupts and do the magic hardware init
     mtc0 zero, $12 // Status
@@ -146,7 +147,7 @@ pi_wait1:
     // Start execution
     j cpu_execute
 
-
+.align 5
 rsp_upload: // a0: RSP address, a1: DRAM address
     // Transfer data to the RSP via DMA
     lui t0, 0xA404 // SP register upper address
@@ -161,7 +162,7 @@ dma_wait:
     bnez t1, dma_wait
     jr ra
 
-
+.align 5
 reset_tlb:
     // Map all TLB entries to inaccessible locations
     mtc0 zero, $5 // PageMask
@@ -176,7 +177,7 @@ next_tlb:
     bnez t0, next_tlb
     jr ra
 
-
+.align 5
 exception_handler:
     // Jump to the appropriate handler for supported exceptions
     mfc0 k0, $13 // Cause
@@ -196,7 +197,7 @@ exception_handler:
     bnez k1, vi_interrupt
     eret
 
-
+.align 5
 vi_interrupt:
     // Acknowledge the VI interrupt
     lui k0, 0xA440
@@ -269,7 +270,7 @@ set_buffer:
     sw k0, (k1)
     j input_update
 
-
+.align 5
 reset_interrupt:
     // Stop the RSP and prepare the RDP for reset
     li t0, 0x00000002 // Set halt

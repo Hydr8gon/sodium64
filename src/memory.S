@@ -44,6 +44,7 @@ sram_dirty: .byte 0
 
 wmadd: .word 0
 
+.align 5
 read_iomap:
     .word read_unk:(0x2133 - 0x20FF) // 0x2100-0x2133
     .word read_mpyl, read_mpym, read_mpyh, read_slhv // 0x2134-0x2137
@@ -179,6 +180,7 @@ write_iomap:
 
 .text
 
+.align 5
 memory_init:
     // Detect HiROM headers with a rudimentary checksum check
     // TODO: improve this?
@@ -190,7 +192,7 @@ memory_init:
     beqz t0, map_hirom
     b map_lorom
 
-
+.align 5
 map_lorom:
     // Set initial values for building the memory map
     li t0, 0x000000 // Current address
@@ -295,7 +297,7 @@ map_lonone:
     ble t0, t1, build_lomap
     jr ra
 
-
+.align 5
 map_hirom:
     // Set initial values for building the memory map
     li t0, 0x000000 // Current address
@@ -389,7 +391,7 @@ map_hinone:
     ble t0, t1, build_himap
     jr ra
 
-
+.align 5
 tlbl_exception:
     // Look up the EntryLo0 value for the missed address
     mfc0 a0, $8 // BadVAddr
@@ -508,7 +510,7 @@ tlbl_sram:
     and t0, a0, k1
     eret
 
-
+.align 5
 tlbs_exception:
     // Look up the EntryLo0 value for the missed address
     mfc0 a0, $8 // BadVAddr
@@ -558,7 +560,7 @@ tlbs_sram:
     and t0, a0, k1
     eret
 
-
+.align 5
 tlbm_exception:
     // Skip writes to read-only memory
     mfc0 k0, $14 // EPC
@@ -568,13 +570,13 @@ tlbm_exception:
     nop
     eret
 
-
+.align 5
 sram_read8: // t0: address - v0: value
     // Read an 8-bit value from SRAM
     lbu v0, UNCACHED(sram)(t0)
     jr ra
 
-
+.align 5
 sram_write8: // t0: address, a1: value
     // Write an 8-bit value to SRAM and mark it as dirty
     sb a1, UNCACHED(sram)(t0) // Uncached
@@ -582,7 +584,7 @@ sram_write8: // t0: address, a1: value
     sb t0, sram_dirty
     jr ra
 
-
+.align 5
 io_read8: // a0: address - v0: value
     // Read from an I/O register in the lookup table
     andi a0, a0, 0xFFFF
@@ -592,13 +594,13 @@ io_read8: // a0: address - v0: value
     lw t0, read_iomap(t0)
     jr t0
 
-
+.align 5
 read_unk:
     // Unknown I/O register read; use upper address byte to approximate open bus
     srl v0, a0, 8
     jr ra
 
-
+.align 5
 read_wmdata: // v0: value
     // Increment the WRAM address
     lw t0, wmadd
@@ -613,7 +615,7 @@ read_wmdata: // v0: value
     lbu v0, (a0)
     jr ra
 
-
+.align 5
 io_write8: // a0: address, a1: value
     // Write to an I/O register in the lookup table
     andi a0, a0, 0xFFFF
@@ -623,12 +625,12 @@ io_write8: // a0: address, a1: value
     lw t0, write_iomap(t0)
     jr t0
 
-
+.align 5
 write_unk:
     // Unknown I/O register write; do nothing
     jr ra
 
-
+.align 5
 write_wmdata: // a1: value
     // Increment the WRAM address
     lw t0, wmadd
@@ -643,19 +645,19 @@ write_wmdata: // a1: value
     sb a1, (a0)
     jr ra
 
-
+.align 5
 write_wmaddl: // a1: value
     // Set the low byte of the WRAM address
     sb a1, wmadd + 3
     jr ra
 
-
+.align 5
 write_wmaddm: // a1: value
     // Set the middle byte of the WRAM address
     sb a1, wmadd + 2
     jr ra
 
-
+.align 5
 write_wmaddh: // a1: value
     // Set the high bit of the WRAM address
     andi t0, a1, 0x1

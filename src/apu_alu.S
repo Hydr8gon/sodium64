@@ -76,6 +76,7 @@
 
 .text
 
+.align 5
 apu_ora: // OR A,op
     // Update the JIT register state
     ori s1, s1, FLAG_SA
@@ -90,7 +91,7 @@ apu_ora: // OR A,op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_orm: // OR op
     // Emit code to bitwise or a value with another memory value and set flags
     la t0, apu_read8
@@ -109,7 +110,7 @@ apu_orm: // OR op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_anda: // AND A,op
     // Update the JIT register state
     ori s1, s1, FLAG_SA
@@ -124,7 +125,7 @@ apu_anda: // AND A,op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_andm: // AND op
     // Emit code to bitwise and a value with another memory value and set flags
     la t0, apu_read8
@@ -143,7 +144,7 @@ apu_andm: // AND op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_eora: // EOR A,op
     // Update the JIT register state
     ori s1, s1, FLAG_SA
@@ -158,7 +159,7 @@ apu_eora: // EOR A,op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_eorm: // EOR op
     // Emit code to bitwise exclusive or a value with another memory value and set flags
     la t0, apu_read8
@@ -177,7 +178,7 @@ apu_eorm: // EOR op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_cmpa: // CMP A,op
     // Emit code to compare a value with the accumulator and set flags
     jal load_accum
@@ -210,7 +211,7 @@ apu_cmpa: // CMP A,op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_cmpx: // CMP X,op
     // Emit code to compare a value with register X and set flags
     jal load_reg_x
@@ -243,7 +244,7 @@ apu_cmpx: // CMP X,op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_cmpy: // CMP Y,op
     // Emit code to compare a value with register Y and set flags
     jal load_reg_y
@@ -276,7 +277,7 @@ apu_cmpy: // CMP Y,op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_cmpm: // CMP op
     // Emit code to compare a value with another memory value and set flags
     jal load_flags
@@ -310,7 +311,7 @@ apu_cmpm: // CMP op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_adca: // ADC A,op
     // Update the JIT register state
     ori s1, s1, FLAG_SA
@@ -377,7 +378,7 @@ apu_adca: // ADC A,op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_adcm: // ADC op
     // Emit code to add a value with carry to another memory value
     jal load_flags
@@ -444,7 +445,7 @@ apu_adcm: // ADC op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_sbca: // SBC A,op
     // Update the JIT register state
     ori s1, s1, FLAG_SA
@@ -519,7 +520,7 @@ apu_sbca: // SBC A,op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_sbcm: // SBC op
     // Emit code to subtract a value with carry from another memory value
     jal load_flags
@@ -594,7 +595,7 @@ apu_sbcm: // SBC op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_asla: // ASL A
     // Update the JIT register state
     ori s1, s1, FLAG_SA
@@ -626,7 +627,7 @@ apu_asla: // ASL A
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_aslm: // ASL op
     // Emit code to shift a memory value left and set flags
     jal load_flags
@@ -656,7 +657,7 @@ apu_aslm: // ASL op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_lsra: // LSR A
     // Update the JIT register state
     ori s1, s1, FLAG_SA
@@ -688,7 +689,7 @@ apu_lsra: // LSR A
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_lsrm: // LSR op
     // Emit code to shift a memory value right and set flags
     jal load_flags
@@ -714,7 +715,7 @@ apu_lsrm: // LSR op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_rola: // ROL A
     // Update the JIT register state
     ori s1, s1, FLAG_SA
@@ -754,7 +755,7 @@ apu_rola: // ROL A
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_rolm: // ROL op
     // Emit code to rotate a memory value left and set flags
     jal load_flags
@@ -792,7 +793,7 @@ apu_rolm: // ROL op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_rora: // ROR A
     // Update the JIT register state
     ori s1, s1, FLAG_SA
@@ -832,7 +833,7 @@ apu_rora: // ROR A
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_rorm: // ROR op
     // Emit code to rotate a memory value right and set flags
     jal load_flags
@@ -866,7 +867,7 @@ apu_rorm: // ROR op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_deca: // DEC A
     // Update the JIT register state
     ori s1, s1, FLAG_SA
@@ -881,7 +882,7 @@ apu_deca: // DEC A
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_decx: // DEC X
     // Update the JIT register state
     ori s1, s1, FLAG_SX
@@ -896,7 +897,7 @@ apu_decx: // DEC X
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_decy: // DEC Y
     // Update the JIT register state
     ori s1, s1, FLAG_SY
@@ -911,7 +912,7 @@ apu_decy: // DEC Y
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_decm: // DEC op
     // Emit code to decrement a memory value and set flags
     la t0, apu_write8
@@ -924,7 +925,7 @@ apu_decm: // DEC op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_inca: // INC A
     // Update the JIT register state
     ori s1, s1, FLAG_SA
@@ -939,7 +940,7 @@ apu_inca: // INC A
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_incx: // INC X
     // Update the JIT register state
     ori s1, s1, FLAG_SX
@@ -954,7 +955,7 @@ apu_incx: // INC X
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_incy: // INC Y
     // Update the JIT register state
     ori s1, s1, FLAG_SY
@@ -969,7 +970,7 @@ apu_incy: // INC Y
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_incm: // INC op
     // Emit code to increment a memory value and set flags
     la t0, apu_write8
@@ -982,7 +983,7 @@ apu_incm: // INC op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_addw: // ADDW YA,op
     // Update the JIT register state
     ori s1, s1, FLAG_SY | FLAG_SA
@@ -1092,7 +1093,7 @@ apu_addw: // ADDW YA,op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_subw: // SUBW YA,op
     // Update the JIT register state
     ori s1, s1, FLAG_SY | FLAG_SA
@@ -1206,7 +1207,7 @@ apu_subw: // SUBW YA,op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_cmpw: // CMPW YA,op
     // Emit code to load a 16-bit value from memory
     li t0, S0
@@ -1290,7 +1291,7 @@ apu_cmpw: // CMPW YA,op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_decw: // DECW op
     // Emit code to load a 16-bit value from memory
     li t0, S0
@@ -1351,7 +1352,7 @@ apu_decw: // DECW op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_incw: // INCW op
     // Emit code to load a 16-bit value from memory
     li t0, S0
@@ -1412,7 +1413,7 @@ apu_incw: // INCW op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_div: // DIV YA,X
     // Update the JIT register state
     ori s1, s1, FLAG_SY | FLAG_SA
@@ -1478,7 +1479,7 @@ apu_div: // DIV YA,X
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_mul: // MUL YA
     // Update the JIT register state
     ori s1, s1, FLAG_SY | FLAG_SA
@@ -1511,7 +1512,7 @@ apu_mul: // MUL YA
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_clr1: // CLR1 op.b
     // Create a mask based on the opcode number
     srl t0, v1, 8
@@ -1528,7 +1529,7 @@ apu_clr1: // CLR1 op.b
     la ra, finish_opcode
     j emit_andi
 
-
+.align 5
 apu_set1: // SET1 op.b
     // Create a mask based on the opcode number
     srl t0, v1, 8
@@ -1544,7 +1545,7 @@ apu_set1: // SET1 op.b
     la ra, finish_opcode
     j emit_ori
 
-
+.align 5
 apu_not1: // NOT1 op
     // Emit code to invert a bit in a memory value
     la t0, apu_write8
@@ -1555,7 +1556,7 @@ apu_not1: // NOT1 op
     la ra, finish_opcode
     jal emit_xor
 
-
+.align 5
 apu_mov1a: // MOV1 op,C
     // Emit code to set a bit in a memory value to the carry flag
     jal load_flags
@@ -1587,7 +1588,7 @@ apu_mov1a: // MOV1 op,C
     la ra, finish_opcode
     j emit_or
 
-
+.align 5
 apu_mov1b: // MOV1 C,op
     // Emit code to set the carry flag to a bit from a memory value
     jal load_flags
@@ -1609,7 +1610,7 @@ apu_mov1b: // MOV1 C,op
     la ra, finish_opcode
     j emit_or
 
-
+.align 5
 apu_or1a: // OR1 C,op
     // Emit code to bitwise or the carry flag with a bit from a memory value
     jal load_flags
@@ -1627,7 +1628,7 @@ apu_or1a: // OR1 C,op
     la ra, finish_opcode
     j emit_or
 
-
+.align 5
 apu_or1b: // OR1 C,/op
     // Emit code to bitwise or the carry flag with a negated bit from a memory value
     jal load_flags
@@ -1649,7 +1650,7 @@ apu_or1b: // OR1 C,/op
     la ra, finish_opcode
     j emit_or
 
-
+.align 5
 apu_and1a: // AND1 C,op
     // Emit code to bitwise and the carry flag with a bit from a memory value
     jal load_flags
@@ -1671,7 +1672,7 @@ apu_and1a: // AND1 C,op
     la ra, finish_opcode
     j emit_and
 
-
+.align 5
 apu_and1b: // AND1 C,/op
     // Emit code to bitwise and the carry flag with a negated bit from a memory value
     jal load_flags
@@ -1697,7 +1698,7 @@ apu_and1b: // AND1 C,/op
     la ra, finish_opcode
     j emit_and
 
-
+.align 5
 apu_eor1: // EOR1 C,op
     // Emit code to bitwise exclusive or the carry flag with a bit from a memory value
     jal load_flags
@@ -1715,7 +1716,7 @@ apu_eor1: // EOR1 C,op
     la ra, finish_opcode
     j emit_xor
 
-
+.align 5
 apu_clrc: // CLRC
     // Update the JIT register state
     ori s1, s1, FLAG_SF
@@ -1728,7 +1729,7 @@ apu_clrc: // CLRC
     la ra, finish_opcode
     j emit_andi
 
-
+.align 5
 apu_setc: // SETC
     // Update the JIT register state
     ori s1, s1, FLAG_SF
@@ -1741,7 +1742,7 @@ apu_setc: // SETC
     la ra, finish_opcode
     j emit_ori
 
-
+.align 5
 apu_notc: // NOTC
     // Update the JIT register state
     ori s1, s1, FLAG_SF
@@ -1754,7 +1755,7 @@ apu_notc: // NOTC
     la ra, finish_opcode
     j emit_xori
 
-
+.align 5
 apu_clrv: // CLRV
     // Update the JIT register state
     ori s1, s1, FLAG_SF
@@ -1767,7 +1768,7 @@ apu_clrv: // CLRV
     la ra, finish_opcode
     j emit_andi
 
-
+.align 5
 apu_xcn: // XCN A
     // Update the JIT register state
     ori s1, s1, FLAG_SA
@@ -1790,7 +1791,7 @@ apu_xcn: // XCN A
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_tclr1: // TCLR1 op
     // Emit code to clear bits in a memory value and set flags
     jal load_accum
@@ -1812,7 +1813,7 @@ apu_tclr1: // TCLR1 op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_tset1: // TSET1 op
     // Emit code to set bits in a memory value and set flags
     jal load_accum

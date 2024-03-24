@@ -45,6 +45,7 @@ btn_toggle: .byte 0
 
 .text
 
+.align 5
 input_init:
     // Send the initial joybus command to PIF RAM via DMA
     lui t0, 0xA480 // SI register upper address
@@ -54,7 +55,7 @@ input_init:
     sw t1, 0x0010(t0) // SI_PIF_AD_WR64B
     jr ra
 
-
+.align 5
 input_update:
     // Check if controller 1 is connected
     la k0, UNCACHED(joybus_cmd + 2)
@@ -92,14 +93,14 @@ joybus_dma:
     sw k1, 0x0004(k0) // SI_PIF_AD_RD64B
     eret
 
-
+.align 5
 read_joyx: // a0: address
     // Stub to fix input in games like Donkey Kong Country
     // TODO: actually implement manual controller ports
     li v0, 0x1
     jr ra
 
-
+.align 5
 read_joyxl: // a0: address
     // Check if the controller is connected, and return 0 if not
     andi t2, a0, 0x6
@@ -128,7 +129,7 @@ joyxl_conn:
     or v0, v0, t1
     jr ra
 
-
+.align 5
 read_joyxh: // a0: address
     // Check if the controller is connected, and return 0 if not
     andi t2, a0, 0x6

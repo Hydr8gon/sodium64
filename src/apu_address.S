@@ -47,6 +47,7 @@
 
 .text
 
+.align 5
 apu_imm: // #nn
     // Get the 8-bit immediate value
     jal jit_read8
@@ -58,7 +59,7 @@ apu_imm: // #nn
     move ra, gp
     j emit_ori
 
-
+.align 5
 apu_dira: // aa
     // Choose whether to emit a memory read or just provide an address
     li t8, 0
@@ -90,7 +91,7 @@ dir_skip:
     move ra, gp
     j emit_ori
 
-
+.align 5
 apu_drxa: // aa+X
     // Choose whether to emit a memory read or just provide an address
     li t8, 0
@@ -131,7 +132,7 @@ drx_skip:
     move ra, gp
     j emit_or
 
-
+.align 5
 apu_drya: // aa+Y
     // Choose whether to emit a memory read or just provide an address
     li t8, 0
@@ -172,7 +173,7 @@ dry_skip:
     move ra, gp
     j emit_or
 
-
+.align 5
 apu_brxa: // (X)
     // Choose whether to emit a memory read or just provide an address
     li t8, 0
@@ -206,7 +207,7 @@ brx_skip:
     move ra, gp
     j emit_or
 
-
+.align 5
 apu_bxpa: // (X)+
     // Choose whether to emit a memory read or just provide an address
     li t8, 0
@@ -247,7 +248,7 @@ bxp_skip:
     move ra, gp
     j emit_addi
 
-
+.align 5
 apu_absa: // aaaa
     // Choose whether to emit a memory read or just provide an address
     li t8, 0
@@ -274,7 +275,7 @@ abs_skip:
     move ra, gp
     j emit_ori
 
-
+.align 5
 apu_abxa: // aaaa+X
     // Choose whether to emit a memory read or just provide an address
     li t8, 0
@@ -310,7 +311,7 @@ abx_skip:
     move ra, gp
     j emit_andi
 
-
+.align 5
 apu_abya: // aaaa+Y
     // Choose whether to emit a memory read or just provide an address
     li t8, 0
@@ -346,7 +347,7 @@ aby_skip:
     move ra, gp
     j emit_andi
 
-
+.align 5
 apu_idxa: // [aa+X]
     // Choose whether to emit a memory read or just provide an address
     li t8, 0
@@ -409,7 +410,7 @@ idx_skip:
     move ra, gp
     j emit_or
 
-
+.align 5
 apu_idya: // [aa]+Y
     // Choose whether to emit a memory read or just provide an address
     li t8, 0
@@ -478,7 +479,7 @@ idy_skip:
     move ra, gp
     j emit_andi
 
-
+.align 5
 apu_drb: // aaa.b
     // Get the 16-bit immediate value
     jal jit_read8
@@ -505,7 +506,7 @@ apu_drb: // aaa.b
     move ra, gp
     j emit_ori
 
-
+.align 5
 apu_dri: // aa,#nn
     // Get the 8-bit immediate value and address
     jal jit_read8
@@ -534,7 +535,7 @@ apu_dri: // aa,#nn
     move ra, gp
     j emit_ori
 
-
+.align 5
 apu_dr2: // aa,bb
     // Get the two 8-bit immediate addresses
     jal jit_read8
@@ -565,7 +566,7 @@ apu_dr2: // aa,bb
     move ra, gp
     j emit_ori
 
-
+.align 5
 apu_bxy: // (X),(Y)
     // Emit code to load a value from register Y as a zero page address
     jal load_reg_y

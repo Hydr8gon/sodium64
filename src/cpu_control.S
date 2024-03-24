@@ -67,6 +67,7 @@
 
 .text
 
+.align 5
 cpu_bra: // BRA disp8
     // Add the signed 8-bit immediate value to the PC
     MEM_READ8 1(s7), lb
@@ -78,7 +79,7 @@ cpu_bra: // BRA disp8
     add s7, s7, t0
     j cpu_execute
 
-
+.align 5
 cpu_brl: // BRL disp16
     // Add the signed 16-bit immediate value to the PC
     MEM_READ16 1(s7)
@@ -90,7 +91,7 @@ cpu_brl: // BRL disp16
     add s7, s7, t0
     j cpu_execute
 
-
+.align 5
 cpu_jmp: // JMP nnnn
     // Set the PC to the 16-bit immediate value
     MEM_READ16 1(s7)
@@ -99,14 +100,14 @@ cpu_jmp: // JMP nnnn
     add s7, s7, v0
     j cpu_execute
 
-
+.align 5
 cpu_jmle: // JML nnnnnn (emulation mode)
     // Set the PC to the 16-bit immediate value
     MEM_READ16 1(s7)
     move s7, v0
     j cpu_execute
 
-
+.align 5
 cpu_jml: // JML nnnnnn
     // Set the PC and bank to the 24-bit immediate value
     MEM_READ16 1(s7)
@@ -116,7 +117,7 @@ cpu_jml: // JML nnnnnn
     or s7, s0, t0
     j cpu_execute
 
-
+.align 5
 cpu_jmpi: // JMP (nnnn)
     // Set the PC to the value at the 16-bit immediate address
     MEM_READ16 1(s7)
@@ -127,7 +128,7 @@ cpu_jmpi: // JMP (nnnn)
     add s7, s7, v0
     j cpu_execute
 
-
+.align 5
 cpu_jmpx: // JMP (nnnn,X)
     // Get the 16-bit immediate value plus register X added to the program bank as an address
     MEM_READ16 1(s7)
@@ -143,7 +144,7 @@ cpu_jmpx: // JMP (nnnn,X)
     add s7, s7, v0
     j cpu_execute
 
-
+.align 5
 cpu_jmlie: // JML [nnnn] (emulation mode)
     // Set the PC to the value at the 16-bit immediate address
     MEM_READ16 1(s7)
@@ -152,7 +153,7 @@ cpu_jmlie: // JML [nnnn] (emulation mode)
     move s7, v0
     j cpu_execute
 
-
+.align 5
 cpu_jmli: // JML [nnnn]
     // Set the PC and bank to the value at the 16-bit immediate address
     MEM_READ16 1(s7)
@@ -164,7 +165,7 @@ cpu_jmli: // JML [nnnn]
     or s7, s7, t0
     j cpu_execute
 
-
+.align 5
 cpu_jsr: // JSR nnnn
     // Update the stack pointer
     lhu s0, stack_ptr
@@ -182,7 +183,7 @@ cpu_jsr: // JSR nnnn
     add s7, s7, v0
     j cpu_execute
 
-
+.align 5
 cpu_jsle: // JSL nnnnnn (emulation mode)
     // Update the stack pointer
     lhu s0, stack_ptr
@@ -198,7 +199,7 @@ cpu_jsle: // JSL nnnnnn (emulation mode)
     move s7, v0
     j cpu_execute
 
-
+.align 5
 cpu_jsl: // JSL nnnnnn
     // Update the stack pointer
     lhu s0, stack_ptr
@@ -219,7 +220,7 @@ cpu_jsl: // JSL nnnnnn
     or s7, s0, t0
     j cpu_execute
 
-
+.align 5
 cpu_jsrx: // JSR (nnnn,X)
     // Update the stack pointer
     lhu s0, stack_ptr
@@ -244,7 +245,7 @@ cpu_jsrx: // JSR (nnnn,X)
     add s7, s7, v0
     j cpu_execute
 
-
+.align 5
 cpu_rtie: // RTI (emulation mode)
     // Pop the flags from the stack
     lhu s0, stack_ptr
@@ -262,7 +263,7 @@ cpu_rtie: // RTI (emulation mode)
     sh t0, stack_ptr
     j cpu_execute
 
-
+.align 5
 cpu_rti: // RTI
     // Pop the flags from the stack
     lhu s0, stack_ptr
@@ -282,7 +283,7 @@ cpu_rti: // RTI
     sh t0, stack_ptr
     j update_mode
 
-
+.align 5
 cpu_rtle: // RTL (emulation mode)
     // Pop the PC+1 from the stack
     lhu s0, stack_ptr
@@ -294,7 +295,7 @@ cpu_rtle: // RTL (emulation mode)
     sh t0, stack_ptr
     j cpu_execute
 
-
+.align 5
 cpu_rtl: // RTL
     // Pop the PC+1 and bank from the stack
     lhu s0, stack_ptr
@@ -309,7 +310,7 @@ cpu_rtl: // RTL
     sh t0, stack_ptr
     j cpu_execute
 
-
+.align 5
 cpu_rts: // RTS
     // Pop the PC+1 from the stack
     lhu s0, stack_ptr
@@ -324,7 +325,7 @@ cpu_rts: // RTS
     sh t0, stack_ptr
     j cpu_execute
 
-
+.align 5
 cpu_bpl: // BPL disp8
     // Check the condition
     andi t0, s4, 0x80 // N
@@ -340,7 +341,7 @@ cpu_bpl: // BPL disp8
     add s7, s7, t0
     j cpu_execute
 
-
+.align 5
 cpu_bmi: // BMI disp8
     // Check the condition
     andi t0, s4, 0x80 // N
@@ -356,7 +357,7 @@ cpu_bmi: // BMI disp8
     add s7, s7, t0
     j cpu_execute
 
-
+.align 5
 cpu_bvc: // BVC disp8
     // Check the condition
     andi t0, s4, 0x40 // V
@@ -372,7 +373,7 @@ cpu_bvc: // BVC disp8
     add s7, s7, t0
     j cpu_execute
 
-
+.align 5
 cpu_bvs: // BVS disp8
     // Check the condition
     andi t0, s4, 0x40 // V
@@ -388,7 +389,7 @@ cpu_bvs: // BVS disp8
     add s7, s7, t0
     j cpu_execute
 
-
+.align 5
 cpu_bcc: // BCC disp8
     // Check the condition
     andi t0, s4, 0x1 // C
@@ -404,7 +405,7 @@ cpu_bcc: // BCC disp8
     add s7, s7, t0
     j cpu_execute
 
-
+.align 5
 cpu_bcs: // BCS disp8
     // Check the condition
     andi t0, s4, 0x1 // C
@@ -420,7 +421,7 @@ cpu_bcs: // BCS disp8
     add s7, s7, t0
     j cpu_execute
 
-
+.align 5
 cpu_bne: // BNE disp8
     // Check the condition
     andi t0, s4, 0x2 // Z
@@ -436,7 +437,7 @@ cpu_bne: // BNE disp8
     add s7, s7, t0
     j cpu_execute
 
-
+.align 5
 cpu_beq: // BEQ disp8
     // Check the condition
     andi t0, s4, 0x2 // Z
@@ -464,7 +465,7 @@ cpu_beq: // BEQ disp8
     li s5, 0
     j cpu_execute
 
-
+.align 5
 cpu_brke: // BRK (emulation mode)
     // Update the stack pointer
     lhu s0, stack_ptr
@@ -487,7 +488,7 @@ cpu_brke: // BRK (emulation mode)
     move s7, v0
     j cpu_execute
 
-
+.align 5
 cpu_brk: // BRK
     // Update the stack pointer
     lhu s0, stack_ptr
@@ -512,7 +513,7 @@ cpu_brk: // BRK
     move s7, v0
     j cpu_execute
 
-
+.align 5
 cpu_cope: // COP (emulation mode)
     // Update the stack pointer
     lhu s0, stack_ptr
@@ -535,7 +536,7 @@ cpu_cope: // COP (emulation mode)
     move s7, v0
     j cpu_execute
 
-
+.align 5
 cpu_cop: // COP
     // Update the stack pointer
     lhu s0, stack_ptr
@@ -560,56 +561,56 @@ cpu_cop: // COP
     move s7, v0
     j cpu_execute
 
-
+.align 5
 cpu_clc: // CLC
     // Clear the carry flag
     andi s4, s4, 0xFFFE
     addi s7, s7, 1
     j cpu_execute
 
-
+.align 5
 cpu_cli: // CLI
     // Clear the interrupt flag
     andi s4, s4, 0xFFFB
     addi s7, s7, 1
     j cpu_execute
 
-
+.align 5
 cpu_cld: // CLD
     // Clear the decimal flag
     andi s4, s4, 0xFFF7
     addi s7, s7, 1
     j update_mode
 
-
+.align 5
 cpu_clv: // CLV
     // Clear the overflow flag
     andi s4, s4, 0xFFBF
     addi s7, s7, 1
     j cpu_execute
 
-
+.align 5
 cpu_sec: // SEC
     // Set the carry flag
     ori s4, s4, 0x1
     addi s7, s7, 1
     j cpu_execute
 
-
+.align 5
 cpu_sei: // SEI
     // Set the interrupt flag
     ori s4, s4, 0x4
     addi s7, s7, 1
     j cpu_execute
 
-
+.align 5
 cpu_sed: // SED
     // Set the decimal flag
     ori s4, s4, 0x8
     addi s7, s7, 1
     j update_mode
 
-
+.align 5
 cpu_rep: // REP #nn
     // Clear flags from the 8-bit immediate value
     MEM_READ8 1(s7)
@@ -618,7 +619,7 @@ cpu_rep: // REP #nn
     addi s7, s7, 2
     j update_mode
 
-
+.align 5
 cpu_sep: // SEP #nn
     // Set flags from the 8-bit immediate value
     MEM_READ8 1(s7)
@@ -626,7 +627,7 @@ cpu_sep: // SEP #nn
     addi s7, s7, 2
     j update_mode
 
-
+.align 5
 cpu_xce: // XCE
     // Swap the carry and emulation flags
     sll t0, s4, 8
@@ -638,12 +639,12 @@ cpu_xce: // XCE
     addi s7, s7, 1
     j update_mode
 
-
+.align 5
 cpu_stp: // STP
     // Stop execution
     j cpu_stp
 
-
+.align 5
 cpu_xba: // XBA
     // Swap the accumulator bytes and set flags for the low byte
     lhu t0, accumulator
@@ -655,7 +656,7 @@ cpu_xba: // XBA
     addi s7, s7, 1
     j set_nz8
 
-
+.align 5
 cpu_wai: // WAI
     // Halt the CPU until the next interrupt
     ori s4, s4, 0x200 // Halted
@@ -663,13 +664,13 @@ cpu_wai: // WAI
     addi s7, s7, 1
     j cpu_execute
 
-
+.align 5
 cpu_wdm: // WDM #nn
     // Do nothing
     addi s7, s7, 2
     j cpu_execute
 
-
+.align 5
 cpu_nop: // NOP
     // Do nothing
     addi s7, s7, 1

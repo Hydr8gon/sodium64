@@ -75,6 +75,7 @@ apu_stack: .hword 0x1FF
 apu_flags: .byte 0
 apu_count: .hword 0xFFC0
 
+.align 5
 read_iomap:
     .word read_unk, read_unk, read_dspaddr, read_dspdata // 0xF0-0xF3
     .word read_cpuio0, read_cpuio1, read_cpuio2, read_cpuio3 // 0xF4-0xF7
@@ -89,6 +90,7 @@ write_iomap:
 
 .text
 
+.align 5
 apu_execute:
     // Generate a DSP sample once enough cycles have passed
     ble s3, a3, dsp_sample
@@ -115,7 +117,7 @@ apu_execute:
     addi t0, t0, 12
     jr t0
 
-
+.align 5
 apu_read8: // a0: address - v0: value
     // Read a byte from memory and decrease the APU cycle count
     srl t0, a0, 6
@@ -140,7 +142,7 @@ read_unk:
     // Unknown I/O register read; do nothing
     jr ra
 
-
+.align 5
 apu_write8: // a0: address, a1: value
     // Write a byte to memory and decrease the APU cycle count
     sb a1, apu_ram(a0)
@@ -169,7 +171,7 @@ write_unk:
     // Unknown I/O register write; do nothing
     jr ra
 
-
+.align 5
 update_overflows:
     // Never overflow timer 0 if it's disabled
     lbu t0, apu_control
@@ -241,7 +243,7 @@ stamp_timer2:
     sw t1, apu_ocycles + 8
     jr ra
 
-
+.align 5
 update_timers:
     // Get how many timer 2 ticks passed since the last update
     lw t7, apu_cycle2
@@ -399,7 +401,7 @@ inc_timer1:
 early_exit:
     jr ra
 
-
+.align 5
 offset_timers: // a0: cycles
     // Offset timer update timestamps for the next event
     lw t0, apu_cycle1
@@ -433,31 +435,31 @@ offset2:
 offset3:
     jr ra
 
-
+.align 5
 read_cpuio0: // v0: value
     // Read APU input communication value 0
     lbu v0, apu_inputs + 0
     jr ra
 
-
+.align 5
 read_cpuio1: // v0: value
     // Read APU input communication value 1
     lbu v0, apu_inputs + 1
     jr ra
 
-
+.align 5
 read_cpuio2: // v0: value
     // Read APU input communication value 2
     lbu v0, apu_inputs + 2
     jr ra
 
-
+.align 5
 read_cpuio3: // v0: value
     // Read APU input communication value 3
     lbu v0, apu_inputs + 3
     jr ra
 
-
+.align 5
 read_t0out: // v0: value
     // Update timers if timer 0 should overflow
     lw t0, apu_ocycles + 0
@@ -472,7 +474,7 @@ end_t0out:
     sb zero, apu_tmouts + 0
     jr ra
 
-
+.align 5
 read_t1out: // v0: value
     // Update timers if timer 1 should overflow
     lw t0, apu_ocycles + 4
@@ -487,7 +489,7 @@ end_t1out:
     sb zero, apu_tmouts + 1
     jr ra
 
-
+.align 5
 read_t2out: // v0: value
     // Update timers if timer 2 should overflow
     lw t0, apu_ocycles + 8
@@ -502,7 +504,7 @@ end_t2out:
     sb zero, apu_tmouts + 2
     jr ra
 
-
+.align 5
 write_control: // a1: value
     // Update timers and write to the APU control register
     move t9, ra
@@ -549,31 +551,31 @@ reset1:
 reset2:
     j update_overflows
 
-
+.align 5
 write_cpuio0: // a1: value
     // Write APU output communication value 0
     sb a1, apu_outputs + 0
     jr ra
 
-
+.align 5
 write_cpuio1: // a1: value
     // Write APU output communication value 1
     sb a1, apu_outputs + 1
     jr ra
 
-
+.align 5
 write_cpuio2: // a1: value
     // Write APU output communication value 2
     sb a1, apu_outputs + 2
     jr ra
 
-
+.align 5
 write_cpuio3: // a1: value
     // Write APU output communication value 3
     sb a1, apu_outputs + 3
     jr ra
 
-
+.align 5
 write_t0div: // a1: value
     // Update timers and write timer 0's divider value
     move t9, ra
@@ -582,7 +584,7 @@ write_t0div: // a1: value
     move ra, t9
     j update_overflows
 
-
+.align 5
 write_t1div: // a1: value
     // Update timers and write timer 1's divider value
     move t9, ra
@@ -591,7 +593,7 @@ write_t1div: // a1: value
     move ra, t9
     j update_overflows
 
-
+.align 5
 write_t2div: // a1: value
     // Update timers and write timer 2's divider value
     move t9, ra
@@ -600,49 +602,49 @@ write_t2div: // a1: value
     move ra, t9
     j update_overflows
 
-
+.align 5
 read_apuio0: // v0: value
     // Read APU output communication value 0
     lbu v0, apu_outputs + 0
     jr ra
 
-
+.align 5
 read_apuio1: // v0: value
     // Read APU output communication value 0
     lbu v0, apu_outputs + 1
     jr ra
 
-
+.align 5
 read_apuio2: // v0: value
     // Read APU output communication value 0
     lbu v0, apu_outputs + 2
     jr ra
 
-
+.align 5
 read_apuio3: // v0: value
     // Read APU output communication value 0
     lbu v0, apu_outputs + 3
     jr ra
 
-
+.align 5
 write_apuio0: // a1: value
     // Write APU input communication value 0
     sb a1, apu_inputs + 0
     jr ra
 
-
+.align 5
 write_apuio1: // a1: value
     // Write APU input communication value 1
     sb a1, apu_inputs + 1
     jr ra
 
-
+.align 5
 write_apuio2: // a1: value
     // Write APU input communication value 2
     sb a1, apu_inputs + 2
     jr ra
 
-
+.align 5
 write_apuio3: // a1: value
     // Write APU input communication value 3
     sb a1, apu_inputs + 3

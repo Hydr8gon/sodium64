@@ -45,6 +45,7 @@
 
 .text
 
+.align 5
 apu_movax: // MOV A,X
     // Update the JIT register state
     ori s1, s1, FLAG_SA | FLAG_LA
@@ -59,7 +60,7 @@ apu_movax: // MOV A,X
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_movxa: // MOV X,A
     // Update the JIT register state
     ori s1, s1, FLAG_SX | FLAG_LX
@@ -74,7 +75,7 @@ apu_movxa: // MOV X,A
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_movay: // MOV A,Y
     // Update the JIT register state
     ori s1, s1, FLAG_SA | FLAG_LA
@@ -89,7 +90,7 @@ apu_movay: // MOV A,Y
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_movya: // MOV Y,A
     // Update the JIT register state
     ori s1, s1, FLAG_SY | FLAG_LY
@@ -104,7 +105,7 @@ apu_movya: // MOV Y,A
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_movxs: // MOV X,SP
     // Update the JIT register state
     ori s1, s1, FLAG_SX | FLAG_LX
@@ -119,7 +120,7 @@ apu_movxs: // MOV X,SP
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_movsx: // MOV SP,X
     // Update the JIT register state
     ori s1, s1, FLAG_SS | FLAG_LS
@@ -132,7 +133,7 @@ apu_movsx: // MOV SP,X
     la ra, finish_opcode
     j emit_or
 
-
+.align 5
 apu_mova: // MOV A,op
     // Update the JIT register state
     ori s1, s1, FLAG_SA | FLAG_LA
@@ -146,7 +147,7 @@ apu_mova: // MOV A,op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_movx: // MOV X,op
     // Update the JIT register state
     ori s1, s1, FLAG_SX | FLAG_LX
@@ -160,7 +161,7 @@ apu_movx: // MOV X,op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_movy: // MOV Y,op
     // Update the JIT register state
     ori s1, s1, FLAG_SY | FLAG_LY
@@ -174,7 +175,7 @@ apu_movy: // MOV Y,op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_movwya: // MOVW YA,op
     // Update the JIT register state
     ori s1, s1, FLAG_SY | FLAG_SA | FLAG_LY | FLAG_LA
@@ -208,7 +209,7 @@ apu_movwya: // MOVW YA,op
     la ra, finish_opcode
     j queue_nz
 
-
+.align 5
 apu_movm: // MOV op
     // Emit code to move a value to a memory address
     la t0, apu_write8
@@ -219,7 +220,7 @@ apu_movm: // MOV op
     la ra, finish_opcode
     j emit_or
 
-
+.align 5
 apu_amov: // MOV op,A
     // Emit code to move a value to memory from the accumulator
     jal load_accum
@@ -231,7 +232,7 @@ apu_amov: // MOV op,A
     la ra, finish_opcode
     j emit_or
 
-
+.align 5
 apu_xmov: // MOV op,X
     // Emit code to move a value to memory from register X
     jal load_reg_x
@@ -243,7 +244,7 @@ apu_xmov: // MOV op,X
     la ra, finish_opcode
     j emit_or
 
-
+.align 5
 apu_ymov: // MOV op,Y
     // Emit code to move a value to memory from register Y
     jal load_reg_y
@@ -255,7 +256,7 @@ apu_ymov: // MOV op,Y
     la ra, finish_opcode
     j emit_or
 
-
+.align 5
 apu_movway: // MOVW op,YA
     // Emit code to move a 16-bit value to memory from register YA
     jal load_reg_y
@@ -278,7 +279,7 @@ apu_movway: // MOVW op,YA
     la ra, finish_opcode
     j emit_or
 
-
+.align 5
 apu_pha: // PUSH A
     // Update the JIT register state
     ori s1, s1, FLAG_SS
@@ -306,7 +307,7 @@ apu_pha: // PUSH A
     la ra, finish_opcode
     j emit_addi
 
-
+.align 5
 apu_phx: // PUSH X
     // Update the JIT register state
     ori s1, s1, FLAG_SS
@@ -334,7 +335,7 @@ apu_phx: // PUSH X
     la ra, finish_opcode
     j emit_addi
 
-
+.align 5
 apu_phy: // PUSH Y
     // Update the JIT register state
     ori s1, s1, FLAG_SS
@@ -362,7 +363,7 @@ apu_phy: // PUSH Y
     la ra, finish_opcode
     j emit_addi
 
-
+.align 5
 apu_php: // PUSH PSW
     // Update the JIT register state
     ori s1, s1, FLAG_SS
@@ -391,7 +392,7 @@ apu_php: // PUSH PSW
     la ra, finish_opcode
     j emit_addi
 
-
+.align 5
 apu_ppa: // POP A
     // Update the JIT register state
     ori s1, s1, FLAG_SS | FLAG_SA | FLAG_LA
@@ -418,7 +419,7 @@ apu_ppa: // POP A
     la ra, finish_opcode
     j emit_or
 
-
+.align 5
 apu_ppx: // POP X
     // Update the JIT register state
     ori s1, s1, FLAG_SS | FLAG_SX | FLAG_LX
@@ -445,7 +446,7 @@ apu_ppx: // POP X
     la ra, finish_opcode
     j emit_or
 
-
+.align 5
 apu_ppy: // POP Y
     // Update the JIT register state
     ori s1, s1, FLAG_SS | FLAG_SY | FLAG_LY
@@ -472,7 +473,7 @@ apu_ppy: // POP Y
     la ra, finish_opcode
     j emit_or
 
-
+.align 5
 apu_ppp: // POP PSW
     // Update the JIT register state
     ori s1, s1, FLAG_SS | FLAG_SF | FLAG_LF

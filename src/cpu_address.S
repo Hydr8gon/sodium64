@@ -39,20 +39,21 @@
 
 .text
 
+.align 5
 cpu_im8: // #nn
     // Get the address of the 8-bit immediate value
     addi s0, s7, 1
     addi s7, s7, 2
     jr gp
 
-
+.align 5
 cpu_i16: // #nnnn
     // Get the address of the 16-bit immediate value
     addi s0, s7, 1
     addi s7, s7, 3
     jr gp
 
-
+.align 5
 cpu_dir: // nn
     // Get the 8-bit immediate value added to the direct offset as an address
     MEM_READ8 1(s7)
@@ -61,7 +62,7 @@ cpu_dir: // nn
     addi s7, s7, 2
     jr gp
 
-
+.align 5
 cpu_drx: // nn,X
     // Get the 8-bit immediate value plus register X added to the direct offset as an address
     MEM_READ8 1(s7)
@@ -72,7 +73,7 @@ cpu_drx: // nn,X
     addi s7, s7, 2
     jr gp
 
-
+.align 5
 cpu_dry: // nn,Y
     // Get the 8-bit immediate value plus register Y added to the direct offset as an address
     MEM_READ8 1(s7)
@@ -83,7 +84,7 @@ cpu_dry: // nn,Y
     addi s7, s7, 2
     jr gp
 
-
+.align 5
 cpu_drs: // nn,S
     // Get the 8-bit immediate value added to the stack pointer as an address
     MEM_READ8 1(s7)
@@ -92,7 +93,7 @@ cpu_drs: // nn,S
     addi s7, s7, 2
     jr gp
 
-
+.align 5
 cpu_abs: // nnnn
     // Get the 16-bit immediate value added to the data bank as an address
     MEM_READ16 1(s7)
@@ -101,7 +102,7 @@ cpu_abs: // nnnn
     addi s7, s7, 3
     jr gp
 
-
+.align 5
 cpu_abx: // nnnn,X
     // Get the 16-bit immediate value plus register X added to the data bank as an address
     MEM_READ16 1(s7)
@@ -112,7 +113,7 @@ cpu_abx: // nnnn,X
     addi s7, s7, 3
     jr gp
 
-
+.align 5
 cpu_aby: // nnnn,Y
     // Get the 16-bit immediate value plus register Y added to the data bank as an address
     MEM_READ16 1(s7)
@@ -123,7 +124,7 @@ cpu_aby: // nnnn,Y
     addi s7, s7, 3
     jr gp
 
-
+.align 5
 cpu_lng: // nnnnnn
     // Get the 24-bit immediate value as an address
     MEM_READ8 3(s7)
@@ -133,7 +134,7 @@ cpu_lng: // nnnnnn
     addi s7, s7, 4
     jr gp
 
-
+.align 5
 cpu_lnx: // nnnnnn,X
     // Get the 24-bit immediate value plus register X as an address
     MEM_READ8 3(s7)
@@ -145,7 +146,7 @@ cpu_lnx: // nnnnnn,X
     addi s7, s7, 4
     jr gp
 
-
+.align 5
 cpu_ind: // (nn)
     // Get the 8-bit immediate value added to the direct offset as an address
     MEM_READ8 1(s7)
@@ -159,7 +160,7 @@ cpu_ind: // (nn)
     addi s7, s7, 2
     jr gp
 
-
+.align 5
 cpu_idx: // (nn,X)
     // Get the 8-bit immediate value plus register X added to the direct offset as an address
     MEM_READ8 1(s7)
@@ -175,7 +176,7 @@ cpu_idx: // (nn,X)
     addi s7, s7, 2
     jr gp
 
-
+.align 5
 cpu_idy: // (nn),Y
     // Get the 8-bit immediate value added to the direct offset as an address
     MEM_READ8 1(s7)
@@ -191,7 +192,7 @@ cpu_idy: // (nn),Y
     addi s7, s7, 2
     jr gp
 
-
+.align 5
 cpu_isy: // (nn,S),Y
     // Get the 8-bit immediate value added to the stack pointer as an address
     MEM_READ8 1(s7)
@@ -207,7 +208,7 @@ cpu_isy: // (nn,S),Y
     addi s7, s7, 2
     jr gp
 
-
+.align 5
 cpu_idl: // [nn]
     // Get the 8-bit immediate value added to the direct offset as an address
     MEM_READ8 1(s7)
@@ -222,7 +223,7 @@ cpu_idl: // [nn]
     addi s7, s7, 2
     jr gp
 
-
+.align 5
 cpu_ily: // [nn],Y
     // Get the 8-bit immediate value added to the direct offset as an address
     MEM_READ8 1(s7)

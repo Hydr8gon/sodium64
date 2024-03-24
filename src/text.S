@@ -133,6 +133,7 @@ char_9:
     sd t4, \line * 560 + 8(a1)
 .endm
 
+.align 5
 draw_value: // a0: value, a1: top-right offset
     // Isolate the lowest base-10 digit and convert to sprite address
     li t1, 10

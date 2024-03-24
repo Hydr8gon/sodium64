@@ -376,7 +376,7 @@ stack_ptr: .hword 0x1FF
 .endm
 
 // Define each table twice: one for binary mode and one for decimal mode
-.align 4
+.align 5
 opcodes_e: OPS_E
 opcodes_8: OPS_8
 opcodes_r8: OPS_R8
@@ -390,6 +390,7 @@ opcodes_16d: OPS_16 d
 
 .text
 
+.align 5
 cpu_init:
     // Set the initial program counter value (s7)
     move s0, ra // Backup return address
@@ -408,7 +409,7 @@ cpu_init:
     move a3, s5
     jr s0
 
-
+.align 5
 set_nz8: // a0: value
     // Set the NZ flags for an 8-bit value
     andi s4, s4, 0xFF7D
@@ -430,7 +431,7 @@ set_nz8: // a0: value
     lw gp, 4(t0)
     jr t1
 
-
+.align 5
 set_nz16: // a0: value
     // Set the NZ flags for a 16-bit value
     andi s4, s4, 0xFF7D
@@ -454,7 +455,7 @@ cpu_execute:
     lw gp, 4(t0)
     jr t1
 
-
+.align 5
 trigger_nmi: // a1: vector offset
     // Check if currently in emulation mode
     andi s0, s4, 0x100
@@ -499,7 +500,7 @@ nmi_cont:
     andi s4, s4, 0xFDFF
     jr ra
 
-
+.align 5
 update_mode:
     // Check if the emulation flag is set
     andi t0, s4, 0x100

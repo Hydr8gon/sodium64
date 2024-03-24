@@ -173,6 +173,7 @@ sect_queues: .word SECTION_QUEUE1, SECTION_QUEUE2
 
 .text
 
+.align 5
 ppu_event:
     // Increment the line counter
     lhu s0, cur_line
@@ -229,7 +230,7 @@ next_line:
     li s5, 0
     j cpu_execute
 
-
+.align 5
 vblank_start:
     // Set the V-blank and NMI flags
     lbu t0, hvbjoy
@@ -259,7 +260,7 @@ skip_frame:
     la ra, vcount_check
     j trigger_nmi
 
-
+.align 5
 vblank_end:
     // Clear the V-blank and NMI flags
     lbu t0, hvbjoy
@@ -276,7 +277,7 @@ vblank_end:
     la ra, vcount_check
     j section_init
 
-
+.align 5
 vcount_irq:
     // Trigger a V-count IRQ if enabled
     lbu t0, nmitimen
@@ -292,7 +293,7 @@ vcount_irq:
     sb t0, timeup
     j run_line
 
-
+.align 5
 make_section: // a0: line
     // Set bounds for the current frame section
     lw t1, section_ptr
@@ -315,14 +316,14 @@ section_loop:
     sw t1, section_ptr
     jr ra
 
-
+.align 5
 update_frame:
     // Mark the current frame section as dirty
     li t0, 0x1
     sb t0, sect_status
     jr ra
 
-
+.align 5
 rsp_frame:
     // Push the return address to the stack
     addi sp, sp, -4
@@ -497,25 +498,25 @@ frame_wait:
     addi sp, sp, 4
     jr ra
 
-
+.align 5
 read_mpyl: // v0: value
     // Read the low byte of the signed multiply result
     lbu v0, mpy + 3
     jr ra
 
-
+.align 5
 read_mpym: // v0: value
     // Read the middle byte of the signed multiply result
     lbu v0, mpy + 2
     jr ra
 
-
+.align 5
 read_mpyh: // v0: value
     // Read the high byte of the signed multiply result
     lbu v0, mpy + 1
     jr ra
 
-
+.align 5
 read_slhv: // a0: address - v0: value
     // Latch the vertical counter
     lhu t0, cur_line
@@ -534,7 +535,7 @@ read_slhv: // a0: address - v0: value
     srl v0, a0, 8
     jr ra
 
-
+.align 5
 read_rdvraml: // v0: value
     // Read the low byte of the prefetched VRAM data
     lbu v0, vram_fetch + 1
@@ -554,7 +555,7 @@ read_rdvraml: // v0: value
 vraml_end:
     jr ra
 
-
+.align 5
 read_rdvramh: // v0: value
     // Read the low byte of the prefetched VRAM data
     lbu v0, vram_fetch
@@ -574,7 +575,7 @@ read_rdvramh: // v0: value
 vramh_end:
     jr ra
 
-
+.align 5
 read_ophct: // v0: value
     // Read from the OPHCT register's low or high byte
     lhu v0, ophct
@@ -589,7 +590,7 @@ oph_toggle:
     sb t0, oph_low
     jr ra
 
-
+.align 5
 read_opvct: // v0: value
     // Read from the OPVCT register's low or high byte
     lhu v0, opvct
@@ -604,7 +605,7 @@ opv_toggle:
     sb t0, opv_low
     jr ra
 
-
+.align 5
 read_stat78: // v0: value
     // Read from the STAT78 register and reset the latch flag
     lbu v0, stat78
@@ -616,21 +617,21 @@ read_stat78: // v0: value
     sb zero, opv_low
     jr ra
 
-
+.align 5
 read_rdnmi: // v0: value
     // Read from the RDNMI register, resetting its flag
     lbu v0, rdnmi
     sb zero, rdnmi
     jr ra
 
-
+.align 5
 read_timeup: // v0: value
     // Read from the TIMEUP register, resetting its flag
     lbu v0, timeup
     sb zero, timeup
     jr ra
 
-
+.align 5
 read_hvbjoy: // v0: value
     // Read from the HVBJOY register with H-blank based on cycles until next line
     lbu v0, hvbjoy
@@ -639,7 +640,7 @@ read_hvbjoy: // v0: value
     or v0, v0, t0
     jr ra
 
-
+.align 5
 write_inidisp: // a1: value
     // Set the force blank bit
     andi t0, a1, 0x80
@@ -666,7 +667,7 @@ set_bright:
     sb t0, brightness
     j update_frame
 
-
+.align 5
 write_obsel: // a1: value
     // Update the OBJ character base address in DMEM
     // TODO: use the gap setting
@@ -681,7 +682,7 @@ write_obsel: // a1: value
     sw t0, obj_size
     j update_frame
 
-
+.align 5
 write_oamaddl: // a1: value
     // Set the low byte of the OAM address reload
     lhu t0, oamadd
@@ -696,7 +697,7 @@ write_oamaddl: // a1: value
     sh t0, oam_addr
     j update_frame
 
-
+.align 5
 write_oamaddh: // a1: value
     // Set the high bits of the OAM address reload
     lhu t0, oamadd
@@ -712,7 +713,7 @@ write_oamaddh: // a1: value
     sh t0, oam_addr
     j update_frame
 
-
+.align 5
 write_oamdata: // a1: value
     // Increment the OAM address, wrapping around on overflow
     lhu t0, oam_addr
@@ -746,7 +747,7 @@ oam_end:
     sb a1, oam(t0)
     jr ra
 
-
+.align 5
 write_bgmode: // a1: value
     // Set the BG screen mode from 0 to 7
     // TODO: use the tile sizes
@@ -762,7 +763,7 @@ high_prio:
     sb t0, bg_mode
     j update_frame
 
-
+.align 5
 write_bg1sc: // a1: value
     // Update BG1's screen base address in DMEM
     andi t0, a1, 0x7C
@@ -780,7 +781,7 @@ write_bg1sc: // a1: value
     sh t0, bgbaseofsv + 0
     j update_frame
 
-
+.align 5
 write_bg2sc: // a1: value
     // Update BG2's screen base address in DMEM
     andi t0, a1, 0x7C
@@ -798,7 +799,7 @@ write_bg2sc: // a1: value
     sh t0, bgbaseofsv + 2
     j update_frame
 
-
+.align 5
 write_bg3sc: // a1: value
     // Update BG3's screen base address in DMEM
     andi t0, a1, 0x7C
@@ -816,7 +817,7 @@ write_bg3sc: // a1: value
     sh t0, bgbaseofsv + 4
     j update_frame
 
-
+.align 5
 write_bg4sc: // a1: value
     // Update BG4's screen base address in DMEM
     andi t0, a1, 0x7C
@@ -834,7 +835,7 @@ write_bg4sc: // a1: value
     sh t0, bgbaseofsv + 6
     j update_frame
 
-
+.align 5
 write_bg12nba: // a1: value
     // Update BG1's character base address in DMEM
     andi t0, a1, 0x7
@@ -847,7 +848,7 @@ write_bg12nba: // a1: value
     sh t0, bgcharbase + 2
     j update_frame
 
-
+.align 5
 write_bg34nba: // a1: value
     // Update BG3's character base address in DMEM
     andi t0, a1, 0x7
@@ -860,7 +861,7 @@ write_bg34nba: // a1: value
     sh t0, bgcharbase + 6
     j update_frame
 
-
+.align 5
 write_bg1hofs: // a1: value
     // Update BG1HOFS in DMEM with a 10-bit value from the old and new bytes
     lbu t0, bg_old
@@ -880,7 +881,7 @@ write_bg1hofs: // a1: value
     sh t0, m7hofs
     j update_frame
 
-
+.align 5
 write_bg1vofs: // a1: value
     // Update BG1VOFS in DMEM with a 10-bit value from the old and new bytes
     lbu t0, bg_old
@@ -900,7 +901,7 @@ write_bg1vofs: // a1: value
     sh t0, m7vofs
     j update_frame
 
-
+.align 5
 write_bg2hofs: // a1: value
     // Update BG2HOFS in DMEM with a 10-bit value from the old and new bytes
     lbu t0, bg_old
@@ -911,7 +912,7 @@ write_bg2hofs: // a1: value
     sh t0, bghofs + 2
     j update_frame
 
-
+.align 5
 write_bg2vofs: // a1: value
     // Update BG2VOFS in DMEM with a 10-bit value from the old and new bytes
     lbu t0, bg_old
@@ -922,7 +923,7 @@ write_bg2vofs: // a1: value
     sh t0, bgvofs + 2
     j update_frame
 
-
+.align 5
 write_bg3hofs: // a1: value
     // Update BG3HOFS in DMEM with a 10-bit value from the old and new bytes
     lbu t0, bg_old
@@ -933,7 +934,7 @@ write_bg3hofs: // a1: value
     sh t0, bghofs + 4
     j update_frame
 
-
+.align 5
 write_bg3vofs: // a1: value
     // Update BG3VOFS in DMEM with a 10-bit value from the old and new bytes
     lbu t0, bg_old
@@ -944,7 +945,7 @@ write_bg3vofs: // a1: value
     sh t0, bgvofs + 4
     j update_frame
 
-
+.align 5
 write_bg4hofs: // a1: value
     // Update BG4HOFS in DMEM with a 10-bit value from the old and new bytes
     lbu t0, bg_old
@@ -955,7 +956,7 @@ write_bg4hofs: // a1: value
     sh t0, bghofs + 6
     j update_frame
 
-
+.align 5
 write_bg4vofs: // a1: value
     // Update BG4VOFS in DMEM with a 10-bit value from the old and new bytes
     lbu t0, bg_old
@@ -966,7 +967,7 @@ write_bg4vofs: // a1: value
     sh t0, bgvofs + 6
     j update_frame
 
-
+.align 5
 write_vmain: // a1: value
     // Get the VRAM increment and check if it applies to high or low access
     // TODO: address translation
@@ -986,7 +987,7 @@ vmain_high:
     sb t0, vram_inch
     jr ra
 
-
+.align 5
 write_vmaddl: // a1: value
     // Set the low byte of the VRAM address
     sb a1, vmadd + 1
@@ -998,7 +999,7 @@ write_vmaddl: // a1: value
     sh t0, vram_fetch
     jr ra
 
-
+.align 5
 write_vmaddh: // a1: value
     // Set the high byte of the VRAM address
     andi t0, a1, 0x7F
@@ -1011,7 +1012,7 @@ write_vmaddh: // a1: value
     sh t0, vram_fetch
     jr ra
 
-
+.align 5
 write_vmdatal: // a1: value
     // Write to the low VRAM byte at the current address
     lhu t0, vmadd
@@ -1030,7 +1031,7 @@ write_vmdatal: // a1: value
     sh t0, vmadd
     jr ra
 
-
+.align 5
 write_vmdatah: // a1: value
     // Write to the high VRAM byte at the current address
     lhu t0, vmadd
@@ -1049,7 +1050,7 @@ write_vmdatah: // a1: value
     sh t0, vmadd
     jr ra
 
-
+.align 5
 write_m7sel: // a1: value
     // Set whether mode 7 should wrap out of bounds or not
     // TODO: use the rest of the bits
@@ -1057,7 +1058,7 @@ write_m7sel: // a1: value
     sb t0, m7_nowrap
     j update_frame
 
-
+.align 5
 write_m7a: // a1: value
     // Update M7A with a 16-bit value from the old and new bytes
     lbu t0, m7_old
@@ -1074,7 +1075,7 @@ write_m7a: // a1: value
     sw t0, mpy
     j update_frame
 
-
+.align 5
 write_m7b: // a1: value
     // Update M7B with a 16-bit value from the old and new bytes
     lbu t0, m7_old
@@ -1091,7 +1092,7 @@ write_m7b: // a1: value
     sw t0, mpy
     j update_frame
 
-
+.align 5
 write_m7c: // a1: value
     // Update M7C with a 16-bit value from the old and new bytes
     lbu t0, m7_old
@@ -1101,7 +1102,7 @@ write_m7c: // a1: value
     sh t0, m7c
     j update_frame
 
-
+.align 5
 write_m7d: // a1: value
     // Update M7D with a 16-bit value from the old and new bytes
     lbu t0, m7_old
@@ -1111,7 +1112,7 @@ write_m7d: // a1: value
     sh t0, m7d
     j update_frame
 
-
+.align 5
 write_m7x: // a1: value
     // Update M7X with a 13-bit value from the old and new bytes
     lbu t0, m7_old
@@ -1123,7 +1124,7 @@ write_m7x: // a1: value
     sh t0, m7x
     j update_frame
 
-
+.align 5
 write_m7y: // a1: value
     // Update M7Y with a 13-bit value from the old and new bytes
     lbu t0, m7_old
@@ -1135,14 +1136,14 @@ write_m7y: // a1: value
     sh t0, m7y
     j update_frame
 
-
+.align 5
 write_cgadd: // a1: value
     // Set the palette address, resetting to first access
     sll t0, a1, 1
     sh t0, cgadd
     jr ra
 
-
+.align 5
 write_cgdata: // a1: value
     // Increment the palette address and check bit 0 for first/second access
     lhu t0, cgadd
@@ -1164,7 +1165,7 @@ cg_high:
     sh t1, cgram(t0)
     jr ra
 
-
+.align 5
 write_tm: // a1: value
     // Set the main screen layer mask and mask out layers on the sub screen
     sb a1, tm
@@ -1175,7 +1176,7 @@ write_tm: // a1: value
     sb t0, sub_mask
     j update_frame
 
-
+.align 5
 write_ts: // a1: value
     // Set the sub screen layer mask with main layers masked out
     sb a1, ts
@@ -1185,7 +1186,7 @@ write_ts: // a1: value
     sb t0, sub_mask
     j update_frame
 
-
+.align 5
 write_coldata: // a1: value
     // Prepare to update the sub screen background color
     lhu t0, coldata
@@ -1211,7 +1212,7 @@ skip_channel:
     sh t0, coldata
     jr ra
 
-
+.align 5
 write_setini: // a1: value
     // Set an 8-pixel border if 224-line mode is set
     // TODO: use the rest of the bits
@@ -1228,19 +1229,19 @@ no_border:
     sb t1, vblank_line
     jr ra
 
-
+.align 5
 write_nmitimen: // a1: value
     // Write to the NMITIMEN register
     sb a1, nmitimen
     jr ra
 
-
+.align 5
 write_vtimel: // a1: value
     // Write the low byte of the V-count timer value
     sb a1, vtime + 1
     jr ra
 
-
+.align 5
 write_vtimeh: // a1: value
     // Write the high bit of the V-count timer value
     andi t0, a1, 0x1

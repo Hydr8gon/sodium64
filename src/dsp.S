@@ -42,6 +42,7 @@ filter_jumps: .word filter_end, filter_1, filter_2, filter_3
 
 .text
 
+.align 5
 dsp_sample:
     // Set initial values for the sample
     li t6, -1 // Voice count
@@ -266,13 +267,13 @@ submit_buffer:
     sw t1, 0x0004(t0) // AI_LENGTH
     j apu_execute
 
-
+.align 5
 read_dspaddr: // v0: value
     // Read the DSP register address
     lbu v0, dsp_addr
     jr ra
 
-
+.align 5
 read_dspdata: // v0: value
     // Read a value from the DSP registers
     lbu t0, dsp_addr
@@ -280,13 +281,13 @@ read_dspdata: // v0: value
     lbu v0, dsp_regs(t0)
     jr ra
 
-
+.align 5
 write_dspaddr: // a1: value
     // Write the DSP register address
     sb a1, dsp_addr
     jr ra
 
-
+.align 5
 write_dspdata: // a1: value
     // Write a value to the DSP registers
     lbu t0, dsp_addr
@@ -297,7 +298,7 @@ write_dspdata: // a1: value
     beq t0, 0x5C, write_koff
     jr ra
 
-
+.align 5
 write_kon: // a1: value
     // Set voices to enabled
     lbu t0, enabled
@@ -333,7 +334,7 @@ next_on:
     sd zero, cur_samples(t1)
     b next_on
 
-
+.align 5
 write_koff: // a1: value
     // Set voices to disabled
     lbu t0, enabled

@@ -48,6 +48,7 @@
 
 .text
 
+.align 5
 apu_bpl: // BPL dest
     // Update the JIT register state
     ori s1, s1, FLAG_PC
@@ -79,7 +80,7 @@ apu_bpl: // BPL dest
     la ra, finish_block
     j emit_ori
 
-
+.align 5
 apu_bmi: // BMI dest
     // Update the JIT register state
     ori s1, s1, FLAG_PC
@@ -111,7 +112,7 @@ apu_bmi: // BMI dest
     la ra, finish_block
     j emit_ori
 
-
+.align 5
 apu_bvc: // BVC dest
     // Update the JIT register state
     ori s1, s1, FLAG_PC
@@ -142,7 +143,7 @@ apu_bvc: // BVC dest
     la ra, finish_block
     j emit_ori
 
-
+.align 5
 apu_bvs: // BVS dest
     // Update the JIT register state
     ori s1, s1, FLAG_PC
@@ -173,7 +174,7 @@ apu_bvs: // BVS dest
     la ra, finish_block
     j emit_ori
 
-
+.align 5
 apu_bcc: // BCC dest
     // Update the JIT register state
     ori s1, s1, FLAG_PC
@@ -204,7 +205,7 @@ apu_bcc: // BCC dest
     la ra, finish_block
     j emit_ori
 
-
+.align 5
 apu_bcs: // BCS dest
     // Update the JIT register state
     ori s1, s1, FLAG_PC
@@ -235,7 +236,7 @@ apu_bcs: // BCS dest
     la ra, finish_block
     j emit_ori
 
-
+.align 5
 apu_bne: // BNE dest
     // Update the JIT register state
     ori s1, s1, FLAG_PC
@@ -267,7 +268,7 @@ apu_bne: // BNE dest
     la ra, finish_block
     j emit_ori
 
-
+.align 5
 apu_beq: // BEQ dest
     // Update the JIT register state
     ori s1, s1, FLAG_PC
@@ -299,7 +300,7 @@ apu_beq: // BEQ dest
     la ra, finish_block
     j emit_ori
 
-
+.align 5
 apu_bbc1: // BBC op.b,dest
     // Update the JIT register state
     ori s1, s1, FLAG_PC
@@ -333,7 +334,7 @@ apu_bbc1: // BBC op.b,dest
     la ra, finish_block
     j emit_ori
 
-
+.align 5
 apu_bbs1: // BBS op.b,dest
     // Update the JIT register state
     ori s1, s1, FLAG_PC
@@ -367,7 +368,7 @@ apu_bbs1: // BBS op.b,dest
     la ra, finish_block
     j emit_ori
 
-
+.align 5
 apu_cbne: // CBNE op,dest
     // Update the JIT register state
     ori s1, s1, FLAG_PC
@@ -398,7 +399,7 @@ apu_cbne: // CBNE op,dest
     la ra, finish_block
     j emit_ori
 
-
+.align 5
 apu_dbnzy: // DBNZ Y,dest
     // Update the JIT register state
     ori s1, s1, FLAG_SY | FLAG_PC
@@ -433,7 +434,7 @@ apu_dbnzy: // DBNZ Y,dest
     la ra, finish_block
     j emit_ori
 
-
+.align 5
 apu_dbnzm: // DBNZ op,dest
     // Update the JIT register state
     ori s1, s1, FLAG_PC
@@ -465,7 +466,7 @@ apu_dbnzm: // DBNZ op,dest
     la ra, finish_block
     j emit_ori
 
-
+.align 5
 apu_bra: // BRA dest
     // Update the JIT register state
     ori s1, s1, FLAG_PC
@@ -482,7 +483,7 @@ apu_bra: // BRA dest
     la ra, finish_block
     j emit_ori
 
-
+.align 5
 apu_jmp: // JMP op
     // Update the JIT register state
     ori s1, s1, FLAG_PC
@@ -494,7 +495,7 @@ apu_jmp: // JMP op
     la ra, finish_block
     j emit_or
 
-
+.align 5
 apu_jmpm: // JMP [op]
     // Update the JIT register state
     ori s1, s1, FLAG_PC
@@ -520,7 +521,7 @@ apu_jmpm: // JMP [op]
     la ra, finish_block
     j emit_or
 
-
+.align 5
 apu_call: // CALL op
     // Update the JIT register state
     ori s1, s1, FLAG_SS | FLAG_PC
@@ -563,7 +564,7 @@ apu_call: // CALL op
     la ra, finish_block
     j emit_addi
 
-
+.align 5
 apu_tcall1: // TCALL n
     // Update the JIT register state
     ori s1, s1, FLAG_SS | FLAG_PC
@@ -632,7 +633,7 @@ apu_tcall1: // TCALL n
     la ra, finish_block
     j emit_addi
 
-
+.align 5
 apu_pcall: // PCALL uu
     // Update the JIT register state
     ori s1, s1, FLAG_SS | FLAG_PC
@@ -678,7 +679,7 @@ apu_pcall: // PCALL uu
     la ra, finish_block
     j emit_addi
 
-
+.align 5
 apu_ret: // RET
     // Update the JIT register state
     ori s1, s1, FLAG_SS | FLAG_PC
@@ -723,7 +724,7 @@ apu_ret: // RET
     la ra, finish_block
     j emit_addi
 
-
+.align 5
 apu_ret1: // RET1
     // Update the JIT register state
     ori s1, s1, FLAG_SS | FLAG_SF | FLAG_LF | FLAG_PC
@@ -782,7 +783,7 @@ apu_ret1: // RET1
     la ra, finish_block
     j emit_addi
 
-
+.align 5
 apu_brk: // BRK
     // Update the JIT register state
     ori s1, s1, FLAG_SS | FLAG_SF | FLAG_PC
@@ -867,7 +868,7 @@ apu_brk: // BRK
     la ra, finish_block
     j emit_addi
 
-
+.align 5
 apu_clrp: // CLRP
     // Update the JIT register state
     ori s1, s1, FLAG_SF
@@ -880,7 +881,7 @@ apu_clrp: // CLRP
     la ra, finish_opcode
     j emit_andi
 
-
+.align 5
 apu_setp: // SETP
     // Update the JIT register state
     ori s1, s1, FLAG_SF
@@ -893,7 +894,7 @@ apu_setp: // SETP
     la ra, finish_opcode
     j emit_ori
 
-
+.align 5
 apu_di: // DI
     // Update the JIT register state
     ori s1, s1, FLAG_SF
@@ -906,7 +907,7 @@ apu_di: // DI
     la ra, finish_opcode
     j emit_andi
 
-
+.align 5
 apu_ei: // EI
     // Update the JIT register state
     ori s1, s1, FLAG_SF

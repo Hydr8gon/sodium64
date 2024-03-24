@@ -82,6 +82,7 @@
 
 .text
 
+.align 5
 cpu_ora8: // ORA op (8-bit)
     // Bitwise or a value with the accumulator and set flags (8-bit)
     MEM_READ8
@@ -90,7 +91,7 @@ cpu_ora8: // ORA op (8-bit)
     sb a0, accumulator + 1
     j set_nz8
 
-
+.align 5
 cpu_ora16: // ORA op (16-bit)
     // Bitwise or a value with the accumulator and set flags (16-bit)
     MEM_READ16
@@ -99,7 +100,7 @@ cpu_ora16: // ORA op (16-bit)
     sh a0, accumulator
     j set_nz16
 
-
+.align 5
 cpu_and8: // AND op (8-bit)
     // Bitwise and a value with the accumulator and set flags (8-bit)
     MEM_READ8
@@ -108,7 +109,7 @@ cpu_and8: // AND op (8-bit)
     sb a0, accumulator + 1
     j set_nz8
 
-
+.align 5
 cpu_and16: // AND op (16-bit)
     // Bitwise and a value with the accumulator and set flags (16-bit)
     MEM_READ16
@@ -117,7 +118,7 @@ cpu_and16: // AND op (16-bit)
     sh a0, accumulator
     j set_nz16
 
-
+.align 5
 cpu_eor8: // EOR op (8-bit)
     // Bitwise exclusive-or a value with the accumulator and set flags (8-bit)
     MEM_READ8
@@ -126,7 +127,7 @@ cpu_eor8: // EOR op (8-bit)
     sb a0, accumulator + 1
     j set_nz8
 
-
+.align 5
 cpu_eor16: // EOR op (16-bit)
     // Bitwise exclusive-or a value with the accumulator and set flags (16-bit)
     MEM_READ16
@@ -135,7 +136,7 @@ cpu_eor16: // EOR op (16-bit)
     sh a0, accumulator
     j set_nz16
 
-
+.align 5
 cpu_adc8: // ADC op (8-bit)
     // Add a value with carry to the accumulator (8-bit)
     MEM_READ8
@@ -158,7 +159,7 @@ cpu_adc8: // ADC op (8-bit)
     andi a0, a0, 0xFF
     j set_nz8
 
-
+.align 5
 cpu_adc16: // ADC op (16-bit)
     // Add a value with carry to the accumulator (16-bit)
     MEM_READ16
@@ -181,7 +182,7 @@ cpu_adc16: // ADC op (16-bit)
     andi a0, a0, 0xFFFF
     j set_nz16
 
-
+.align 5
 cpu_adc8d: // ADC op (8-bit BCD)
     // Load values for decimal addition (8-bit)
     MEM_READ8
@@ -231,7 +232,7 @@ adc8_end:
     andi a0, a0, 0xFF
     j set_nz8
 
-
+.align 5
 cpu_adc16d: // ADC op (16-bit BCD)
     // Load values for decimal addition (16-bit)
     MEM_READ16
@@ -307,7 +308,7 @@ adc16_end:
     andi a0, a0, 0xFFFF
     j set_nz16
 
-
+.align 5
 cpu_sbc8: // SBC op (8-bit)
     // Subtract a value with carry from the accumulator (8-bit)
     MEM_READ8
@@ -331,7 +332,7 @@ cpu_sbc8: // SBC op (8-bit)
     andi a0, a0, 0xFF
     j set_nz8
 
-
+.align 5
 cpu_sbc16: // SBC op (16-bit)
     // Subtract a value with carry from the accumulator (16-bit)
     MEM_READ16
@@ -355,7 +356,7 @@ cpu_sbc16: // SBC op (16-bit)
     andi a0, a0, 0xFFFF
     j set_nz16
 
-
+.align 5
 cpu_sbc8d: // SBC op (8-bit BCD)
     // Load values for decimal subtraction (8-bit)
     MEM_READ8
@@ -403,7 +404,7 @@ sbc8_end:
     andi a0, a0, 0xFF
     j set_nz8
 
-
+.align 5
 cpu_sbc16d: // SBC op (16-bit BCD)
     // Load values for decimal subtraction (16-bit)
     MEM_READ16
@@ -477,7 +478,7 @@ sbc16_end:
     andi a0, a0, 0xFFFF
     j set_nz16
 
-
+.align 5
 cpu_cmp8: // CMP op (8-bit)
     // Compare a value with the accumulator and set flags (8-bit)
     MEM_READ8
@@ -489,7 +490,7 @@ cpu_cmp8: // CMP op (8-bit)
     andi a0, a0, 0xFF
     j set_nz8
 
-
+.align 5
 cpu_cmp16: // CMP op (16-bit)
     // Compare a value with the accumulator and set flags (16-bit)
     MEM_READ16
@@ -501,7 +502,7 @@ cpu_cmp16: // CMP op (16-bit)
     andi a0, a0, 0xFFFF
     j set_nz16
 
-
+.align 5
 cpu_cpx8: // CPX op (8-bit)
     // Compare a value with register X and set flags (8-bit)
     MEM_READ8
@@ -513,7 +514,7 @@ cpu_cpx8: // CPX op (8-bit)
     andi a0, a0, 0xFF
     j set_nz8
 
-
+.align 5
 cpu_cpx16: // CPX op (16-bit)
     // Compare a value with register X and set flags (16-bit)
     MEM_READ16
@@ -525,7 +526,7 @@ cpu_cpx16: // CPX op (16-bit)
     andi a0, a0, 0xFFFF
     j set_nz16
 
-
+.align 5
 cpu_cpy8: // CPY op (8-bit)
     // Compare a value with register Y and set flags (8-bit)
     MEM_READ8
@@ -537,7 +538,7 @@ cpu_cpy8: // CPY op (8-bit)
     andi a0, a0, 0xFF
     j set_nz8
 
-
+.align 5
 cpu_cpy16: // CPY op (16-bit)
     // Compare a value with register Y and set flags (16-bit)
     MEM_READ16
@@ -549,7 +550,7 @@ cpu_cpy16: // CPY op (16-bit)
     andi a0, a0, 0xFFFF
     j set_nz16
 
-
+.align 5
 cpu_bit8: // BIT #nn (8-bit)
     // Test the accumulator bits against an immediate value (8-bit)
     MEM_READ8 1(s7)
@@ -564,7 +565,7 @@ cpu_bit8: // BIT #nn (8-bit)
     addi s7, s7, 2
     j cpu_execute
 
-
+.align 5
 cpu_bit16: // BIT #nnnn (16-bit)
     // Test the accumulator bits against an immediate value (16-bit)
     MEM_READ16 1(s7)
@@ -579,7 +580,7 @@ cpu_bit16: // BIT #nnnn (16-bit)
     addi s7, s7, 3
     j cpu_execute
 
-
+.align 5
 cpu_bit8m: // BIT op (8-bit)
     // Test the accumulator bits against a value (8-bit)
     MEM_READ8
@@ -595,7 +596,7 @@ cpu_bit8m: // BIT op (8-bit)
     or s4, s4, t0
     j cpu_execute
 
-
+.align 5
 cpu_bit16m: // BIT op (16-bit)
     // Test the accumulator bits against a value (16-bit)
     MEM_READ16
@@ -612,7 +613,7 @@ cpu_bit16m: // BIT op (16-bit)
     or s4, s4, t0
     j cpu_execute
 
-
+.align 5
 cpu_inc8: // INC op (8-bit)
     // Increment a value in memory and set flags (8-bit)
     MEM_READ8
@@ -621,7 +622,7 @@ cpu_inc8: // INC op (8-bit)
     andi a0, a1, 0xFF
     j set_nz8
 
-
+.align 5
 cpu_inc16: // INC op (16-bit)
     // Increment a value in memory and set flags (16-bit)
     MEM_READ16
@@ -630,7 +631,7 @@ cpu_inc16: // INC op (16-bit)
     andi a0, a1, 0xFFFF
     j set_nz16
 
-
+.align 5
 cpu_inx8: // INX (8-bit)
     // Increment register X and set flags (8-bit)
     lbu a0, register_x + 1
@@ -640,7 +641,7 @@ cpu_inx8: // INX (8-bit)
     addi s7, s7, 1
     j set_nz8
 
-
+.align 5
 cpu_inx16: // INX (16-bit)
     // Increment register X and set flags (16-bit)
     lhu a0, register_x
@@ -650,7 +651,7 @@ cpu_inx16: // INX (16-bit)
     addi s7, s7, 1
     j set_nz16
 
-
+.align 5
 cpu_iny8: // INY (8-bit)
     // Increment register Y and set flags (8-bit)
     lbu a0, register_y + 1
@@ -660,7 +661,7 @@ cpu_iny8: // INY (8-bit)
     addi s7, s7, 1
     j set_nz8
 
-
+.align 5
 cpu_iny16: // INY (16-bit)
     // Increment register Y and set flags (16-bit)
     lhu a0, register_y
@@ -670,7 +671,7 @@ cpu_iny16: // INY (16-bit)
     addi s7, s7, 1
     j set_nz16
 
-
+.align 5
 cpu_ina8: // INA (8-bit)
     // Increment the accumulator and set flags (8-bit)
     lbu a0, accumulator + 1
@@ -680,7 +681,7 @@ cpu_ina8: // INA (8-bit)
     addi s7, s7, 1
     j set_nz8
 
-
+.align 5
 cpu_ina16: // INA (16-bit)
     // Increment the accumulator and set flags (16-bit)
     lhu a0, accumulator
@@ -690,7 +691,7 @@ cpu_ina16: // INA (16-bit)
     addi s7, s7, 1
     j set_nz16
 
-
+.align 5
 cpu_dec8: // DEC op (8-bit)
     // Decrement a value in memory and set flags (8-bit)
     MEM_READ8
@@ -699,7 +700,7 @@ cpu_dec8: // DEC op (8-bit)
     andi a0, a1, 0xFF
     j set_nz8
 
-
+.align 5
 cpu_dec16: // DEC op (16-bit)
     // Decrement a value in memory and set flags (16-bit)
     MEM_READ16
@@ -708,7 +709,7 @@ cpu_dec16: // DEC op (16-bit)
     andi a0, a1, 0xFFFF
     j set_nz16
 
-
+.align 5
 cpu_dex8: // DEX (8-bit)
     // Decrement register X and set flags (8-bit)
     lbu a0, register_x + 1
@@ -718,7 +719,7 @@ cpu_dex8: // DEX (8-bit)
     addi s7, s7, 1
     j set_nz8
 
-
+.align 5
 cpu_dex16: // DEX (16-bit)
     // Decrement register X and set flags (16-bit)
     lhu a0, register_x
@@ -728,7 +729,7 @@ cpu_dex16: // DEX (16-bit)
     addi s7, s7, 1
     j set_nz16
 
-
+.align 5
 cpu_dey8: // DEY (8-bit)
     // Decrement register Y and set flags (8-bit)
     lbu a0, register_y + 1
@@ -738,7 +739,7 @@ cpu_dey8: // DEY (8-bit)
     addi s7, s7, 1
     j set_nz8
 
-
+.align 5
 cpu_dey16: // DEY (16-bit)
     // Decrement register Y and set flags (16-bit)
     lhu a0, register_y
@@ -748,7 +749,7 @@ cpu_dey16: // DEY (16-bit)
     addi s7, s7, 1
     j set_nz16
 
-
+.align 5
 cpu_dea8: // DEA (8-bit)
     // Decrement the accumulator and set flags (8-bit)
     lbu a0, accumulator + 1
@@ -758,7 +759,7 @@ cpu_dea8: // DEA (8-bit)
     addi s7, s7, 1
     j set_nz8
 
-
+.align 5
 cpu_dea16: // DEA (16-bit)
     // Decrement the accumulator and set flags (16-bit)
     lhu a0, accumulator
@@ -768,7 +769,7 @@ cpu_dea16: // DEA (16-bit)
     addi s7, s7, 1
     j set_nz16
 
-
+.align 5
 cpu_tsb8: // TSB op (8-bit)
     // Test the accumulator bits against a value (8-bit)
     MEM_READ8
@@ -786,7 +787,7 @@ cpu_tsb8: // TSB op (8-bit)
     MEM_WRITE8
     j cpu_execute
 
-
+.align 5
 cpu_tsb16: // TSB op (16-bit)
     // Test the accumulator bits against a value (16-bit)
     MEM_READ16
@@ -804,7 +805,7 @@ cpu_tsb16: // TSB op (16-bit)
     MEM_WRITE16
     j cpu_execute
 
-
+.align 5
 cpu_trb8: // TRB op (8-bit)
     // Test the accumulator bits against a value (8-bit)
     MEM_READ8
@@ -823,7 +824,7 @@ cpu_trb8: // TRB op (8-bit)
     MEM_WRITE8
     j cpu_execute
 
-
+.align 5
 cpu_trb16: // TRB op (16-bit)
     // Test the accumulator bits against a value (16-bit)
     MEM_READ16
@@ -842,7 +843,7 @@ cpu_trb16: // TRB op (16-bit)
     MEM_WRITE16
     j cpu_execute
 
-
+.align 5
 cpu_asl8: // ASL A (8-bit)
     // Shift the accumulator left and set flags (8-bit)
     lbu t0, accumulator + 1
@@ -855,7 +856,7 @@ cpu_asl8: // ASL A (8-bit)
     addi s7, s7, 1
     j set_nz8
 
-
+.align 5
 cpu_asl16: // ASL A (16-bit)
     // Shift the accumulator left and set flags (16-bit)
     lhu t0, accumulator
@@ -868,7 +869,7 @@ cpu_asl16: // ASL A (16-bit)
     addi s7, s7, 1
     j set_nz16
 
-
+.align 5
 cpu_asl8m: // ASL op (8-bit)
     // Shift a value in memory left and set flags (8-bit)
     MEM_READ8
@@ -880,7 +881,7 @@ cpu_asl8m: // ASL op (8-bit)
     andi a0, a1, 0xFF
     j set_nz8
 
-
+.align 5
 cpu_asl16m: // ASL op (16-bit)
     // Shift a value in memory left and set flags (16-bit)
     MEM_READ16
@@ -892,7 +893,7 @@ cpu_asl16m: // ASL op (16-bit)
     andi a0, a1, 0xFFFF
     j set_nz16
 
-
+.align 5
 cpu_lsr8: // LSR A (8-bit)
     // Shift the accumulator right and set flags (8-bit)
     lbu t0, accumulator + 1
@@ -904,7 +905,7 @@ cpu_lsr8: // LSR A (8-bit)
     addi s7, s7, 1
     j set_nz8
 
-
+.align 5
 cpu_lsr16: // LSR A (16-bit)
     // Shift the accumulator right and set flags (16-bit)
     lhu t0, accumulator
@@ -916,7 +917,7 @@ cpu_lsr16: // LSR A (16-bit)
     addi s7, s7, 1
     j set_nz16
 
-
+.align 5
 cpu_lsr8m: // LSR op (8-bit)
     // Shift a value in memory right and set flags (8-bit)
     MEM_READ8
@@ -928,7 +929,7 @@ cpu_lsr8m: // LSR op (8-bit)
     move a0, a1
     j set_nz8
 
-
+.align 5
 cpu_lsr16m: // LSR op (16-bit)
     // Shift a value in memory right and set flags (16-bit)
     MEM_READ16
@@ -940,7 +941,7 @@ cpu_lsr16m: // LSR op (16-bit)
     move a0, a1
     j set_nz16
 
-
+.align 5
 cpu_rol8: // ROL A (8-bit)
     // Rotate the accumulator left and set flags (8-bit)
     lbu t0, accumulator + 1
@@ -955,7 +956,7 @@ cpu_rol8: // ROL A (8-bit)
     addi s7, s7, 1
     j set_nz8
 
-
+.align 5
 cpu_rol16: // ROL A (16-bit)
     // Rotate the accumulator left and set flags (16-bit)
     lhu t0, accumulator
@@ -970,7 +971,7 @@ cpu_rol16: // ROL A (16-bit)
     addi s7, s7, 1
     j set_nz16
 
-
+.align 5
 cpu_rol8m: // ROL op (8-bit)
     // Rotate a value in memory left and set flags (8-bit)
     MEM_READ8
@@ -984,7 +985,7 @@ cpu_rol8m: // ROL op (8-bit)
     andi a0, a1, 0xFF
     j set_nz8
 
-
+.align 5
 cpu_rol16m: // ROL op (16-bit)
     // Rotate a value in memory left and set flags (16-bit)
     MEM_READ16
@@ -998,7 +999,7 @@ cpu_rol16m: // ROL op (16-bit)
     andi a0, a1, 0xFFFF
     j set_nz16
 
-
+.align 5
 cpu_ror8: // ROR A (8-bit)
     // Rotate the accumulator right and set flags (8-bit)
     lbu t0, accumulator + 1
@@ -1013,7 +1014,7 @@ cpu_ror8: // ROR A (8-bit)
     addi s7, s7, 1
     j set_nz8
 
-
+.align 5
 cpu_ror16: // ROR A (16-bit)
     // Rotate the accumulator right and set flags (16-bit)
     lhu t0, accumulator
@@ -1028,7 +1029,7 @@ cpu_ror16: // ROR A (16-bit)
     addi s7, s7, 1
     j set_nz16
 
-
+.align 5
 cpu_ror8m: // ROR op (8-bit)
     // Rotate a value in memory right and set flags (8-bit)
     MEM_READ8
@@ -1042,7 +1043,7 @@ cpu_ror8m: // ROR op (8-bit)
     andi a0, a1, 0xFF
     j set_nz8
 
-
+.align 5
 cpu_ror16m: // ROR op (16-bit)
     // Rotate a value in memory right and set flags (16-bit)
     MEM_READ16
