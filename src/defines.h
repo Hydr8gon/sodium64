@@ -168,7 +168,8 @@
 #define TILE_JUMPS (RDP_TILE + 0x78)
 #define TILE_PARAMS (TILE_JUMPS + 0xC)
 #define LAYER_CHART (TILE_PARAMS + 0x40)
-#define ALIGN_GAP (LAYER_CHART + 0x90)
+#define MAX_OBJECT (LAYER_CHART + 0x90)
+#define WRAP_BOUND (MAX_OBJECT + 0x2)
 #define VEC_DATA 0xF80
 
 // Macros that convert addresses between cached and uncached

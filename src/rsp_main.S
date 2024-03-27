@@ -104,7 +104,7 @@ layer_chart:
     .byte 0x06, 0x80, 0x81, 0x09, 0x08, 0x82, 0x49, 0x48, 0x83, 0x46, 0x00, 0x00, 0, 0, 0, 0 // Mode 1 (BG3 high)
 
 // Gap to ensure vector data is aligned
-.byte 0:(VEC_DATA - ALIGN_GAP)
+.byte 0:(VEC_DATA - MAX_OBJECT)
 
 vec_data:
     // Constants that are always kept in vector registers
@@ -180,6 +180,63 @@ table_loop:
     li a0, RDP_FRAME
     jal rdp_send
     li a1, RDP_SECTION
+
+    // Initialize values for finding the first visible object
+    li t9, 0x200 // Index
+    li t8, 239
+    lw t0, FB_BORDER(sp)
+    sll t0, t0, 1
+    sub t8, t8, t0 // Y-bound
+
+next_visible:
+    // Move to the next object until all have been checked
+    beqz t9, set_visible
+    nop
+    addi t9, t9, -4
+
+    // Read the 4 object bytes and additional 2 bits
+    lw t1, OAM(t9)
+    srl t2, t9, 4
+    lbu t2, OAM + 0x200(t2)
+    srl t3, t9, 1
+    andi t3, t3, 0x6
+    srl t2, t2, t3
+
+    // Get the object's size based on the large bit
+    andi t3, t2, 0x2 // Large
+    lhu s0, OBJ_SIZE(t3)
+    andi s1, s0, 0xFF // Y-size
+    srl s0, s0, 8 // X-size
+
+    // Get the object's Y-coordinate, wrapped past screen bounds
+    srl t3, t1, 24
+    slt t4, t8, t3
+    sll t4, t4, 31
+    sra t4, t4, 23
+    or s8, t3, t4
+
+    // Skip the object if it doesn't occupy any visible scanlines
+    add t4, s8, s1
+    sle t5, t4, zero
+    bnez t5, next_visible
+
+    // Get the object's X-coordinate, wrapped past pixel 256
+    srl t5, t1, 16
+    andi t5, t5, 0xFF
+    sll t6, t2, 31 // Upper X
+    sra t6, t6, 23
+    or s2, t5, t6
+
+    // Skip the object if it doesn't occupy any visible pixels
+    add t6, s2, s0
+    and t7, t6, s2
+    sra t7, t7, 8
+    bnez t7, next_visible
+
+set_visible:
+    // Save the first visible object index so objects past it can be skipped
+    sh t9, MAX_OBJECT
+    sh t8, WRAP_BOUND
 
 next_section:
     // Finish the frame after the last section is done
@@ -937,7 +994,7 @@ draw_obj:
     beqz t1, next_layer
     andi a3, t0, 0x3 // Priority
 
-    // Set the OAM count to the first in rotation
+    // Get the index of the first object in rotation
     lhu t9, OAMADD
     andi v1, t9, 0x8000
     beqz v1, no_rotate
@@ -946,6 +1003,13 @@ draw_obj:
 no_rotate:
     addi v1, v1, -4
     andi v1, v1, 0x1FC
+
+    // Ensure the index is within visible object range
+    lhu t0, MAX_OBJECT
+    blt v1, t0, below_max
+    nop
+    move v1, t0
+below_max:
     move t9, v1
 
     // Check if the object character base changed
@@ -992,9 +1056,9 @@ check_object:
     andi s1, s0, 0xFF // Y-size
     srl s0, s0, 8 // X-size
 
-    // Get the object's Y-coordinate, wrapped past line 240
+    // Get the object's Y-coordinate, wrapped past screen bounds
     srl t3, t1, 24
-    li t4, 240
+    lhu t4, WRAP_BOUND
     slt t4, t4, t3
     sll t4, t4, 31
     sra t4, t4, 23
@@ -1177,8 +1241,10 @@ draw_objtile:
 
 next_object:
     // Move to the next object until all have been drawn
+    bnez t9, skip_wrap
     addi t9, t9, -4
-    andi t9, t9, 0x1FC
+    lhu t9, MAX_OBJECT
+skip_wrap:
     bne t9, v1, check_object
 
     // Update the object tile cache status when finished
