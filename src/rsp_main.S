@@ -289,6 +289,10 @@ blank_set:
     sll s3, s3, 4
     lw s7, MASK_OFS(sp)
 
+    // Reset the background priority status
+    sw zero, PRIO_CHECKS + 0
+    sw zero, PRIO_CHECKS + 4
+
 next_layer:
     // Look up the next layer and check if it's BG or OBJ
     // Layers are drawn in an order that mimics priority without slow depth testing
@@ -319,17 +323,22 @@ draw_bg:
     and t1, t1, a3
     beqz t1, next_layer
 
+    // Skip the priority pass if no tiles had high priority
+    andi gp, t0, 0x40 // Priority
+    sll gp, gp, 7
+    sll s2, t3, 1
+    lhu t1, PRIO_CHECKS(s2)
+    xor t1, t1, gp
+    bnez t1, next_layer
+
     // Set parameters based on the BG type
     srl t2, t0, 2
     andi s4, t2, 0x3
     sll t1, s4, 2
     lw t9, TILE_JUMPS - 4(t1) // Code path
     addi s4, s4, 3 // Character shift
-    andi gp, t0, 0x40 // Priority
-    sll gp, gp, 7
 
     // Check if the BG type or character base changed
-    sll s2, t3, 1
     lhu t0, BGCHARBASE(s2)
     or t0, t0, s4
     lhu t1, CACHE_BASES(s2)
@@ -419,7 +428,7 @@ next_tile:
     // Skip the tile if its priority doesn't match the layer
     andi t0, t6, 0x2000
     xor t0, t0, gp
-    bnez t0, finish_tile
+    bnez t0, skip_priority
 
     // Update the RDP draw command with the tile's X-coordinate
     addi t1, s0, 20
@@ -622,6 +631,12 @@ finish_tile:
     jal dma_write
     li a2, 0x3FF
     b next_layer
+    nop
+
+skip_priority:
+    // Track that a tile was skipped due to priority
+    b finish_tile
+    sh t0, PRIO_CHECKS(s2)
 
 skip_decode:
     // Update the RDP texture address and draw a cached tile

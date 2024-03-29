@@ -170,6 +170,7 @@
 #define LAYER_CHART (TILE_PARAMS + 0x40)
 #define MAX_OBJECT (LAYER_CHART + 0x90)
 #define WRAP_BOUND (MAX_OBJECT + 0x2)
+#define PRIO_CHECKS (WRAP_BOUND + 0x2)
 #define VEC_DATA 0xF80
 
 // Macros that convert addresses between cached and uncached
