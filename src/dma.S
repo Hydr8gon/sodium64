@@ -54,7 +54,7 @@ hdma_mask: .byte 0
 
 hdmaen: .byte 0
 dmapx: .byte 0:8
-bbadx: .hword 0x2100:8
+bbadx: .byte 0:8
 a1tbx: .word 0:8
 dastbx: .word 0:8
 a2abx: .word 0:8
@@ -199,12 +199,13 @@ hdma_ready:
 hcpu_io:
     // Copy a value from memory to an I/O register
     MEM_READ8 0(s2)
-    sll t0, s1, 1
-    lhu a0, bbadx(t0)
+    lbu a0, bbadx(s1)
     lbu t0, (s3)
     add a0, a0, t0
+    sll t0, a0, 2
+    lw t0, write_iomap(t0)
     move a1, v0
-    jal io_write8
+    jalr t0
 
     // Move to the next byte until a unit has been transferred
     addi s2, s2, 1
@@ -215,11 +216,12 @@ hcpu_io:
 
 hio_cpu:
     // Copy a value from an I/O register to memory
-    sll t0, s1, 1
-    lhu a0, bbadx(t0)
+    lbu a0, bbadx(s1)
     lbu t0, (s3)
     add a0, a0, t0
-    jal io_read8
+    sll t0, a0, 2
+    lw t0, read_iomap(t0)
+    jalr t0
     move a1, v0
     MEM_WRITE8 0(s2)
 
@@ -298,12 +300,13 @@ cpu_io:
     sh a0, a1tbx + 2(t0)
 
     // Write the value to the I/O address
-    sll t0, s1, 1
-    lhu a0, bbadx(t0)
+    lbu a0, bbadx(s1)
     lbu t0, (s3)
     add a0, a0, t0
+    sll t0, a0, 2
+    lw t0, write_iomap(t0)
     move a1, v0
-    jal io_write8
+    jalr t0
 
     // Move to the next I/O offset in the transfer mode
     andi t0, s3, 0x3
@@ -322,11 +325,12 @@ cpu_io:
 
 io_cpu:
     // Read a value from the I/O address
-    sll t0, s1, 1
-    lhu a0, bbadx(t0)
+    lbu a0, bbadx(s1)
     lbu t0, (s3)
     add a0, a0, t0
-    jal io_read8
+    sll t0, a0, 2
+    lw t0, read_iomap(t0)
+    jalr t0
 
     // Move to the next I/O offset in the transfer mode
     andi t0, s3, 0x3
@@ -383,9 +387,9 @@ read_dmapx: // a0: address - v0: value
 .align 5
 read_bbadx: // a0: address - v0: value
     // Get the low byte of one of the I/O addresses
-    srl t0, a0, 3
-    andi t0, t0, 0xE
-    lbu v0, bbadx + 1(t0)
+    srl t0, a0, 4
+    andi t0, t0, 0x7
+    lbu v0, bbadx(t0)
     jr ra
 
 .align 5
@@ -479,9 +483,9 @@ write_dmapx: // a0: address, a1: value
 .align 5
 write_bbadx: // a0: address, a1: value
     // Set the low byte of one of the I/O addresses
-    srl t0, a0, 3
-    andi t0, t0, 0xE
-    sb a1, bbadx + 1(t0)
+    srl t0, a0, 4
+    andi t0, t0, 0x7
+    sb a1, bbadx(t0)
     jr ra
 
 .align 5

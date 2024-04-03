@@ -21,13 +21,13 @@
 
 .globl sram
 .globl sram_dirty
+.globl read_iomap
+.globl write_iomap
 
 .globl memory_init
 .globl tlbl_exception
 .globl tlbs_exception
 .globl tlbm_exception
-.globl io_read8
-.globl io_write8
 
 .data
 
@@ -422,6 +422,7 @@ tlbl_set:
     mtc0 k0, $0 // Index
     eret
 
+.align 5
 tlbl_rom:
     // DMA the requested 8KB block of ROM to memory
     lui k0, 0xA460 // PI register upper address
@@ -490,24 +491,42 @@ pi_wait:
     bnez k0, pi_wait
     b tlbl_set
 
+.align 5
 tlbl_io:
-    // Fall back to the I/O read handler if nothing is mapped
+    // Set the function return to the address after the read opcode
     mfc0 k0, $14 // EPC
     addi ra, k0, 4
-    la k0, io_read8
+
+    // Look up and return to an I/O read function if no memory is mapped
+    andi a0, a0, 0xFFFF
+    addi t0, a0, -0x2100
+    bgeu t0, 0x4380 - 0x2100, tlbl_unk
+    sll t0, t0, 2
+    lw k0, read_iomap(t0)
     mtc0 k0, $14 // EPC
     addi s5, s5, RAM_CYCLE - IO_CYCLE
     nop
     eret
 
-tlbl_sram:
-    // Fall back to the SRAM read handler if small SRAM is mapped
-    mfc0 k0, $14 // EPC
-    addi ra, k0, 4
-    la k0, sram_read8
+tlbl_unk:
+    // Return to the unknown I/O read function if no register is mapped
+    la k0, read_unk
     mtc0 k0, $14 // EPC
+    addi s5, s5, RAM_CYCLE - IO_CYCLE
+    nop
+    eret
+
+.align 5
+tlbl_sram:
+    // Skip the read opcode
+    mfc0 k0, $14 // EPC
+    addi k0, k0, 4
+    mtc0 k0, $14 // EPC
+
+    // Read an 8-bit value from SRAM
     srl k1, k1, 2 // Size
     and t0, a0, k1
+    lbu v0, UNCACHED(sram)(t0)
     eret
 
 .align 5
@@ -540,24 +559,44 @@ tlbs_exception:
     mtc0 k0, $0 // Index
     eret
 
+.align 5
 tlbs_io:
-    // Fall back to the I/O write handler if nothing is mapped
+    // Set the function return to the address after the write opcode
     mfc0 k0, $14 // EPC
     addi ra, k0, 4
-    la k0, io_write8
+
+    // Look up and return to an I/O write function if no memory is mapped
+    andi a0, a0, 0xFFFF
+    addi t0, a0, -0x2100
+    bgeu t0, 0x4380 - 0x2100, tlbs_unk
+    sll t0, t0, 2
+    lw k0, write_iomap(t0)
     mtc0 k0, $14 // EPC
     addi s5, s5, RAM_CYCLE - IO_CYCLE
     nop
     eret
 
-tlbs_sram:
-    // Fall back to the SRAM write handler if small SRAM is mapped
-    mfc0 k0, $14 // EPC
-    addi ra, k0, 4
-    la k0, sram_write8
+tlbs_unk:
+    // Return to the unknown I/O write function if no register is mapped
+    la k0, write_unk
     mtc0 k0, $14 // EPC
+    addi s5, s5, RAM_CYCLE - IO_CYCLE
+    nop
+    eret
+
+.align 5
+tlbs_sram:
+    // Skip the write opcode
+    mfc0 k0, $14 // EPC
+    addi k0, k0, 4
+    mtc0 k0, $14 // EPC
+
+    // Write an 8-bit value to SRAM and mark it as dirty
     srl k1, k1, 2 // Size
     and t0, a0, k1
+    sb a1, UNCACHED(sram)(t0)
+    li t0, 1
+    sb t0, sram_dirty
     eret
 
 .align 5
@@ -569,30 +608,6 @@ tlbm_exception:
     nop
     nop
     eret
-
-.align 5
-sram_read8: // t0: address - v0: value
-    // Read an 8-bit value from SRAM
-    lbu v0, UNCACHED(sram)(t0)
-    jr ra
-
-.align 5
-sram_write8: // t0: address, a1: value
-    // Write an 8-bit value to SRAM and mark it as dirty
-    sb a1, UNCACHED(sram)(t0) // Uncached
-    li t0, 1
-    sb t0, sram_dirty
-    jr ra
-
-.align 5
-io_read8: // a0: address - v0: value
-    // Read from an I/O register in the lookup table
-    andi a0, a0, 0xFFFF
-    addi t0, a0, -0x2100
-    bgeu t0, 0x4380 - 0x2100, read_unk
-    sll t0, t0, 2 // Word offset
-    lw t0, read_iomap(t0)
-    jr t0
 
 .align 5
 read_unk:
@@ -614,16 +629,6 @@ read_wmdata: // v0: value
     add a0, a0, t0
     lbu v0, (a0)
     jr ra
-
-.align 5
-io_write8: // a0: address, a1: value
-    // Write to an I/O register in the lookup table
-    andi a0, a0, 0xFFFF
-    addi t0, a0, -0x2100
-    bgeu t0, 0x4380 - 0x2100, write_unk
-    sll t0, t0, 2 // Word offset
-    lw t0, write_iomap(t0)
-    jr t0
 
 .align 5
 write_unk:
