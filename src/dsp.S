@@ -28,22 +28,47 @@
 .data
 
 dsp_buffer: .word 0:0x800
-dsp_pointer: .hword 0
-
 dsp_regs: .byte 0:0x100
+
+dsp_timer: .hword 0
+dsp_pointer: .hword 0
 dsp_addr: .byte 0
 
 enabled: .byte 0
 counters: .hword 0:8
+envelopes: .hword 0:8
+next_steps: .hword 0:8
+mode_funcs: .word 0:8
 cur_addrs: .hword 0:8
 cur_samples: .dword 0:8
 
 filter_jumps: .word filter_end, filter_1, filter_2, filter_3
 
+timer_rates: // Lookup table for timer rates and offsets
+    .hword 0x8000, 1,  2048, 0,  1536, 1040
+    .hword 1280, 536,  1024, 0,  768, 1040
+    .hword 640, 536,  512, 0,  384, 1040
+    .hword 320, 536,  256, 0,  192, 1040
+    .hword 160, 536,  128, 0,  96, 1040
+    .hword 80, 536,  64, 0,  48, 1040
+    .hword 40, 536,  32, 0,  24, 1040
+    .hword 20, 536,  16, 0,  12, 1040
+    .hword 10, 536,  8, 0,  6, 1040
+    .hword 5, 536,  4, 0,  3, 1040
+    .hword 2, 0,  1, 0
+
 .text
 
 .align 5
 dsp_sample:
+    // Decrement the global timer every sample
+    lhu t0, dsp_timer
+    addi gp, t0, -1
+    bnez t0, not_zero
+    addi gp, gp, 0x7800
+not_zero:
+    sh gp, dsp_timer
+
     // Set initial values for the sample
     li t6, -1 // Voice count
     li t5, 0 // Left sample
@@ -58,9 +83,19 @@ next_voice:
     andi t0, t0, 1
     beqz t0, next_voice
 
+    // Handle an envelope step if the timer matches
+    sll t1, t6, 1
+    lhu t0, next_steps(t1)
+    bne t0, gp, get_pitch
+    sll t1, t6, 2
+    lw t0, mode_funcs(t1)
+    la ra, get_pitch
+    jr t0
+
+get_pitch:
     // Get the pitch scaler for the current voice
     sll t8, t6, 4
-    lhu t0, dsp_regs + 0x02(t8) // VxPITCH(L/H)
+    lhu t0, dsp_regs + 0x2(t8) // VxPITCH(L/H)
     sll t1, t0, 8
     srl t0, t0, 8
     or t0, t0, t1
@@ -92,7 +127,7 @@ next_voice:
 
     // Get the address of the voice's sample table entry
     lbu t0, dsp_regs + 0x5D // DIR
-    lbu t3, dsp_regs + 0x04(t8) // VxSRCN
+    lbu t3, dsp_regs + 0x4(t8) // VxSRCN
     sll t0, t0, 8
     sll t3, t3, 2
     add t0, t0, t3
@@ -223,15 +258,23 @@ mix_sample:
     add t1, t1, t3
     lh t0, cur_samples(t1)
 
+    // Apply the envelope volume
+    sll t1, t6, 1
+    lhu t1, envelopes(t1)
+    srl t1, t1, 4
+    mult t0, t1
+    mflo t0
+    sra t0, t0, 7
+
     // Mix the sample on the left channel
-    lb t1, dsp_regs + 0x00(t8) // VxVOLL
+    lb t1, dsp_regs + 0x0(t8) // VxVOLL
     mult t0, t1
     mflo t1
     sra t1, t1, 7
     addu t5, t5, t1
 
     // Mix the sample on the right channel
-    lb t1, dsp_regs + 0x01(t8) // VxVOLR
+    lb t1, dsp_regs + 0x1(t8) // VxVOLR
     mult t0, t1
     mflo t1
     sra t1, t1, 7
@@ -268,6 +311,135 @@ submit_buffer:
     j apu_execute
 
 .align 5
+attack_mode: // t6: voice
+    // Increase the envelope by 32
+    sll t1, t6, 1
+    lhu t0, envelopes(t1)
+    addi t0, t0, 32
+    sh t0, envelopes(t1)
+
+    // Switch to decay mode at level 0x7E0 and clip to 0x7FF
+    blt t0, 0x7E0, attack_time
+    sll t2, t6, 2
+    la t3, decay_mode
+    sw t3, mode_funcs(t2)
+    blt t0, 0x7FF, decay_time
+    li t0, 0x7FF
+    sh t0, envelopes(t1)
+    j decay_time
+
+.align 5
+attack_time: // t6: voice
+    // Schedule the next step using the attack rate
+    sll t1, t6, 4
+    lbu t0, dsp_regs + 0x5(t1) // VxADSR1
+    andi a0, t0, 0xF
+    sll a0, a0, 3
+    addi a0, a0, 4
+    j update_step
+
+.align 5
+decay_mode: // t6: voice
+    // Decrease the envelope by an exponential amount
+    sll t1, t6, 1
+    lhu t0, envelopes(t1)
+    addi t2, t0, -1
+    srl t2, t2, 8
+    addi t2, t2, 1
+    sub t0, t0, t2
+    sh t0, envelopes(t1)
+
+    // Calculate the sustain level boundary
+    sll t1, t6, 4
+    lbu t1, dsp_regs + 0x6(t1) // VxADSR2
+    andi t1, t1, 0xE0
+    sll t1, t1, 3
+    addi t1, t1, 0x100
+
+    // Switch to sustain mode at the boundary and clip to 0
+    bgt t0, t1, decay_time
+    sll t2, t6, 2
+    la t3, sustain_mode
+    sw t3, mode_funcs(t2)
+    bgtz t0, sustain_time
+    sh zero, envelopes(t1)
+    j sustain_time
+
+.align 5
+decay_time: // t6: voice
+    // Schedule the next step using the decay rate
+    sll t1, t6, 4
+    lbu t0, dsp_regs + 0x5(t1) // VxADSR1
+    andi a0, t0, 0x70
+    srl a0, a0, 1
+    addi a0, a0, 64
+    j update_step
+
+.align 5
+sustain_mode: // t6: voice
+    // Decrease the envelope by an exponential amount
+    sll t1, t6, 1
+    lhu t0, envelopes(t1)
+    addi t2, t0, -1
+    srl t2, t2, 8
+    addi t2, t2, 1
+    sub t0, t0, t2
+    sh t0, envelopes(t1)
+
+    // Disable the voice if its envelope decreases to zero
+    bgtz t0, sustain_time
+    li t0, 1
+    sll t0, t0, t6
+    xori t0, t0, 0xFF
+    and t7, t7, t0
+    sb t7, enabled
+    jr ra
+
+.align 5
+sustain_time: // t6: voice
+    // Schedule the next step using the sustain rate
+    sll t1, t6, 4
+    lbu t0, dsp_regs + 0x6(t1) // VxADSR2
+    andi a0, t0, 0x1F
+    sll a0, a0, 2
+    j update_step
+
+.align 5
+gain_mode: // t6: voice
+gain_time: // t6: voice
+    // Stub gain mode by fixing the volume to max
+    // TODO: actually implement gain mode
+    sll t1, t6, 1
+    li t0, 0x7FF
+    sh t0, envelopes(t1)
+    li t0, 0xFFFF
+    sh t0, next_steps(t1)
+    jr ra
+
+.align 5
+update_step: // a0: rate, t6: voice
+    // Get values for updating a step timer
+    lhu t2, dsp_timer
+    lw t0, timer_rates(a0)
+    addi t2, t2, -1 // Timer
+    srl t1, t0, 16 // Rate
+    andi t0, t0, 0xFFFF // Offset
+
+    // Calculate the timer value of the next step
+    add t0, t0, t2
+    div t0, t1
+    mfhi t3
+    sub t2, t2, t3
+    bgez t2, set_step
+    addi t2, t2, 0x7800
+
+set_step:
+    // Update a voice's step timer
+    sll t1, t6, 1
+    sh t2, next_steps(t1)
+    jr ra
+
+.align 5
 read_dspaddr: // v0: value
     // Read the DSP register address
     lbu v0, dsp_addr
@@ -302,6 +474,7 @@ write_dspdata: // a1: value
 write_kon: // a1: value
     // Set voices to enabled
     lbu t0, enabled
+    move t5, ra
     or t0, t0, a1
     sb t0, enabled
     li t6, -1
@@ -316,8 +489,8 @@ next_on:
 
     // Get the address of the voice's sample table entry
     lbu t0, dsp_regs + 0x5D // DIR
-    sll t1, t6, 4
-    lbu t1, dsp_regs + 0x04(t1) // VxSRCN
+    sll t4, t6, 4
+    lbu t1, dsp_regs + 0x04(t4) // VxSRCN
     sll t0, t0, 8
     sll t1, t1, 2
     add t0, t0, t1
@@ -330,9 +503,31 @@ next_on:
     sll t1, t6, 1
     sh t0, cur_addrs(t1)
     sh zero, counters(t1)
+    sh zero, envelopes(t1)
     sll t1, t6, 3
     sd zero, cur_samples(t1)
-    b next_on
+
+    // Check whether the voice uses ADSR or gain
+    lbu t1, dsp_regs + 0x5(t4) // VxADSR1
+    la ra, next_on
+    andi t1, t1, 0x80
+    sll t2, t6, 2
+    beqz t1, use_gain
+
+    // Set the voice to attack mode and schedule the first step
+    la t0, attack_mode
+    sw t0, mode_funcs(t2)
+    j attack_time
+
+use_gain:
+    // Set the voice to gain mode and schedule the first step
+    la t0, gain_mode
+    sw t0, mode_funcs(t2)
+    j gain_time
+
+kon_end:
+    // Return from the function
+    jr t5
 
 .align 5
 write_koff: // a1: value
@@ -341,5 +536,4 @@ write_koff: // a1: value
     xori t1, a1, 0xFF
     and t0, t0, t1
     sb t0, enabled
-kon_end:
     jr ra

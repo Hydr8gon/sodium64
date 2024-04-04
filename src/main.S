@@ -84,11 +84,11 @@ clear_vram:
     li t1, 0x00000400 // Vertical scale (10-bit fraction, 240/240)
     sw t1, 0x0034(t0) // VI_Y_SCALE
 
-    // Initialize the AI to output 16-bit samples at 32000Hz
+    // Initialize the AI to output 16-bit samples at the DSP rate
     lui t0, 0xA450 // AI register upper address
     li t1, 0x00000001 // DMA enable
     sw t1, 0x0008(t0) // AI_CONTROL
-    li t1, 0x000005F1 // 48681812 / 32000Hz
+    li t1, 48681812 / (60 * 262 * 341 * 4 / DSP_SAMPLE) + 1
     sw t1, 0x0010(t0) // AI_DAC_RATE
     li t1, 0x0000000F // 16-bit - 1
     sw t1, 0x0014(t0) // AI_BIT_RATE
