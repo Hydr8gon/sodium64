@@ -39,10 +39,32 @@ counters: .hword 0:8
 envelopes: .hword 0:8
 next_steps: .hword 0:8
 mode_funcs: .word 0:8
+cached_vols: .word 0:8
 cur_addrs: .hword 0:8
 cur_samples: .dword 0:8
 
 filter_jumps: .word filter_end, filter_1, filter_2, filter_3
+
+.align 5
+write_iomap:
+    .word write_vol, write_vol, write_reg, write_reg // 0x00-0x03
+    .word write_reg:(0x0F - 0x03) // 0x04-0x0F
+    .word write_vol, write_vol, write_reg, write_reg // 0x10-0x13
+    .word write_reg:(0x1F - 0x13) // 0x14-0x1F
+    .word write_vol, write_vol, write_reg, write_reg // 0x20-0x23
+    .word write_reg:(0x2F - 0x23) // 0x24-0x2F
+    .word write_vol, write_vol, write_reg, write_reg // 0x30-0x33
+    .word write_reg:(0x3F - 0x33) // 0x34-0x3F
+    .word write_vol, write_vol, write_reg, write_reg // 0x40-0x43
+    .word write_reg:(0x4B - 0x43) // 0x44-0x4B
+    .word write_kon, write_reg, write_reg, write_reg // 0x4C-0x4F
+    .word write_vol, write_vol, write_reg, write_reg // 0x50-0x53
+    .word write_reg:(0x5B - 0x53) // 0x54-0x5B
+    .word write_koff, write_reg, write_reg, write_reg // 0x5C-0x5F
+    .word write_vol, write_vol, write_reg, write_reg // 0x60-0x63
+    .word write_reg:(0x6F - 0x63) // 0x64-0x6F
+    .word write_vol, write_vol, write_reg, write_reg // 0x70-0x73
+    .word write_reg:(0xFF - 0x73) // 0x74-0xFF
 
 timer_rates: // Lookup table for timer rates and offsets
     .hword 0x8000, 1,  2048, 0,  1536, 1040
@@ -258,26 +280,23 @@ mix_sample:
     add t1, t1, t3
     lh t0, cur_samples(t1)
 
-    // Apply the envelope volume
-    sll t1, t6, 1
-    lhu t1, envelopes(t1)
-    srl t1, t1, 4
-    mult t0, t1
-    mflo t0
-    sra t0, t0, 7
+    // Get the cached volumes for each channel
+    sll t1, t6, 2
+    lh t2, cached_vols + 0(t1)
+    lh t3, cached_vols + 2(t1)
 
     // Mix the sample on the left channel
-    lb t1, dsp_regs + 0x0(t8) // VxVOLL
-    mult t0, t1
+    mult t0, t2
     mflo t1
-    sra t1, t1, 7
+    sra t1, t1, 14
     addu t5, t5, t1
 
     // Mix the sample on the right channel
-    lb t1, dsp_regs + 0x1(t8) // VxVOLR
-    mult t0, t1
+    beq t2, t3, same_volume
+    mult t0, t3
     mflo t1
-    sra t1, t1, 7
+    sra t1, t1, 14
+same_volume:
     addu t4, t4, t1
     b next_voice
 
@@ -297,8 +316,7 @@ write_sample:
     // Schedule the next sample and check if a buffer is ready
     andi t0, a0, 0xFFF
     addi a3, a3, -DSP_SAMPLE
-    beqz t0, submit_buffer
-    j apu_execute
+    bnez t0, apu_execute
 
 submit_buffer:
     // Submit a buffer to the AI when one is ready
@@ -414,17 +432,20 @@ gain_time: // t6: voice
     sh t0, envelopes(t1)
     li t0, 0xFFFF
     sh t0, next_steps(t1)
-    jr ra
+    j update_vols
 
 .align 5
 update_step: // a0: rate, t6: voice
     // Get values for updating a step timer
     lhu t2, dsp_timer
     lw t0, timer_rates(a0)
-    addi t2, t2, -1 // Timer
+    addi t2, t2, -1 // Base
     srl t1, t0, 16 // Rate
     andi t0, t0, 0xFFFF // Offset
+    bgez t2, calc_step
+    addi t2, t2, 0x7800
 
+calc_step:
     // Calculate the timer value of the next step
     add t0, t0, t2
     div t0, t1
@@ -434,9 +455,29 @@ update_step: // a0: rate, t6: voice
     addi t2, t2, 0x7800
 
 set_step:
-    // Update a voice's step timer
+    // Update a voice's step timer and cached volume
     sll t1, t6, 1
     sh t2, next_steps(t1)
+    j update_vols
+
+.align 5
+update_vols: // t6: voice
+    // Get a voice's envelope and channel volumes
+    sll t1, t6, 1
+    lhu t0, envelopes(t1)
+    sll t1, t6, 4
+    lb t2, dsp_regs + 0x0(t1) // VxVOLL
+    lb t3, dsp_regs + 0x1(t1) // VxVOLR
+    srl t0, t0, 4
+
+    // Cache the multiplied volumes to save a step during mixing
+    sll t1, t6, 2
+    mult t2, t0
+    mflo t2
+    sh t2, cached_vols + 0(t1)
+    mult t3, t0
+    mflo t3
+    sh t3, cached_vols + 2(t1)
     jr ra
 
 .align 5
@@ -461,14 +502,25 @@ write_dspaddr: // a1: value
 
 .align 5
 write_dspdata: // a1: value
-    // Write a value to the DSP registers
+    // Write a value to a DSP register
     lbu t0, dsp_addr
     sb a1, dsp_regs(t0)
 
-    // Handle special registers
-    beq t0, 0x4C, write_kon
-    beq t0, 0x5C, write_koff
+    // Jump to the register's handler function
+    sll t1, t0, 2
+    lw t1, write_iomap(t1)
+    jr t1
+
+.align 5
+write_reg:
+    // Do nothing extra for regular register writes
     jr ra
+
+.align 5
+write_vol: // t0: address
+    // Update a voice's cached volumes when changed
+    srl t6, t0, 4
+    j update_vols
 
 .align 5
 write_kon: // a1: value
