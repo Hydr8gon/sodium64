@@ -50,6 +50,7 @@
 
 .data
 
+dma_stack: .hword 0
 hdma_mask: .byte 0
 
 hdmaen: .byte 0
@@ -108,16 +109,12 @@ reload_end:
 
 .align 5
 trigger_hdma:
-    // Set the initial enabled channels (s0) and current channel (s1)
-    lbu s0, hdma_mask
-    li s1, 0
-    beqz s0, hdma_skip
-
-    // Push non-temporary registers to the stack
-    addi sp, sp, -12
-    sw ra, 8(sp)
-    sw s4, 4(sp)
-    sw s3, 0(sp)
+    // Set initial HDMA values and check if any channels are enabled
+    lbu s0, hdma_mask // Mask
+    move s1, zero // Index
+    move gp, ra
+    bnez s0, hdma_start
+    jr gp
 
 hdma_start:
     // Check if the current HDMA channel is enabled
@@ -125,12 +122,12 @@ hdma_start:
     beqz t0, hdma_end
     lbu t0, dmapx(s1)
 
-    // Get the channel's I/O transfer mode (s3) and unit length (s4)
+    // Get the channel's I/O transfer mode (t8) and unit length (t9)
     andi t1, t0, 0x7
     sll t2, t1, 2
-    la s3, transfer_modes
-    add s3, s3, t2
-    lbu s4, unit_lengths(t1)
+    la t8, transfer_modes
+    add t8, t8, t2
+    lbu t9, unit_lengths(t1)
 
     // Decrement the line counter and check if finished
     lbu v1, ntrlx(s1)
@@ -161,7 +158,7 @@ same_entry:
     bnez t0, hdma_indir
 
     // Increment the direct address and start a transfer
-    add t0, s2, s4
+    add t0, s2, t9
     sll t1, s1, 2
     sh t0, a2abx + 2(t1)
     b hdma_ready
@@ -187,7 +184,7 @@ indir_ready:
     // Increment the indirect address and start a transfer
     sll t1, s1, 2
     lw s2, dastbx(t1)
-    add t0, s2, s4
+    add t0, s2, t9
     sw t0, dastbx(t1)
 
 hdma_ready:
@@ -200,7 +197,7 @@ hcpu_io:
     // Copy a value from memory to an I/O register
     MEM_READ8 0(s2)
     lbu a0, bbadx(s1)
-    lbu t0, (s3)
+    lbu t0, (t8)
     add a0, a0, t0
     sll t0, a0, 2
     lw t0, write_iomap(t0)
@@ -209,15 +206,15 @@ hcpu_io:
 
     // Move to the next byte until a unit has been transferred
     addi s2, s2, 1
-    addi s3, s3, 1
-    addi s4, s4, -1
-    bnez s4, hcpu_io
+    addi t8, t8, 1
+    addi t9, t9, -1
+    bnez t9, hcpu_io
     b hdma_end
 
 hio_cpu:
     // Copy a value from an I/O register to memory
     lbu a0, bbadx(s1)
-    lbu t0, (s3)
+    lbu t0, (t8)
     add a0, a0, t0
     sll t0, a0, 2
     lw t0, read_iomap(t0)
@@ -227,9 +224,9 @@ hio_cpu:
 
     // Move to the next byte until a unit has been transferred
     addi s2, s2, 1
-    addi s3, s3, 1
-    addi s4, s4, -1
-    bnez s4, hio_cpu
+    addi t8, t8, 1
+    addi t9, t9, -1
+    bnez t9, hio_cpu
     b hdma_end
 
 hdma_disable:
@@ -246,45 +243,32 @@ hdma_end:
     srl s0, s0, 1
     addi s1, s1, 1
     bnez s0, hdma_start
-
-    // Pop non-temporary registers from the stack
-    lw ra, 8(sp)
-    lw s4, 4(sp)
-    lw s3, 0(sp)
-    addi sp, sp, 12
-hdma_skip:
-    jr ra
+    jr gp
 
 .align 5
 write_mdmaen: // a1: value
-    // Push non-temporary registers to the stack
-    addi sp, sp, -20
-    sw a1, 16(sp)
-    sw ra, 12(sp)
-    sw s3, 8(sp)
-    sw s1, 4(sp)
-    sw s0, 0(sp)
-
-    // Set the initial enabled channels (s0) and current channel (s1)
-    andi s0, a1, 0xFF
-    li s1, 0
+    // Backup registers and set initial DMA values
+    move gp, ra
+    sh a1, dma_stack
+    andi t8, a1, 0xFF // Mask
+    move t9, zero // Index
 
 dma_start:
     // Check if the current DMA channel is enabled
-    andi t0, s0, 0x1
+    andi t0, t8, 0x1
     beqz t0, dma_end
-    lbu t0, dmapx(s1)
+    lbu t0, dmapx(t9)
 
     // Get the channel's CPU address step (s2)
     srl t1, t0, 3
     andi t1, t1, 0x3
     lb s2, address_steps(t1)
 
-    // Get the channel's I/O transfer mode (s3)
+    // Get the channel's I/O transfer mode (sp)
     andi t1, t0, 0x7
     sll t1, t1, 2
-    la s3, transfer_modes
-    add s3, s3, t1
+    la sp, transfer_modes
+    add sp, sp, t1
 
     // Check the channel's transfer direction
     andi t0, t0, 0x80
@@ -292,16 +276,16 @@ dma_start:
 
 cpu_io:
     // Read a value from the CPU address and adjust
-    sll t0, s1, 2
+    sll t0, t9, 2
     lw a0, a1tbx(t0)
     MEM_READ8 0(a0)
     add a0, a0, s2
-    sll t0, s1, 2
+    sll t0, t9, 2
     sh a0, a1tbx + 2(t0)
 
     // Write the value to the I/O address
-    lbu a0, bbadx(s1)
-    lbu t0, (s3)
+    lbu a0, bbadx(t9)
+    lbu t0, (sp)
     add a0, a0, t0
     sll t0, a0, 2
     lw t0, write_iomap(t0)
@@ -309,14 +293,14 @@ cpu_io:
     jalr t0
 
     // Move to the next I/O offset in the transfer mode
-    andi t0, s3, 0x3
-    sub s3, s3, t0
+    andi t0, sp, 0x3
+    sub sp, sp, t0
     addi t0, t0, 1
     andi t0, t0, 0x3
-    add s3, s3, t0
+    add sp, sp, t0
 
     // Decrement byte counter and continue until it hits zero
-    sll t0, s1, 2
+    sll t0, t9, 2
     lhu t1, dastbx + 2(t0)
     addi t1, t1, -1
     sh t1, dastbx + 2(t0)
@@ -325,31 +309,31 @@ cpu_io:
 
 io_cpu:
     // Read a value from the I/O address
-    lbu a0, bbadx(s1)
-    lbu t0, (s3)
+    lbu a0, bbadx(t9)
+    lbu t0, (sp)
     add a0, a0, t0
     sll t0, a0, 2
     lw t0, read_iomap(t0)
     jalr t0
 
     // Move to the next I/O offset in the transfer mode
-    andi t0, s3, 0x3
-    sub s3, s3, t0
+    andi t0, sp, 0x3
+    sub sp, sp, t0
     addi t0, t0, 1
     andi t0, t0, 0x3
-    add s3, s3, t0
+    add sp, sp, t0
 
     // Write the value to the CPU address and adjust
-    sll t0, s1, 2
+    sll t0, t9, 2
     lw a0, a1tbx(t0)
     move a1, v0
     MEM_WRITE8 0(a0)
     add a0, a0, s2
-    sll t0, s1, 2
+    sll t0, t9, 2
     sh a0, a1tbx + 2(t0)
 
     // Decrement byte counter and continue until it hits zero
-    sll t0, s1, 2
+    sll t0, t9, 2
     lhu t1, dastbx + 2(t0)
     addi t1, t1, -1
     sh t1, dastbx + 2(t0)
@@ -357,18 +341,11 @@ io_cpu:
 
 dma_end:
     // Move to the next channel until no more are enabled
-    srl s0, s0, 1
-    addi s1, s1, 1
-    bnez s0, dma_start
-
-    // Pop non-temporary registers from the stack
-    lw a1, 16(sp)
-    lw ra, 12(sp)
-    lw s3, 8(sp)
-    lw s1, 4(sp)
-    lw s0, 0(sp)
-    addi sp, sp, 20
-    jr ra
+    srl t8, t8, 1
+    addi t9, t9, 1
+    bnez t8, dma_start
+    lhu a1, dma_stack
+    jr gp
 
 .align 5
 write_hdmaen: // a1: value

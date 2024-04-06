@@ -105,9 +105,6 @@ clear_vram:
     cache 0x10, 0x0100(t0)
     cache 0x10, 0x0180(t0)
 
-    // Initialize the stack below hardcoded addresses
-    li sp, FRAMEBUFFER1
-
     // Use DMA to copy SRAM from the cart to memory
     lui t0, 0xA460 // PI register upper address
     la t1, sram // Local SRAM

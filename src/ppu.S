@@ -325,12 +325,9 @@ update_frame:
 
 .align 5
 rsp_frame:
-    // Push the return address to the stack
-    addi sp, sp, -4
-    sw ra, 0(sp)
-
     // Get indices for queued frame values, alternating each frame
     lbu t5, queue_id // Next
+    move gp, ra
     xori t6, t5, 4 // Current
     sb t6, queue_id
 
@@ -492,11 +489,7 @@ frame_wait:
     // Unhalt the RSP so it can render the next frame
     li t0, 0x1 // Clear halt
     sw t0, 0xA4040010 // SP_STATUS
-
-    // Pop the return address from the stack
-    lw ra, 0(sp)
-    addi sp, sp, 4
-    jr ra
+    jr gp
 
 .align 5
 read_mpyl: // v0: value
