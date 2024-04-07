@@ -53,11 +53,10 @@ apu_imm: // #nn
     jal jit_read8
 
     // Emit code to load a value
-    li t0, V0
-    li t1, ZERO
-    move t2, v0
+    li t0, ORI(V0, ZERO, 0)
+    or t0, t0, v0
     move ra, gp
-    j emit_ori
+    j emit_op
 
 .align 5
 apu_dira: // aa
@@ -73,23 +72,18 @@ apu_dir:
 
     // Emit code to load a value from a zero page address
     jal load_flags
-    li t0, A0
-    li t1, S1
-    li t2, 3
-    jal emit_sll
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_andi
+    li t0, SLL(A0, S1, 3)
+    jal emit_op
+    li t0, ANDI(A0, A0, 0x100)
+    jal emit_op
     beqz t8, dir_skip
     la t0, apu_read8
     jal emit_jal
 dir_skip:
-    li t0, A0
-    li t1, A0
-    move t2, v0
+    li t0, ORI(A0, A0, 0)
+    or t0, t0, v0
     move ra, gp
-    j emit_ori
+    j emit_op
 
 .align 5
 apu_drxa: // aa+X
@@ -106,31 +100,22 @@ apu_drx:
     // Emit code to load a value from a zero page address plus register X
     jal load_reg_x
     jal load_flags
-    li t0, A0
-    li t1, S1
-    li t2, 3
-    jal emit_sll
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_andi
-    li t0, T0
-    li t1, T9
-    move t2, v0
-    jal emit_addi
-    li t0, T0
-    li t1, T0
-    li t2, 0xFF
-    jal emit_andi
+    li t0, SLL(A0, S1, 3)
+    jal emit_op
+    li t0, ANDI(A0, A0, 0x100)
+    jal emit_op
+    li t0, ADDI(T0, T9, 0)
+    or t0, t0, v0
+    jal emit_op
+    li t0, ANDI(T0, T0, 0xFF)
+    jal emit_op
     beqz t8, drx_skip
     la t0, apu_read8
     jal emit_jal
 drx_skip:
-    li t0, A0
-    li t1, A0
-    li t2, T0
+    li t0, OR(A0, A0, T0)
     move ra, gp
-    j emit_or
+    j emit_op
 
 .align 5
 apu_drya: // aa+Y
@@ -147,31 +132,22 @@ apu_dry:
     // Emit code to load a value from a zero page address plus register Y
     jal load_reg_y
     jal load_flags
-    li t0, A0
-    li t1, S1
-    li t2, 3
-    jal emit_sll
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_andi
-    li t0, T0
-    li t1, T8
-    move t2, v0
-    jal emit_addi
-    li t0, T0
-    li t1, T0
-    li t2, 0xFF
-    jal emit_andi
+    li t0, SLL(A0, S1, 3)
+    jal emit_op
+    li t0, ANDI(A0, A0, 0x100)
+    jal emit_op
+    li t0, ADDI(T0, T8, 0)
+    or t0, t0, v0
+    jal emit_op
+    li t0, ANDI(T0, T0, 0xFF)
+    jal emit_op
     beqz t8, dry_skip
     la t0, apu_read8
     jal emit_jal
 dry_skip:
-    li t0, A0
-    li t1, A0
-    li t2, T0
+    li t0, OR(A0, A0, T0)
     move ra, gp
-    j emit_or
+    j emit_op
 
 .align 5
 apu_brxa: // (X)
@@ -185,27 +161,19 @@ apu_brx:
     // Emit code to load a value from register X as a zero page address
     jal load_reg_x
     jal load_flags
-    li t0, A0
-    li t1, S1
-    li t2, 3
-    jal emit_sll
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_andi
-    li t0, T9
-    li t1, T9
-    li t2, 0xFF
-    jal emit_andi
+    li t0, SLL(A0, S1, 3)
+    jal emit_op
+    li t0, ANDI(A0, A0, 0x100)
+    jal emit_op
+    li t0, ANDI(T9, T9, 0xFF)
+    jal emit_op
     beqz t8, brx_skip
     la t0, apu_read8
     jal emit_jal
 brx_skip:
-    li t0, A0
-    li t1, A0
-    li t2, T9
+    li t0, OR(A0, A0, T9)
     move ra, gp
-    j emit_or
+    j emit_op
 
 .align 5
 apu_bxpa: // (X)+
@@ -222,31 +190,21 @@ apu_bxp:
     // Emit code to load a value from register X as a zero page address with post-increment
     jal load_reg_x
     jal load_flags
-    li t0, A0
-    li t1, S1
-    li t2, 3
-    jal emit_sll
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_andi
-    li t0, T9
-    li t1, T9
-    li t2, 0xFF
-    jal emit_andi
-    li t0, A0
-    li t1, A0
-    li t2, T9
-    jal emit_or
+    li t0, SLL(A0, S1, 3)
+    jal emit_op
+    li t0, ANDI(A0, A0, 0x100)
+    jal emit_op
+    li t0, ANDI(T9, T9, 0xFF)
+    jal emit_op
+    li t0, OR(A0, A0, T9)
+    jal emit_op
     beqz t8, bxp_skip
     la t0, apu_read8
     jal emit_jal
 bxp_skip:
-    li t0, T9
-    li t1, T9
-    li t2, 1
+    li t0, ADDI(T9, T9, 1)
     move ra, gp
-    j emit_addi
+    j emit_op
 
 .align 5
 apu_absa: // aaaa
@@ -269,11 +227,10 @@ apu_abs:
     la t0, apu_read8
     jal emit_jal
 abs_skip:
-    li t0, A0
-    li t1, ZERO
-    move t2, t7
+    li t0, ORI(A0, ZERO, 0)
+    or t0, t0, t7
     move ra, gp
-    j emit_ori
+    j emit_op
 
 .align 5
 apu_abxa: // aaaa+X
@@ -293,23 +250,18 @@ apu_abx:
 
     // Emit code to load a value from an absolute address plus register X
     jal load_reg_x
-    li t0, T9
-    li t1, T9
-    li t2, 0xFF
-    jal emit_andi
-    li t0, A0
-    li t1, T9
-    move t2, t7
-    jal emit_addi
+    li t0, ANDI(T9, T9, 0xFF)
+    jal emit_op
+    li t0, ADDI(A0, T9, 0)
+    or t0, t0, t7
+    jal emit_op
     beqz t8, abx_skip
     la t0, apu_read8
     jal emit_jal
 abx_skip:
-    li t0, A0
-    li t1, A0
-    li t2, 0xFFFF
+    li t0, ANDI(A0, A0, 0xFFFF)
     move ra, gp
-    j emit_andi
+    j emit_op
 
 .align 5
 apu_abya: // aaaa+Y
@@ -329,23 +281,18 @@ apu_aby:
 
     // Emit code to load a value from an absolute address plus register Y
     jal load_reg_y
-    li t0, T8
-    li t1, T8
-    li t2, 0xFF
-    jal emit_andi
-    li t0, A0
-    li t1, T8
-    move t2, t7
-    jal emit_addi
+    li t0, ANDI(T8, T8, 0xFF)
+    jal emit_op
+    li t0, ADDI(A0, T8, 0)
+    or t0, t0, t7
+    jal emit_op
     beqz t8, aby_skip
     la t0, apu_read8
     jal emit_jal
 aby_skip:
-    li t0, A0
-    li t1, A0
-    li t2, 0xFFFF
+    li t0, ANDI(A0, A0, 0xFFFF)
     move ra, gp
-    j emit_andi
+    j emit_op
 
 .align 5
 apu_idxa: // [aa+X]
@@ -362,53 +309,36 @@ apu_idx:
     // Emit code to form a zero page address plus register X
     jal load_reg_x
     jal load_flags
-    li t0, A0
-    li t1, S1
-    li t2, 3
-    jal emit_sll
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_andi
-    li t0, T0
-    li t1, T9
-    move t2, v0
-    jal emit_addi
-    li t0, T0
-    li t1, T0
-    li t2, 0xFF
-    jal emit_andi
-    li t0, A0
-    li t1, A0
-    li t2, T0
-    jal emit_or
+    li t0, SLL(A0, S1, 3)
+    jal emit_op
+    li t0, ANDI(A0, A0, 0x100)
+    jal emit_op
+    li t0, ADDI(T0, T9, 0)
+    or t0, t0, v0
+    jal emit_op
+    li t0, ANDI(T0, T0, 0xFF)
+    jal emit_op
+    li t0, OR(A0, A0, T0)
+    jal emit_op
 
     // Emit code to load a value from a 16-bit address in the zero page
     la t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, A0
-    li t2, 1
-    jal emit_addi
-    li t0, S0
-    li t1, V0
-    li t2, 8
-    jal emit_sll
+    li t0, ADDI(A0, A0, 1)
+    jal emit_op
+    li t0, SLL(S0, V0, 8)
+    jal emit_op
     la t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, A0
-    li t2, -1
-    jal emit_addi
+    li t0, ADDI(A0, A0, -1)
+    jal emit_op
     beqz t8, idx_skip
     la t0, apu_read8
     jal emit_jal
 idx_skip:
-    li t0, A0
-    li t1, S0
-    li t2, V0
+    li t0, OR(A0, S0, V0)
     move ra, gp
-    j emit_or
+    j emit_op
 
 .align 5
 apu_idya: // [aa]+Y
@@ -424,60 +354,41 @@ apu_idy:
 
     // Emit code to form a zero page address
     jal load_flags
-    li t0, A0
-    li t1, S1
-    li t2, 3
-    jal emit_sll
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_andi
-    li t0, A0
-    li t1, A0
-    move t2, v0
-    jal emit_ori
+    li t0, SLL(A0, S1, 3)
+    jal emit_op
+    li t0, ANDI(A0, A0, 0x100)
+    jal emit_op
+    li t0, ORI(A0, A0, 0)
+    or t0, t0, v0
+    jal emit_op
 
     // Emit code to load a 16-bit address in the zero page
     la t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, A0
-    li t2, 1
-    jal emit_addi
-    li t0, S0
-    li t1, V0
-    li t2, 8
-    jal emit_sll
+    li t0, ADDI(A0, A0, 1)
+    jal emit_op
+    li t0, SLL(S0, V0, 8)
+    jal emit_op
     la t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, A0
-    li t2, -1
-    jal emit_addi
-    li t0, A0
-    li t1, S0
-    li t2, V0
-    jal emit_or
+    li t0, ADDI(A0, A0, -1)
+    jal emit_op
+    li t0, OR(A0, S0, V0)
+    jal emit_op
 
     // Emit code to load a value from an absolute address plus register Y
     jal load_reg_y
-    li t0, T8
-    li t1, T8
-    li t2, 0xFF
-    jal emit_andi
-    li t0, A0
-    li t1, A0
-    li t2, T8
-    jal emit_add
+    li t0, ANDI(T8, T8, 0xFF)
+    jal emit_op
+    li t0, ADD(A0, A0, T8)
+    jal emit_op
     beqz t8, idy_skip
     la t0, apu_read8
     jal emit_jal
 idy_skip:
-    li t0, A0
-    li t1, A0
-    li t2, 0xFFFF
+    li t0, ANDI(A0, A0, 0xFFFF)
     move ra, gp
-    j emit_andi
+    j emit_op
 
 .align 5
 apu_drb: // aaa.b
@@ -497,14 +408,13 @@ apu_drb: // aaa.b
     // Emit code to load a bitmask and a value from an address
     la t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, ZERO
-    jal emit_ori
-    li t0, A1
-    li t1, ZERO
-    move t2, t7
+    li t0, ORI(A0, ZERO, 0)
+    or t0, t0, t2
+    jal emit_op
+    li t0, ORI(A1, ZERO, 0)
+    or t0, t0, t7
     move ra, gp
-    j emit_ori
+    j emit_op
 
 .align 5
 apu_dri: // aa,#nn
@@ -514,26 +424,20 @@ apu_dri: // aa,#nn
     jal jit_read8
 
     // Emit code to load a value
-    li t0, V0
-    li t1, ZERO
-    move t2, t7
-    jal emit_ori
+    li t0, ORI(V0, ZERO, 0)
+    or t0, t0, t7
+    jal emit_op
 
     // Emit code to form a zero page address
     jal load_flags
-    li t0, A0
-    li t1, S1
-    li t2, 3
-    jal emit_sll
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_andi
-    li t0, A0
-    li t1, A0
-    move t2, v0
+    li t0, SLL(A0, S1, 3)
+    jal emit_op
+    li t0, ANDI(A0, A0, 0x100)
+    jal emit_op
+    li t0, ORI(A0, A0, 0)
+    or t0, t0, v0
     move ra, gp
-    j emit_ori
+    j emit_op
 
 .align 5
 apu_dr2: // aa,bb
@@ -544,56 +448,40 @@ apu_dr2: // aa,bb
 
     // Emit code to load a value from a zero page address
     jal load_flags
-    li t0, S0
-    li t1, S1
-    li t2, 3
-    jal emit_sll
-    li t0, S0
-    li t1, S0
-    li t2, 0x100
-    jal emit_andi
+    li t0, SLL(S0, S1, 3)
+    jal emit_op
+    li t0, ANDI(S0, S0, 0x100)
+    jal emit_op
     la t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, S0
-    move t2, t7
-    jal emit_ori
+    li t0, ORI(A0, S0, 0)
+    or t0, t0, t7
+    jal emit_op
 
     // Emit code to form another zero page address
-    li t0, A0
-    li t1, S0
-    move t2, v0
+    li t0, ORI(A0, S0, 0)
+    or t0, t0, v0
     move ra, gp
-    j emit_ori
+    j emit_op
 
 .align 5
 apu_bxy: // (X),(Y)
     // Emit code to load a value from register Y as a zero page address
     jal load_reg_y
     jal load_flags
-    li t0, S0
-    li t1, S1
-    li t2, 3
-    jal emit_sll
-    li t0, S0
-    li t1, S0
-    li t2, 0x100
-    jal emit_andi
-    li t0, T8
-    li t1, T8
-    li t2, 0xFF
-    jal emit_andi
+    li t0, SLL(S0, S1, 3)
+    jal emit_op
+    li t0, ANDI(S0, S0, 0x100)
+    jal emit_op
+    li t0, ANDI(T8, T8, 0xFF)
+    jal emit_op
     la t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, S0
-    li t2, T8
-    jal emit_or
+    li t0, OR(A0, S0, T8)
+    jal emit_op
 
     // Emit code to form a zero page address with register X
     jal load_reg_x
-    li t0, A0
-    li t1, S0
-    li t2, T9
+    li t0, OR(A0, S0, T9)
     move ra, gp
-    j emit_or
+    j emit_op

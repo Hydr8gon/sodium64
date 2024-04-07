@@ -86,6 +86,31 @@
 #define S8 30
 #define RA 31
 
+// Opcode macros for emitting JIT code
+#define ADD(rd, rs, rt) (0x00000020 | ((rd) << 11) | ((rs) << 21) | ((rt) << 16))
+#define ADDI(rt, rs, imm) (0x20000000 | ((rt) << 16) | ((rs) << 21) | ((imm) & 0xFFFF))
+#define AND(rd, rs, rt) (0x00000024 | ((rd) << 11) | ((rs) << 21) | ((rt) << 16))
+#define ANDI(rt, rs, imm) (0x30000000 | ((rt) << 16) | ((rs) << 21) | ((imm) & 0xFFFF))
+#define BEQ(rt, rs, ofs) (0x10000000 | ((rt) << 16) | ((rs) << 21) | ((ofs) & 0xFFFF))
+#define DIV(rs, rt) (0x0000001A | ((rs) << 21) | ((rt) << 16))
+#define LBU(rt, rb, ofs) (0x90000000 | ((rt) << 16) | ((rb) << 21) | ((ofs) & 0xFFFF))
+#define LHU(rt, rb, ofs) (0x94000000 | ((rt) << 16) | ((rb) << 21) | ((ofs) & 0xFFFF))
+#define LUI(rt, imm) (0x3C000000 | ((rt) << 16) | ((imm) & 0xFFFF))
+#define MFHI(rd) (0x00000010 | ((rd) << 11))
+#define MFLO(rd) (0x00000012 | ((rd) << 11))
+#define MULT(rs, rt) (0x00000018 | ((rs) << 21) | ((rt) << 16))
+#define OR(rd, rs, rt) (0x00000025 | ((rd) << 11) | ((rs) << 21) | ((rt) << 16))
+#define ORI(rt, rs, imm) (0x34000000 | ((rt) << 16) | ((rs) << 21) | ((imm) & 0xFFFF))
+#define SB(rt, rb, ofs) (0xA0000000 | ((rt) << 16) | ((rb) << 21) | ((ofs) & 0xFFFF))
+#define SH(rt, rb, ofs) (0xA4000000 | ((rt) << 16) | ((rb) << 21) | ((ofs) & 0xFFFF))
+#define SLL(rd, rt, sa) (0x00000000 | ((rd) << 11) | ((rt) << 16) | ((sa) << 6))
+#define SLT(rd, rs, rt) (0x0000002A | ((rd) << 11) | ((rs) << 21) | ((rt) << 16))
+#define SLTU(rd, rs, rt) (0x0000002B | ((rd) << 11) | ((rs) << 21) | ((rt) << 16))
+#define SRL(rd, rt, sa) (0x00000002 | ((rd) << 11) | ((rt) << 16) | ((sa) << 6))
+#define SUB(rd, rs, rt) (0x00000022 | ((rd) << 11) | ((rs) << 21) | ((rt) << 16))
+#define XOR(rd, rs, rt) (0x00000026 | ((rd) << 11) | ((rs) << 21) | ((rt) << 16))
+#define XORI(rt, rs, imm) (0x38000000 | ((rt) << 16) | ((rs) << 21) | ((imm) & 0xFFFF))
+
 // Addresses of data in RDRAM that are shared between CPU and RSP
 #define ROM_BUFFER 0xA0200000
 #define JIT_BUFFER (ROM_BUFFER - 0x40000)

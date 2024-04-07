@@ -62,23 +62,17 @@ apu_bpl: // BPL dest
     // Emit code to branch if the N flag is clear
     jal load_flags
     jal update_nz
-    li t0, T0
-    li t1, S1
-    li t2, 0x80
-    jal emit_andi // N
-    li t0, T0
-    li t1, ZERO
-    li t2, 2
-    jal emit_beq
-    li t0, S0
-    li t1, ZERO
-    move t2, v0
-    jal emit_ori
-    li t0, S0
-    li t1, ZERO
-    move t2, a0
+    li t0, ANDI(T0, S1, 0x80) // N
+    jal emit_op
+    li t0, BEQ(T0, ZERO, 2)
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, v0
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, a0
     la ra, finish_block
-    j emit_ori
+    j emit_op
 
 .align 5
 apu_bmi: // BMI dest
@@ -94,23 +88,17 @@ apu_bmi: // BMI dest
     // Emit code to branch if the N flag is set
     jal load_flags
     jal update_nz
-    li t0, T0
-    li t1, S1
-    li t2, 0x80
-    jal emit_andi // N
-    li t0, T0
-    li t1, ZERO
-    li t2, 2
-    jal emit_beq
-    li t0, S0
-    li t1, ZERO
-    move t2, a0
-    jal emit_ori
-    li t0, S0
-    li t1, ZERO
-    move t2, v0
+    li t0, ANDI(T0, S1, 0x80) // N
+    jal emit_op
+    li t0, BEQ(T0, ZERO, 2)
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, a0
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, v0
     la ra, finish_block
-    j emit_ori
+    j emit_op
 
 .align 5
 apu_bvc: // BVC dest
@@ -125,23 +113,17 @@ apu_bvc: // BVC dest
 
     // Emit code to branch if the V flag is clear
     jal load_flags
-    li t0, T0
-    li t1, S1
-    li t2, 0x40
-    jal emit_andi // V
-    li t0, T0
-    li t1, ZERO
-    li t2, 2
-    jal emit_beq
-    li t0, S0
-    li t1, ZERO
-    move t2, v0
-    jal emit_ori
-    li t0, S0
-    li t1, ZERO
-    move t2, a0
+    li t0, ANDI(T0, S1, 0x40) // V
+    jal emit_op
+    li t0, BEQ(T0, ZERO, 2)
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, v0
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, a0
     la ra, finish_block
-    j emit_ori
+    j emit_op
 
 .align 5
 apu_bvs: // BVS dest
@@ -156,23 +138,17 @@ apu_bvs: // BVS dest
 
     // Emit code to branch if the V flag is set
     jal load_flags
-    li t0, T0
-    li t1, S1
-    li t2, 0x40
-    jal emit_andi // V
-    li t0, T0
-    li t1, ZERO
-    li t2, 2
-    jal emit_beq
-    li t0, S0
-    li t1, ZERO
-    move t2, a0
-    jal emit_ori
-    li t0, S0
-    li t1, ZERO
-    move t2, v0
+    li t0, ANDI(T0, S1, 0x40) // V
+    jal emit_op
+    li t0, BEQ(T0, ZERO, 2)
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, a0
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, v0
     la ra, finish_block
-    j emit_ori
+    j emit_op
 
 .align 5
 apu_bcc: // BCC dest
@@ -187,23 +163,17 @@ apu_bcc: // BCC dest
 
     // Emit code to branch if the C flag is clear
     jal load_flags
-    li t0, T0
-    li t1, S1
-    li t2, 0x1
-    jal emit_andi // C
-    li t0, T0
-    li t1, ZERO
-    li t2, 2
-    jal emit_beq
-    li t0, S0
-    li t1, ZERO
-    move t2, v0
-    jal emit_ori
-    li t0, S0
-    li t1, ZERO
-    move t2, a0
+    li t0, ANDI(T0, S1, 0x1) // C
+    jal emit_op
+    li t0, BEQ(T0, ZERO, 2)
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, v0
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, a0
     la ra, finish_block
-    j emit_ori
+    j emit_op
 
 .align 5
 apu_bcs: // BCS dest
@@ -218,23 +188,17 @@ apu_bcs: // BCS dest
 
     // Emit code to branch if the C flag is set
     jal load_flags
-    li t0, T0
-    li t1, S1
-    li t2, 0x1
-    jal emit_andi // C
-    li t0, T0
-    li t1, ZERO
-    li t2, 2
-    jal emit_beq
-    li t0, S0
-    li t1, ZERO
-    move t2, a0
-    jal emit_ori
-    li t0, S0
-    li t1, ZERO
-    move t2, v0
+    li t0, ANDI(T0, S1, 0x1) // C
+    jal emit_op
+    li t0, BEQ(T0, ZERO, 2)
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, a0
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, v0
     la ra, finish_block
-    j emit_ori
+    j emit_op
 
 .align 5
 apu_bne: // BNE dest
@@ -250,23 +214,17 @@ apu_bne: // BNE dest
     // Emit code to branch if the Z flag is clear
     jal load_flags
     jal update_nz
-    li t0, T0
-    li t1, S1
-    li t2, 0x2
-    jal emit_andi // Z
-    li t0, T0
-    li t1, ZERO
-    li t2, 2
-    jal emit_beq
-    li t0, S0
-    li t1, ZERO
-    move t2, v0
-    jal emit_ori
-    li t0, S0
-    li t1, ZERO
-    move t2, a0
+    li t0, ANDI(T0, S1, 0x2) // Z
+    jal emit_op
+    li t0, BEQ(T0, ZERO, 2)
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, v0
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, a0
     la ra, finish_block
-    j emit_ori
+    j emit_op
 
 .align 5
 apu_beq: // BEQ dest
@@ -282,23 +240,17 @@ apu_beq: // BEQ dest
     // Emit code to branch if the Z flag is set
     jal load_flags
     jal update_nz
-    li t0, T0
-    li t1, S1
-    li t2, 0x2
-    jal emit_andi // Z
-    li t0, T0
-    li t1, ZERO
-    li t2, 2
-    jal emit_beq
-    li t0, S0
-    li t1, ZERO
-    move t2, a0
-    jal emit_ori
-    li t0, S0
-    li t1, ZERO
-    move t2, v0
+    li t0, ANDI(T0, S1, 0x2) // Z
+    jal emit_op
+    li t0, BEQ(T0, ZERO, 2)
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, a0
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, v0
     la ra, finish_block
-    j emit_ori
+    j emit_op
 
 .align 5
 apu_bbc1: // BBC op.b,dest
@@ -317,22 +269,18 @@ apu_bbc1: // BBC op.b,dest
     add v0, v0, a0
 
     // Emit code to branch if a bit in a memory value is clear
-    li t0, T0
-    li t1, V0
-    jal emit_andi
-    li t0, T0
-    li t1, ZERO
-    li t2, 2
-    jal emit_beq
-    li t0, S0
-    li t1, ZERO
-    move t2, v0
-    jal emit_ori
-    li t0, S0
-    li t1, ZERO
-    move t2, a0
+    li t0, ANDI(T0, V0, 0)
+    or t0, t0, t2
+    jal emit_op
+    li t0, BEQ(T0, ZERO, 2)
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, v0
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, a0
     la ra, finish_block
-    j emit_ori
+    j emit_op
 
 .align 5
 apu_bbs1: // BBS op.b,dest
@@ -351,22 +299,18 @@ apu_bbs1: // BBS op.b,dest
     add v0, v0, a0
 
     // Emit code to branch if a bit in a memory value is set
-    li t0, T0
-    li t1, V0
-    jal emit_andi
-    li t0, T0
-    li t1, ZERO
-    li t2, 2
-    jal emit_beq
-    li t0, S0
-    li t1, ZERO
-    move t2, a0
-    jal emit_ori
-    li t0, S0
-    li t1, ZERO
-    move t2, v0
+    li t0, ANDI(T0, V0, 0)
+    or t0, t0, t2
+    jal emit_op
+    li t0, BEQ(T0, ZERO, 2)
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, a0
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, v0
     la ra, finish_block
-    j emit_ori
+    j emit_op
 
 .align 5
 apu_cbne: // CBNE op,dest
@@ -381,23 +325,17 @@ apu_cbne: // CBNE op,dest
 
     // Emit code to branch if the accumulator doesn't equal a memory value
     jal load_accum
-    li t0, T7
-    li t1, T7
-    li t2, 0xFF
-    jal emit_andi
-    li t0, T7
-    li t1, V0
-    li t2, 2
-    jal emit_beq
-    li t0, S0
-    li t1, ZERO
-    move t2, a0
-    jal emit_ori
-    li t0, S0
-    li t1, ZERO
-    move t2, v0
+    li t0, ANDI(T7, T7, 0xFF)
+    jal emit_op
+    li t0, BEQ(T7, V0, 2)
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, a0
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, v0
     la ra, finish_block
-    j emit_ori
+    j emit_op
 
 .align 5
 apu_dbnzy: // DBNZ Y,dest
@@ -412,27 +350,19 @@ apu_dbnzy: // DBNZ Y,dest
 
     // Emit code to decrement register Y and branch if it's not zero
     jal load_reg_y
-    li t0, T8
-    li t1, T8
-    li t2, 0xFF
-    jal emit_andi
-    li t0, T8
-    li t1, T8
-    li t2, -1
-    jal emit_addi
-    li t0, T8
-    li t1, ZERO
-    li t2, 2
-    jal emit_beq
-    li t0, S0
-    li t1, ZERO
-    move t2, a0
-    jal emit_ori
-    li t0, S0
-    li t1, ZERO
-    move t2, v0
+    li t0, ANDI(T8, T8, 0xFF)
+    jal emit_op
+    li t0, ADDI(T8, T8, -1)
+    jal emit_op
+    li t0, BEQ(T8, ZERO, 2)
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, a0
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, v0
     la ra, finish_block
-    j emit_ori
+    j emit_op
 
 .align 5
 apu_dbnzm: // DBNZ op,dest
@@ -448,23 +378,17 @@ apu_dbnzm: // DBNZ op,dest
     // Emit code to decrement a memory value and branch if it's not zero
     la t0, apu_write8
     jal emit_jal
-    li t0, A1
-    li t1, V0
-    li t2, -1
-    jal emit_addi
-    li t0, A1
-    li t1, ZERO
-    li t2, 2
-    jal emit_beq
-    li t0, S0
-    li t1, ZERO
-    move t2, a0
-    jal emit_ori
-    li t0, S0
-    li t1, ZERO
-    move t2, v0
+    li t0, ADDI(A1, V0, -1)
+    jal emit_op
+    li t0, BEQ(A1, ZERO, 2)
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, a0
+    jal emit_op
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, v0
     la ra, finish_block
-    j emit_ori
+    j emit_op
 
 .align 5
 apu_bra: // BRA dest
@@ -478,10 +402,10 @@ apu_bra: // BRA dest
     add t2, t2, a0
 
     // Emit code to branch unconditionally
-    li t0, S0
-    li t1, ZERO
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, t2
     la ra, finish_block
-    j emit_ori
+    j emit_op
 
 .align 5
 apu_jmp: // JMP op
@@ -489,11 +413,9 @@ apu_jmp: // JMP op
     ori s1, s1, FLAG_PC
 
     // Emit code to jump to an address
-    li t0, S0
-    li t1, ZERO
-    li t2, A0
+    li t0, OR(S0, ZERO, A0)
     la ra, finish_block
-    j emit_or
+    j emit_op
 
 .align 5
 apu_jmpm: // JMP [op]
@@ -501,25 +423,17 @@ apu_jmpm: // JMP [op]
     ori s1, s1, FLAG_PC
 
     // Emit code to jump to an address from memory
-    li t0, S0
-    li t1, ZERO
-    li t2, V0
-    jal emit_or
+    li t0, OR(S0, ZERO, V0)
+    jal emit_op
     la t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, A0
-    li t2, 1
-    jal emit_addi
-    li t0, T0
-    li t1, V0
-    li t2, 8
-    jal emit_sll
-    li t0, S0
-    li t1, S0
-    li t2, T0
+    li t0, ADDI(A0, A0, 1)
+    jal emit_op
+    li t0, SLL(T0, V0, 8)
+    jal emit_op
+    li t0, OR(S0, S0, T0)
     la ra, finish_block
-    j emit_or
+    j emit_op
 
 .align 5
 apu_call: // CALL op
@@ -527,42 +441,32 @@ apu_call: // CALL op
     ori s1, s1, FLAG_SS | FLAG_PC
 
     // Emit code to jump to an address
-    li t0, S0
-    li t1, ZERO
-    li t2, A0
-    jal emit_or
+    li t0, OR(S0, ZERO, A0)
+    jal emit_op
 
     // Emit code to push the old program counter to the stack
     jal load_stack
-    li t0, A0
-    li t1, S2
-    li t2, 0xFF
-    jal emit_andi
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_ori
+    li t0, ANDI(A0, S2, 0xFF)
+    jal emit_op
+    li t0, ORI(A0, A0, 0x100)
+    jal emit_op
     la t0, apu_write8
     jal emit_jal
-    li t0, A1
-    li t1, ZERO
+    li t0, ORI(A1, ZERO, 0)
     srl t2, a0, 8
-    jal emit_ori
-    li t0, A0
-    li t1, A0
-    li t2, -1
-    jal emit_addi
+    or t0, t0, t2
+    jal emit_op
+    li t0, ADDI(A0, A0, -1)
+    jal emit_op
     la t0, apu_write8
     jal emit_jal
-    li t0, A1
-    li t1, ZERO
+    li t0, ORI(A1, ZERO, 0)
     andi t2, a0, 0xFF
-    jal emit_ori
-    li t0, S2
-    li t1, S2
-    li t2, -2
+    or t0, t0, t2
+    jal emit_op
+    li t0, ADDI(S2, S2, -2)
     la ra, finish_block
-    j emit_addi
+    j emit_op
 
 .align 5
 apu_tcall1: // TCALL n
@@ -578,60 +482,43 @@ apu_tcall1: // TCALL n
     // Emit code to jump to an address from memory
     la t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, ZERO
-    move t2, t7
-    jal emit_ori
-    li t0, S0
-    li t1, ZERO
-    li t2, V0
-    jal emit_or
+    li t0, ORI(A0, ZERO, 0)
+    or t0, t0, t7
+    jal emit_op
+    li t0, OR(S0, ZERO, V0)
+    jal emit_op
     la t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, A0
-    li t2, 1
-    jal emit_addi
-    li t0, T0
-    li t1, V0
-    li t2, 8
-    jal emit_sll
-    li t0, S0
-    li t1, S0
-    li t2, T0
-    jal emit_or
+    li t0, ADDI(A0, A0, 1)
+    jal emit_op
+    li t0, SLL(T0, V0, 8)
+    jal emit_op
+    li t0, OR(S0, S0, T0)
+    jal emit_op
 
     // Emit code to push the old program counter to the stack
     jal load_stack
-    li t0, A0
-    li t1, S2
-    li t2, 0xFF
-    jal emit_andi
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_ori
+    li t0, ANDI(A0, S2, 0xFF)
+    jal emit_op
+    li t0, ORI(A0, A0, 0x100)
+    jal emit_op
     la t0, apu_write8
     jal emit_jal
-    li t0, A1
-    li t1, ZERO
+    li t0, ORI(A1, ZERO, 0)
     srl t2, a0, 8
-    jal emit_ori
-    li t0, A0
-    li t1, A0
-    li t2, -1
-    jal emit_addi
+    or t0, t0, t2
+    jal emit_op
+    li t0, ADDI(A0, A0, -1)
+    jal emit_op
     la t0, apu_write8
     jal emit_jal
-    li t0, A1
-    li t1, ZERO
+    li t0, ORI(A1, ZERO, 0)
     andi t2, a0, 0xFF
-    jal emit_ori
-    li t0, S2
-    li t1, S2
-    li t2, -2
+    or t0, t0, t2
+    jal emit_op
+    li t0, ADDI(S2, S2, -2)
     la ra, finish_block
-    j emit_addi
+    j emit_op
 
 .align 5
 apu_pcall: // PCALL uu
@@ -643,41 +530,33 @@ apu_pcall: // PCALL uu
     ori t2, v0, 0xFF00
 
     // Emit code to jump to an address in the highest page of RAM
-    li t0, S0
-    li t1, ZERO
-    jal emit_ori
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, t2
+    jal emit_op
 
     // Emit code to push the old program counter to the stack
     jal load_stack
-    li t0, A0
-    li t1, S2
-    li t2, 0xFF
-    jal emit_andi
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_ori
+    li t0, ANDI(A0, S2, 0xFF)
+    jal emit_op
+    li t0, ORI(A0, A0, 0x100)
+    jal emit_op
     la t0, apu_write8
     jal emit_jal
-    li t0, A1
-    li t1, ZERO
+    li t0, ORI(A1, ZERO, 0)
     srl t2, a0, 8
-    jal emit_ori
-    li t0, A0
-    li t1, A0
-    li t2, -1
-    jal emit_addi
+    or t0, t0, t2
+    jal emit_op
+    li t0, ADDI(A0, A0, -1)
+    jal emit_op
     la t0, apu_write8
     jal emit_jal
-    li t0, A1
-    li t1, ZERO
+    li t0, ORI(A1, ZERO, 0)
     andi t2, a0, 0xFF
-    jal emit_ori
-    li t0, S2
-    li t1, S2
-    li t2, -2
+    or t0, t0, t2
+    jal emit_op
+    li t0, ADDI(S2, S2, -2)
     la ra, finish_block
-    j emit_addi
+    j emit_op
 
 .align 5
 apu_ret: // RET
@@ -686,43 +565,27 @@ apu_ret: // RET
 
     // Emit code to pop the program counter from the stack
     jal load_stack
-    li t0, A0
-    li t1, S2
-    li t2, 1
-    jal emit_addi
-    li t0, A0
-    li t1, A0
-    li t2, 0xFF
-    jal emit_andi
+    li t0, ADDI(A0, S2, 1)
+    jal emit_op
+    li t0, ANDI(A0, A0, 0xFF)
+    jal emit_op
     li t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_ori
-    li t0, S0
-    li t1, ZERO
-    li t2, V0
-    jal emit_or
+    li t0, ORI(A0, A0, 0x100)
+    jal emit_op
+    li t0, OR(S0, ZERO, V0)
+    jal emit_op
     li t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, A0
-    li t2, 1
-    jal emit_addi
-    li t0, T0
-    li t1, V0
-    li t2, 8
-    jal emit_sll
-    li t0, S0
-    li t1, S0
-    li t2, T0
-    jal emit_or
-    li t0, S2
-    li t1, S2
-    li t2, 2
+    li t0, ADDI(A0, A0, 1)
+    jal emit_op
+    li t0, SLL(T0, V0, 8)
+    jal emit_op
+    li t0, OR(S0, S0, T0)
+    jal emit_op
+    li t0, ADDI(S2, S2, 2)
     la ra, finish_block
-    j emit_addi
+    j emit_op
 
 .align 5
 apu_ret1: // RET1
@@ -733,55 +596,35 @@ apu_ret1: // RET1
 
     // Emit code to pop the flags from the stack
     jal load_stack
-    li t0, A0
-    li t1, S2
-    li t2, 1
-    jal emit_addi
-    li t0, A0
-    li t1, A0
-    li t2, 0xFF
-    jal emit_andi
+    li t0, ADDI(A0, S2, 1)
+    jal emit_op
+    li t0, ANDI(A0, A0, 0xFF)
+    jal emit_op
     la t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_ori
-    li t0, S1
-    li t1, ZERO
-    li t2, V0
-    jal emit_or
+    li t0, ORI(A0, A0, 0x100)
+    jal emit_op
+    li t0, OR(S1, ZERO, V0)
+    jal emit_op
 
     // Emit code to pop the program counter from the stack
     li t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, A0
-    li t2, 1
-    jal emit_addi
-    li t0, S0
-    li t1, ZERO
-    li t2, V0
-    jal emit_or
+    li t0, ADDI(A0, A0, 1)
+    jal emit_op
+    li t0, OR(S0, ZERO, V0)
+    jal emit_op
     li t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, A0
-    li t2, 1
-    jal emit_addi
-    li t0, T0
-    li t1, V0
-    li t2, 8
-    jal emit_sll
-    li t0, S0
-    li t1, S0
-    li t2, T0
-    jal emit_or
-    li t0, S2
-    li t1, S2
-    li t2, 3
+    li t0, ADDI(A0, A0, 1)
+    jal emit_op
+    li t0, SLL(T0, V0, 8)
+    jal emit_op
+    li t0, OR(S0, S0, T0)
+    jal emit_op
+    li t0, ADDI(S2, S2, 3)
     la ra, finish_block
-    j emit_addi
+    j emit_op
 
 .align 5
 apu_brk: // BRK
@@ -791,82 +634,56 @@ apu_brk: // BRK
     // Emit code to jump to an address stored at 0xFFDE
     la t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, ZERO
-    li t2, 0xFFDE
-    jal emit_ori
-    li t0, S0
-    li t1, ZERO
-    li t2, V0
-    jal emit_or
+    li t0, ORI(A0, ZERO, 0xFFDE)
+    jal emit_op
+    li t0, OR(S0, ZERO, V0)
+    jal emit_op
     la t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, A0
-    li t2, 1
-    jal emit_addi
-    li t0, T0
-    li t1, V0
-    li t2, 8
-    jal emit_sll
-    li t0, S0
-    li t1, S0
-    li t2, T0
-    jal emit_or
+    li t0, ADDI(A0, A0, 1)
+    jal emit_op
+    li t0, SLL(T0, V0, 8)
+    jal emit_op
+    li t0, OR(S0, S0, T0)
+    jal emit_op
 
     // Emit code to push the old program counter to the stack
     jal load_stack
-    li t0, A0
-    li t1, S2
-    li t2, 0xFF
-    jal emit_andi
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_ori
+    li t0, ANDI(A0, S2, 0xFF)
+    jal emit_op
+    li t0, ORI(A0, A0, 0x100)
+    jal emit_op
     la t0, apu_write8
     jal emit_jal
-    li t0, A1
-    li t1, ZERO
+    li t0, ORI(A1, ZERO, 0)
     srl t2, a0, 8
-    jal emit_ori
-    li t0, A0
-    li t1, A0
-    li t2, -1
-    jal emit_addi
+    or t0, t0, t2
+    jal emit_op
+    li t0, ADDI(A0, A0, -1)
+    jal emit_op
     la t0, apu_write8
     jal emit_jal
-    li t0, A1
-    li t1, ZERO
+    li t0, ORI(A1, ZERO, 0)
     andi t2, a0, 0xFF
-    jal emit_ori
+    or t0, t0, t2
+    jal emit_op
 
     // Emit code to push the flags to the stack and modify current ones
     jal load_flags
     jal update_nz
-    li t0, A0
-    li t1, A0
-    li t2, -1
-    jal emit_addi
+    li t0, ADDI(A0, A0, -1)
+    jal emit_op
     la t0, apu_write8
     jal emit_jal
-    li t0, A1
-    li t1, ZERO
-    li t2, S1
-    jal emit_or
-    li t0, S1
-    li t1, S1
-    li t2, 0xFB
-    jal emit_andi // Clear I
-    li t0, S1
-    li t1, S1
-    li t2, 0x10
-    jal emit_ori // Set B
-    li t0, S2
-    li t1, S2
-    li t2, -3
+    li t0, OR(A1, ZERO, S1)
+    jal emit_op
+    li t0, ANDI(S1, S1, 0xFB) // Clear I
+    jal emit_op
+    li t0, ORI(S1, S1, 0x10) // Set B
+    jal emit_op
+    li t0, ADDI(S2, S2, -3)
     la ra, finish_block
-    j emit_addi
+    j emit_op
 
 .align 5
 apu_clrp: // CLRP
@@ -875,11 +692,9 @@ apu_clrp: // CLRP
 
     // Emit code to clear the P flag
     jal load_flags
-    li t0, S1
-    li t1, S1
-    li t2, 0xDF
+    li t0, ANDI(S1, S1, 0xDF)
     la ra, finish_opcode
-    j emit_andi
+    j emit_op
 
 .align 5
 apu_setp: // SETP
@@ -888,11 +703,9 @@ apu_setp: // SETP
 
     // Emit code to set the P flag
     jal load_flags
-    li t0, S1
-    li t1, S1
-    li t2, 0x20
+    li t0, ORI(S1, S1, 0x20)
     la ra, finish_opcode
-    j emit_ori
+    j emit_op
 
 .align 5
 apu_di: // DI
@@ -901,11 +714,9 @@ apu_di: // DI
 
     // Emit code to clear the I flag
     jal load_flags
-    li t0, S1
-    li t1, S1
-    li t2, 0xFB
+    li t0, ANDI(S1, S1, 0xFB)
     la ra, finish_opcode
-    j emit_andi
+    j emit_op
 
 .align 5
 apu_ei: // EI
@@ -914,8 +725,6 @@ apu_ei: // EI
 
     // Emit code to set the I flag
     jal load_flags
-    li t0, S1
-    li t1, S1
-    li t2, 0x4
+    li t0, ORI(S1, S1, 0x4)
     la ra, finish_opcode
-    j emit_ori
+    j emit_op

@@ -52,10 +52,8 @@ apu_movax: // MOV A,X
 
     // Emit code to move a value to the accumulator from register X and set flags
     jal load_reg_x
-    li t0, T7
-    li t1, ZERO
-    li t2, T9
-    jal emit_or
+    li t0, OR(T7, ZERO, T9)
+    jal emit_op
     li t1, T7
     la ra, finish_opcode
     j queue_nz
@@ -67,10 +65,8 @@ apu_movxa: // MOV X,A
 
     // Emit code to move a value to register X from the accumulator and set flags
     jal load_accum
-    li t0, T9
-    li t1, ZERO
-    li t2, T7
-    jal emit_or
+    li t0, OR(T9, ZERO, T7)
+    jal emit_op
     li t1, T9
     la ra, finish_opcode
     j queue_nz
@@ -82,10 +78,8 @@ apu_movay: // MOV A,Y
 
     // Emit code to move a value to the accumulator from register Y and set flags
     jal load_reg_y
-    li t0, T7
-    li t1, ZERO
-    li t2, T8
-    jal emit_or
+    li t0, OR(T7, ZERO, T8)
+    jal emit_op
     li t1, T7
     la ra, finish_opcode
     j queue_nz
@@ -97,10 +91,8 @@ apu_movya: // MOV Y,A
 
     // Emit code to move a value to register Y from the accumulator and set flags
     jal load_accum
-    li t0, T8
-    li t1, ZERO
-    li t2, T7
-    jal emit_or
+    li t0, OR(T8, ZERO, T7)
+    jal emit_op
     li t1, T8
     la ra, finish_opcode
     j queue_nz
@@ -112,10 +104,8 @@ apu_movxs: // MOV X,SP
 
     // Emit code to move a value to register X from the stack pointer and set flags
     jal load_stack
-    li t0, T9
-    li t1, ZERO
-    li t2, S2
-    jal emit_or
+    li t0, OR(T9, ZERO, S2)
+    jal emit_op
     li t1, T9
     la ra, finish_opcode
     j queue_nz
@@ -127,11 +117,9 @@ apu_movsx: // MOV SP,X
 
     // Emit code to move a value to the stack pointer from register X
     jal load_reg_x
-    li t0, S2
-    li t1, ZERO
-    li t2, T9
+    li t0, OR(S2, ZERO, T9)
     la ra, finish_opcode
-    j emit_or
+    j emit_op
 
 .align 5
 apu_mova: // MOV A,op
@@ -139,10 +127,8 @@ apu_mova: // MOV A,op
     ori s1, s1, FLAG_SA | FLAG_LA
 
     // Emit code to move a value to the accumulator and set flags
-    li t0, T7
-    li t1, ZERO
-    li t2, V0
-    jal emit_or
+    li t0, OR(T7, ZERO, V0)
+    jal emit_op
     li t1, T7
     la ra, finish_opcode
     j queue_nz
@@ -153,10 +139,8 @@ apu_movx: // MOV X,op
     ori s1, s1, FLAG_SX | FLAG_LX
 
     // Emit code to move a value to register X and set flags
-    li t0, T9
-    li t1, ZERO
-    li t2, V0
-    jal emit_or
+    li t0, OR(T9, ZERO, V0)
+    jal emit_op
     li t1, T9
     la ra, finish_opcode
     j queue_nz
@@ -167,10 +151,8 @@ apu_movy: // MOV Y,op
     ori s1, s1, FLAG_SY | FLAG_LY
 
     // Emit code to move a value to register Y and set flags
-    li t0, T8
-    li t1, ZERO
-    li t2, V0
-    jal emit_or
+    li t0, OR(T8, ZERO, V0)
+    jal emit_op
     li t1, T8
     la ra, finish_opcode
     j queue_nz
@@ -181,30 +163,20 @@ apu_movwya: // MOVW YA,op
     ori s1, s1, FLAG_SY | FLAG_SA | FLAG_LY | FLAG_LA
 
     // Emit code to move a 16-bit value to register YA
-    li t0, T7
-    li t1, ZERO
-    li t2, V0
-    jal emit_or
+    li t0, OR(T7, ZERO, V0)
+    jal emit_op
     la t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, A0
-    li t2, 1
-    jal emit_addi
-    li t0, T8
-    li t1, ZERO
-    li t2, V0
-    jal emit_or
+    li t0, ADDI(A0, A0, 1)
+    jal emit_op
+    li t0, OR(T8, ZERO, V0)
+    jal emit_op
 
     // Emit code to set flags for the 16-bit value
-    li t0, T0
-    li t1, ZERO
-    li t2, T8
-    jal emit_slt
-    li t0, T0
-    li t1, T0
-    li t2, T7
-    jal emit_or
+    li t0, SLT(T0, ZERO, T8)
+    jal emit_op
+    li t0, OR(T0, T0, T7)
+    jal emit_op
     li t1, T0
     la ra, finish_opcode
     j queue_nz
@@ -214,11 +186,9 @@ apu_movm: // MOV op
     // Emit code to move a value to a memory address
     la t0, apu_write8
     jal emit_jal
-    li t0, A1
-    li t1, ZERO
-    li t2, V0
+    li t0, OR(A1, ZERO, V0)
     la ra, finish_opcode
-    j emit_or
+    j emit_op
 
 .align 5
 apu_amov: // MOV op,A
@@ -226,11 +196,9 @@ apu_amov: // MOV op,A
     jal load_accum
     la t0, apu_write8
     jal emit_jal
-    li t0, A1
-    li t1, ZERO
-    li t2, T7
+    li t0, OR(A1, ZERO, T7)
     la ra, finish_opcode
-    j emit_or
+    j emit_op
 
 .align 5
 apu_xmov: // MOV op,X
@@ -238,11 +206,9 @@ apu_xmov: // MOV op,X
     jal load_reg_x
     la t0, apu_write8
     jal emit_jal
-    li t0, A1
-    li t1, ZERO
-    li t2, T9
+    li t0, OR(A1, ZERO, T9)
     la ra, finish_opcode
-    j emit_or
+    j emit_op
 
 .align 5
 apu_ymov: // MOV op,Y
@@ -250,11 +216,9 @@ apu_ymov: // MOV op,Y
     jal load_reg_y
     la t0, apu_write8
     jal emit_jal
-    li t0, A1
-    li t1, ZERO
-    li t2, T8
+    li t0, OR(A1, ZERO, T8)
     la ra, finish_opcode
-    j emit_or
+    j emit_op
 
 .align 5
 apu_movway: // MOVW op,YA
@@ -263,21 +227,15 @@ apu_movway: // MOVW op,YA
     jal load_accum
     la t0, apu_write8
     jal emit_jal
-    li t0, A1
-    li t1, ZERO
-    li t2, T7
-    jal emit_or
-    li t0, A0
-    li t1, A0
-    li t2, 1
-    jal emit_addi
+    li t0, OR(A1, ZERO, T7)
+    jal emit_op
+    li t0, ADDI(A0, A0, 1)
+    jal emit_op
     la t0, apu_write8
     jal emit_jal
-    li t0, A1
-    li t1, ZERO
-    li t2, T8
+    li t0, OR(A1, ZERO, T8)
     la ra, finish_opcode
-    j emit_or
+    j emit_op
 
 .align 5
 apu_pha: // PUSH A
@@ -287,25 +245,17 @@ apu_pha: // PUSH A
     // Emit code to push the accumulator to the stack
     jal load_stack
     jal load_accum
-    li t0, A0
-    li t1, S2
-    li t2, 0xFF
-    jal emit_andi
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_ori
-    li t0, A1
-    li t1, ZERO
-    li t2, T7
-    jal emit_or
+    li t0, ANDI(A0, S2, 0xFF)
+    jal emit_op
+    li t0, ORI(A0, A0, 0x100)
+    jal emit_op
+    li t0, OR(A1, ZERO, T7)
+    jal emit_op
     la t0, apu_write8
     jal emit_jal
-    li t0, S2
-    li t1, S2
-    li t2, -1
+    li t0, ADDI(S2, S2, -1)
     la ra, finish_opcode
-    j emit_addi
+    j emit_op
 
 .align 5
 apu_phx: // PUSH X
@@ -315,25 +265,17 @@ apu_phx: // PUSH X
     // Emit code to push register X to the stack
     jal load_stack
     jal load_reg_x
-    li t0, A0
-    li t1, S2
-    li t2, 0xFF
-    jal emit_andi
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_ori
-    li t0, A1
-    li t1, ZERO
-    li t2, T9
-    jal emit_or
+    li t0, ANDI(A0, S2, 0xFF)
+    jal emit_op
+    li t0, ORI(A0, A0, 0x100)
+    jal emit_op
+    li t0, OR(A1, ZERO, T9)
+    jal emit_op
     la t0, apu_write8
     jal emit_jal
-    li t0, S2
-    li t1, S2
-    li t2, -1
+    li t0, ADDI(S2, S2, -1)
     la ra, finish_opcode
-    j emit_addi
+    j emit_op
 
 .align 5
 apu_phy: // PUSH Y
@@ -343,25 +285,17 @@ apu_phy: // PUSH Y
     // Emit code to push register Y to the stack
     jal load_stack
     jal load_reg_y
-    li t0, A0
-    li t1, S2
-    li t2, 0xFF
-    jal emit_andi
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_ori
-    li t0, A1
-    li t1, ZERO
-    li t2, T8
-    jal emit_or
+    li t0, ANDI(A0, S2, 0xFF)
+    jal emit_op
+    li t0, ORI(A0, A0, 0x100)
+    jal emit_op
+    li t0, OR(A1, ZERO, T8)
+    jal emit_op
     la t0, apu_write8
     jal emit_jal
-    li t0, S2
-    li t1, S2
-    li t2, -1
+    li t0, ADDI(S2, S2, -1)
     la ra, finish_opcode
-    j emit_addi
+    j emit_op
 
 .align 5
 apu_php: // PUSH PSW
@@ -372,25 +306,17 @@ apu_php: // PUSH PSW
     jal load_stack
     jal load_flags
     jal update_nz
-    li t0, A0
-    li t1, S2
-    li t2, 0xFF
-    jal emit_andi
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_ori
-    li t0, A1
-    li t1, ZERO
-    li t2, S1
-    jal emit_or
+    li t0, ANDI(A0, S2, 0xFF)
+    jal emit_op
+    li t0, ORI(A0, A0, 0x100)
+    jal emit_op
+    li t0, OR(A1, ZERO, S1)
+    jal emit_op
     la t0, apu_write8
     jal emit_jal
-    li t0, S2
-    li t1, S2
-    li t2, -1
+    li t0, ADDI(S2, S2, -1)
     la ra, finish_opcode
-    j emit_addi
+    j emit_op
 
 .align 5
 apu_ppa: // POP A
@@ -399,25 +325,17 @@ apu_ppa: // POP A
 
     // Emit code to pop the accumulator from the stack
     jal load_stack
-    li t0, S2
-    li t1, S2
-    li t2, 1
-    jal emit_addi
-    li t0, A0
-    li t1, S2
-    li t2, 0xFF
-    jal emit_andi
+    li t0, ADDI(S2, S2, 1)
+    jal emit_op
+    li t0, ANDI(A0, S2, 0xFF)
+    jal emit_op
     la t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_ori
-    li t0, T7
-    li t1, ZERO
-    li t2, V0
+    li t0, ORI(A0, A0, 0x100)
+    jal emit_op
+    li t0, OR(T7, ZERO, V0)
     la ra, finish_opcode
-    j emit_or
+    j emit_op
 
 .align 5
 apu_ppx: // POP X
@@ -426,25 +344,17 @@ apu_ppx: // POP X
 
     // Emit code to pop register X from the stack
     jal load_stack
-    li t0, S2
-    li t1, S2
-    li t2, 1
-    jal emit_addi
-    li t0, A0
-    li t1, S2
-    li t2, 0xFF
-    jal emit_andi
+    li t0, ADDI(S2, S2, 1)
+    jal emit_op
+    li t0, ANDI(A0, S2, 0xFF)
+    jal emit_op
     la t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_ori
-    li t0, T9
-    li t1, ZERO
-    li t2, V0
+    li t0, ORI(A0, A0, 0x100)
+    jal emit_op
+    li t0, OR(T9, ZERO, V0)
     la ra, finish_opcode
-    j emit_or
+    j emit_op
 
 .align 5
 apu_ppy: // POP Y
@@ -453,25 +363,17 @@ apu_ppy: // POP Y
 
     // Emit code to pop the accumulator from the stack
     jal load_stack
-    li t0, S2
-    li t1, S2
-    li t2, 1
-    jal emit_addi
-    li t0, A0
-    li t1, S2
-    li t2, 0xFF
-    jal emit_andi
+    li t0, ADDI(S2, S2, 1)
+    jal emit_op
+    li t0, ANDI(A0, S2, 0xFF)
+    jal emit_op
     la t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_ori
-    li t0, T8
-    li t1, ZERO
-    li t2, V0
+    li t0, ORI(A0, A0, 0x100)
+    jal emit_op
+    li t0, OR(T8, ZERO, V0)
     la ra, finish_opcode
-    j emit_or
+    j emit_op
 
 .align 5
 apu_ppp: // POP PSW
@@ -482,22 +384,14 @@ apu_ppp: // POP PSW
 
     // Emit code to pop the flags from the stack
     jal load_stack
-    li t0, S2
-    li t1, S2
-    li t2, 1
-    jal emit_addi
-    li t0, A0
-    li t1, S2
-    li t2, 0xFF
-    jal emit_andi
+    li t0, ADDI(S2, S2, 1)
+    jal emit_op
+    li t0, ANDI(A0, S2, 0xFF)
+    jal emit_op
     la t0, apu_read8
     jal emit_jal
-    li t0, A0
-    li t1, A0
-    li t2, 0x100
-    jal emit_ori
-    li t0, S1
-    li t1, ZERO
-    li t2, V0
+    li t0, ORI(A0, A0, 0x100)
+    jal emit_op
+    li t0, OR(S1, ZERO, V0)
     la ra, finish_opcode
-    j emit_or
+    j emit_op

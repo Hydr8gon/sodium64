@@ -33,32 +33,9 @@
 .globl load_flags
 .globl queue_nz
 .globl update_nz
-.globl emit_add
-.globl emit_addi
-.globl emit_and
-.globl emit_andi
-.globl emit_beq
-.globl emit_div
+.globl emit_op
 .globl emit_j
 .globl emit_jal
-.globl emit_lbu
-.globl emit_lhu
-.globl emit_lui
-.globl emit_mfhi
-.globl emit_mflo
-.globl emit_mult
-.globl emit_nop
-.globl emit_or
-.globl emit_ori
-.globl emit_sb
-.globl emit_sh
-.globl emit_sll
-.globl emit_slt
-.globl emit_sltu
-.globl emit_srl
-.globl emit_sub
-.globl emit_xor
-.globl emit_xori
 
 .data
 
@@ -194,71 +171,63 @@ finish_block:
     // Emit code to store register X if enabled
     andi t0, s1, FLAG_SX
     beqz t0, skip_sx
-    li t3, T9
+    li t3, SB(T9, 0, 0)
     la t4, apu_reg_x
-    la t5, emit_sb
     jal full_address
 
 skip_sx:
     // Emit code to store register Y if enabled
     andi t0, s1, FLAG_SY
     beqz t0, skip_sy
-    li t3, T8
+    li t3, SB(T8, 0, 0)
     la t4, apu_reg_y
-    la t5, emit_sb
     jal full_address
 
 skip_sy:
     // Emit code to store the accumulator if enabled
     andi t0, s1, FLAG_SA
     beqz t0, skip_sa
-    li t3, T7
+    li t3, SB(T7, 0, 0)
     la t4, apu_accum
-    la t5, emit_sb
     jal full_address
 
 skip_sa:
     // Emit code to store the stack pointer if enabled
     andi t0, s1, FLAG_SS
     beqz t0, skip_ss
-    li t3, S2
+    li t3, SB(S2, 0, 0)
     la t4, apu_stack + 1
-    la t5, emit_sb
     jal full_address
 
 skip_ss:
     // Emit code to store the flags if enabled
     andi t0, s1, FLAG_SF
     beqz t0, skip_sf
-    li t3, S1
+    li t3, SB(S1, 0, 0)
     la t4, apu_flags
-    la t5, emit_sb
     jal full_address
 
 skip_sf:
     // Emit code to load the program counter value unless disabled
     andi t0, s1, FLAG_PC
     bnez t0, skip_pc
-    li t0, S0
-    li t1, ZERO
-    move t2, a0
-    jal emit_ori
+    li t0, ORI(S0, ZERO, 0)
+    or t0, t0, a0
+    jal emit_op
 
 skip_pc:
     // Emit code to store the program counter
-    li t3, S0
+    li t3, SH(S0, 0, 0)
     la t4, apu_count
-    la t5, emit_sh
     jal full_address
 
     // Emit code to adjust APU cycle count and return to the main loop
     la t0, cpu_execute
     jal emit_j
-finish_fallback:
-    li t0, S3
-    li t1, S3
-    move t2, s2
-    jal emit_addi
+    li t0, ADDI(S3, S3, 0)
+    andi s2, s2, 0xFFFF
+    or t0, t0, s2
+    jal emit_op
 
     // Update the JIT pointer and use its old value for block lookup
     lw t0, jit_pointer
@@ -298,14 +267,15 @@ reset_loop:
 apu_unk:
     // Emit code to loop infinitely for unimplemented opcodes
     ori s1, s1, FLAG_PC
-    li t0, S0
-    li t1, ZERO
+    li t0, ORI(S0, ZERO, 0)
     addi t2, a0, -1
+    andi t2, t2, 0xFFFF
+    or t0, t0, t2
     la ra, finish_block
-    j emit_ori
+    j emit_op
 
 .align 5
-full_address: // t3: rt, t4: address, t5: function
+full_address: // t3: opcode, t4: address
     // Adjust the address for signed offsets
     andi t0, t4, 0x8000
     sll t0, t0, 1
@@ -313,14 +283,17 @@ full_address: // t3: rt, t4: address, t5: function
 
     // Emit code for accessing a 32-bit memory address
     move t6, ra
-    li t0, AT_
+    li t0, LUI(AT_, 0)
     srl t1, t4, 16
-    jal emit_lui
+    or t0, t0, t1
+    jal emit_op
     move t0, t3
-    li t1, AT_
+    li t1, AT_ << 21
     andi t2, t4, 0xFFFF
+    or t0, t1, t2
+    or t0, t0, t3
     move ra, t6
-    jr t5
+    j emit_op
 
 .align 5
 load_reg_x:
@@ -332,9 +305,8 @@ load_reg_x:
 do_lx:
     // Emit code to load register X if needed
     ori s1, s1, FLAG_LX
-    li t3, T9
+    li t3, LBU(T9, 0, 0)
     la t4, apu_reg_x
-    la t5, emit_lbu
     j full_address
 
 .align 5
@@ -347,9 +319,8 @@ load_reg_y:
 do_ly:
     // Emit code to load register Y if needed
     ori s1, s1, FLAG_LY
-    li t3, T8
+    li t3, LBU(T8, 0, 0)
     la t4, apu_reg_y
-    la t5, emit_lbu
     j full_address
 
 .align 5
@@ -362,9 +333,8 @@ load_accum:
 do_la:
     // Emit code to load the accumulator if needed
     ori s1, s1, FLAG_LA
-    li t3, T7
+    li t3, LBU(T7, 0, 0)
     la t4, apu_accum
-    la t5, emit_lbu
     j full_address
 
 .align 5
@@ -377,9 +347,8 @@ load_stack:
 do_ls:
     // Emit code to load the stack pointer if needed
     ori s1, s1, FLAG_LS
-    li t3, S2
+    li t3, LHU(S2, 0, 0)
     la t4, apu_stack
-    la t5, emit_lhu
     j full_address
 
 .align 5
@@ -392,18 +361,18 @@ load_flags:
 do_lf:
     // Emit code to load the flags if needed
     ori s1, s1, FLAG_LF
-    li t3, S1
+    li t3, LBU(S1, 0, 0)
     la t4, apu_flags
-    la t5, emit_lbu
     j full_address
 
 .align 5
 queue_nz: // t1: value
     // Emit code to save a value for setting NZ flags later
     ori s1, s1, FLAG_NZ
-    li t0, A2
-    li t2, 0xFF
-    j emit_andi
+    li t0, ANDI(A2, 0, 0xFF)
+    sll t1, t1, 21
+    or t0, t0, t1
+    j emit_op
 
 .align 5
 update_nz:
@@ -418,35 +387,21 @@ do_nz:
     ori s1, s1, FLAG_SF
     move t7, ra
     jal load_flags
-    li t0, S1
-    li t1, S1
-    li t2, 0x7D
-    jal emit_andi
-    li t0, T6
-    li t1, ZERO
-    li t2, A2
-    jal emit_slt
-    li t0, T6
-    li t1, T6
-    li t2, 0x1
-    jal emit_xori
-    li t0, T6
-    li t1, T6
-    li t2, 1
-    jal emit_sll
-    li t0, S1
-    li t1, S1
-    li t2, T6
-    jal emit_or
-    li t0, T6
-    li t1, A2
-    li t2, 0x80
-    jal emit_andi
-    li t0, S1
-    li t1, S1
-    li t2, T6
+    li t0, ANDI(S1, S1, 0x7D)
+    jal emit_op
+    li t0, SLT(T6, ZERO, A2)
+    jal emit_op
+    li t0, XORI(T6, T6, 0x1)
+    jal emit_op
+    li t0, SLL(T6, T6, 1)
+    jal emit_op
+    li t0, OR(S1, S1, T6)
+    jal emit_op
+    li t0, ANDI(T6, A2, 0x80)
+    jal emit_op
+    li t0, OR(S1, S1, T6)
     move ra, t7
-    j emit_or
+    j emit_op
 
 .align 5
 emit_op: // t0: opcode
@@ -457,73 +412,6 @@ emit_op: // t0: opcode
     addi a1, a1, 4
     beq a1, a2, reset_buffer
     jr ra
-
-.align 5
-emit_add: // t0: rd, t1: rs, t2: rt
-    // Emit an "add" opcode for the JIT
-    sll t0, t0, 11
-    sll t1, t1, 21
-    sll t2, t2, 16
-    or t0, t0, t1
-    or t0, t0, t2
-    ori t0, t0, 0x20
-    j emit_op
-
-.align 5
-emit_addi: // t0: rt, t1: rs, t2: immediate
-    // Emit an "addi" opcode for the JIT
-    sll t0, t0, 16
-    sll t1, t1, 21
-    andi t2, t2, 0xFFFF
-    or t0, t0, t1
-    or t0, t0, t2
-    lui t1, 0x2000
-    or t0, t0, t1
-    j emit_op
-
-.align 5
-emit_and: // t0: rd, t1: rs, t2: rt
-    // Emit an "and" opcode for the JIT
-    sll t0, t0, 11
-    sll t1, t1, 21
-    sll t2, t2, 16
-    or t0, t0, t1
-    or t0, t0, t2
-    ori t0, t0, 0x24
-    j emit_op
-
-.align 5
-emit_andi: // t0: rt, t1: rs, t2: immediate
-    // Emit an "andi" opcode for the JIT
-    sll t0, t0, 16
-    sll t1, t1, 21
-    andi t2, t2, 0xFFFF
-    or t0, t0, t1
-    or t0, t0, t2
-    lui t1, 0x3000
-    or t0, t0, t1
-    j emit_op
-
-.align 5
-emit_beq: // t0: rs, t1: rt, t2: offset
-    // Emit a "beq" opcode for the JIT
-    sll t0, t0, 21
-    sll t1, t1, 16
-    andi t2, t2, 0xFFFF
-    or t0, t0, t1
-    or t0, t0, t2
-    lui t1, 0x1000
-    or t0, t0, t1
-    j emit_op
-
-.align 5
-emit_div: // t0: rs, t1: rt
-    // Emit a "div" opcode for the JIT
-    sll t0, t0, 21
-    sll t1, t1, 16
-    or t0, t0, t1
-    ori t0, t0, 0x1A
-    j emit_op
 
 .align 5
 emit_j: // t0: target
@@ -542,192 +430,5 @@ emit_jal: // t0: target
     li t1, 0x3FFFFFF
     and t0, t0, t1
     lui t1, 0x0C00
-    or t0, t0, t1
-    j emit_op
-
-.align 5
-emit_lbu: // t0: rt, t1: base, t2: offset
-    // Emit an "lbu" opcode for the JIT
-    sll t0, t0, 16
-    sll t1, t1, 21
-    andi t2, t2, 0xFFFF
-    or t0, t0, t1
-    or t0, t0, t2
-    lui t1, 0x9000
-    or t0, t0, t1
-    j emit_op
-
-.align 5
-emit_lhu: // t0: rt, t1: base, t2: offset
-    // Emit an "lhu" opcode for the JIT
-    sll t0, t0, 16
-    sll t1, t1, 21
-    andi t2, t2, 0xFFFF
-    or t0, t0, t1
-    or t0, t0, t2
-    lui t1, 0x9400
-    or t0, t0, t1
-    j emit_op
-
-.align 5
-emit_lui: // t0: rt, t1: immediate
-    // Emit an "lui" opcode for the JIT
-    sll t0, t0, 16
-    andi t1, t1, 0xFFFF
-    or t0, t0, t1
-    lui t1, 0x3C00
-    or t0, t0, t1
-    j emit_op
-
-.align 5
-emit_mfhi: // t0: rd
-    // Emit an "mfhi" opcode for the JIT
-    sll t0, t0, 11
-    ori t0, t0, 0x10
-    j emit_op
-
-.align 5
-emit_mflo: // t0: rd
-    // Emit an "mflo" opcode for the JIT
-    sll t0, t0, 11
-    ori t0, t0, 0x12
-    j emit_op
-
-.align 5
-emit_mult: // t0: rs, t1: rt
-    // Emit a "mult" opcode for the JIT
-    sll t0, t0, 21
-    sll t1, t1, 16
-    or t0, t0, t1
-    ori t0, t0, 0x18
-    j emit_op
-
-.align 5
-emit_nop:
-    // Emit a "nop" opcode for the JIT
-    move t0, zero
-    j emit_op
-
-.align 5
-emit_or: // t0: rd, t1: rs, t2: rt
-    // Emit an "or" opcode for the JIT
-    sll t0, t0, 11
-    sll t1, t1, 21
-    sll t2, t2, 16
-    or t0, t0, t1
-    or t0, t0, t2
-    ori t0, t0, 0x25
-    j emit_op
-
-.align 5
-emit_ori: // t0: rt, t1: rs, t2: immediate
-    // Emit an "ori" opcode for the JIT
-    sll t0, t0, 16
-    sll t1, t1, 21
-    andi t2, t2, 0xFFFF
-    or t0, t0, t1
-    or t0, t0, t2
-    lui t1, 0x3400
-    or t0, t0, t1
-    j emit_op
-
-.align 5
-emit_sb: // t0: rt, t1: base, t2: offset
-    // Emit an "sb" opcode for the JIT
-    sll t0, t0, 16
-    sll t1, t1, 21
-    andi t2, t2, 0xFFFF
-    or t0, t0, t1
-    or t0, t0, t2
-    lui t1, 0xA000
-    or t0, t0, t1
-    j emit_op
-
-.align 5
-emit_sh: // t0: rt, t1: base, t2: offset
-    // Emit an "sh" opcode for the JIT
-    sll t0, t0, 16
-    sll t1, t1, 21
-    andi t2, t2, 0xFFFF
-    or t0, t0, t1
-    or t0, t0, t2
-    lui t1, 0xA400
-    or t0, t0, t1
-    j emit_op
-
-.align 5
-emit_sll: // t0: rd, t1: rt, t2: sa
-    // Emit an "sll" opcode for the JIT
-    sll t0, t0, 11
-    sll t1, t1, 16
-    sll t2, t2, 6
-    or t0, t0, t1
-    or t0, t0, t2
-    j emit_op
-
-.align 5
-emit_slt: // t0: rd, t1: rs, t2: rt
-    // Emit an "slt" opcode for the JIT
-    sll t0, t0, 11
-    sll t1, t1, 21
-    sll t2, t2, 16
-    or t0, t0, t1
-    or t0, t0, t2
-    ori t0, t0, 0x2A
-    j emit_op
-
-.align 5
-emit_sltu: // t0: rd, t1: rs, t2: rt
-    // Emit an "sltu" opcode for the JIT
-    sll t0, t0, 11
-    sll t1, t1, 21
-    sll t2, t2, 16
-    or t0, t0, t1
-    or t0, t0, t2
-    ori t0, t0, 0x2B
-    j emit_op
-
-.align 5
-emit_srl: // t0: rd, t1: rt, t2: sa
-    // Emit an "srl" opcode for the JIT
-    sll t0, t0, 11
-    sll t1, t1, 16
-    sll t2, t2, 6
-    or t0, t0, t1
-    or t0, t0, t2
-    ori t0, t0, 0x02
-    j emit_op
-
-.align 5
-emit_sub: // t0: rd, t1: rs, t2: rt
-    // Emit a "sub" opcode for the JIT
-    sll t0, t0, 11
-    sll t1, t1, 21
-    sll t2, t2, 16
-    or t0, t0, t1
-    or t0, t0, t2
-    ori t0, t0, 0x22
-    j emit_op
-
-.align 5
-emit_xor: // t0: rd, t1: rs, t2: rt
-    // Emit an "xor" opcode for the JIT
-    sll t0, t0, 11
-    sll t1, t1, 21
-    sll t2, t2, 16
-    or t0, t0, t1
-    or t0, t0, t2
-    ori t0, t0, 0x26
-    j emit_op
-
-.align 5
-emit_xori: // t0: rt, t1: rs, t2: immediate
-    // Emit an "xori" opcode for the JIT
-    sll t0, t0, 16
-    sll t1, t1, 21
-    andi t2, t2, 0xFFFF
-    or t0, t0, t1
-    or t0, t0, t2
-    lui t1, 0x3800
     or t0, t0, t1
     j emit_op
