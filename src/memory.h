@@ -46,7 +46,7 @@
     move a2, a1
     sb a1, 0 + \addr
     addi s5, s5, -RAM_CYCLE * 2
-    srl a1, a1, 8
+    srl a1, a2, 8
     sb a1, 1 + \addr
     move a1, a2
 .endm

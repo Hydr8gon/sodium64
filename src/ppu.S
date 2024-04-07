@@ -325,17 +325,16 @@ update_frame:
 
 .align 5
 rsp_frame:
-    // Get indices for queued frame values, alternating each frame
+    // Alternate indices for queued frame values each frame
     lbu t5, queue_id // Next
-    move gp, ra
     xori t6, t5, 4 // Current
     sb t6, queue_id
 
     // Set initial values for palette conversion
     lbu t0, brightness
-    lw t8, pal_queues(t5)
-    addi t8, t8, 0x7F8
-    li t9, 0x200
+    lw t4, pal_queues(t5)
+    addi t4, t4, 0x7F8
+    li t6, 0x200
 
     // Replace backdrop with the sub screen color to fake some effects
     lhu t7, cgram
@@ -345,9 +344,9 @@ rsp_frame:
 
 update_dpal:
     // Move to the next palette color
-    addi t9, t9, -2
-    lhu t1, cgram(t9)
-    sltu t3, zero, t9 // Alpha
+    addi t6, t6, -2
+    lhu t1, cgram(t6)
+    sltu t3, zero, t6 // Alpha
 
     // Apply brightness to the red component and shift for N64 format
     andi t2, t1, 0x1F
@@ -378,10 +377,10 @@ update_dpal:
     // Set a color in the palette queue and loop until finished
     sll t2, t3, 16
     or t3, t3, t2
-    sw t3, 0(t8)
-    sw t3, 4(t8)
-    addi t8, t8, -8
-    bnez t9, update_dpal
+    sw t3, 0(t4)
+    sw t3, 4(t4)
+    addi t4, t4, -8
+    bnez t6, update_dpal
 
     // Restore backdrop but save the modified value for fill color
     sh t7, cgram
@@ -426,7 +425,9 @@ vram_loop:
 
     // Make a final frame section and reset the pointer
     lhu a0, cur_line
+    move t4, ra
     jal make_section
+    xori t6, t5, 4
     lw t0, sect_queues(t6)
     sw t0, section_ptr
 
@@ -489,7 +490,7 @@ frame_wait:
     // Unhalt the RSP so it can render the next frame
     li t0, 0x1 // Clear halt
     sw t0, 0xA4040010 // SP_STATUS
-    jr gp
+    jr t4
 
 .align 5
 read_mpyl: // v0: value

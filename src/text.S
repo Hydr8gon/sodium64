@@ -127,10 +127,10 @@ char_9:
 
 .macro DRAW line
     // Copy a line of character pixels to the framebuffer
-    ld t3, \line * 16 + 0(t2)
-    ld t4, \line * 16 + 8(t2)
-    sd t3, \line * 560 + 0(a1)
-    sd t4, \line * 560 + 8(a1)
+    ld t0, \line * 16 + 0(t2)
+    ld t1, \line * 16 + 8(t2)
+    sd t0, \line * 560 + 0(a1)
+    sd t1, \line * 560 + 8(a1)
 .endm
 
 .align 5
