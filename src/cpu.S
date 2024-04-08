@@ -495,9 +495,6 @@ nmi_cont:
     // Jump to the NMI vector
     MEM_READ16
     move s7, v0
-
-    // Unhalt the CPU
-    andi s4, s4, 0xFDFF
     jr ra
 
 .align 5

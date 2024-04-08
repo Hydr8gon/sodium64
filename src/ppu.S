@@ -256,6 +256,7 @@ skip_frame:
     lbu t0, nmitimen
     andi t0, t0, 0x80 // NMI enable
     beqz t0, vcount_check
+    andi s4, s4, 0xFDFF // Unhalt CPU
     li a1, 0
     la ra, vcount_check
     j trigger_nmi
@@ -281,9 +282,10 @@ vblank_end:
 vcount_irq:
     // Trigger a V-count IRQ if enabled
     lbu t0, nmitimen
-    andi t0, t0, 0x20 // V-IRQ enable
+    andi t0, t0, 0x30 // H/V-IRQ enable
     beqz t0, run_line
     andi t1, s4, 0x4 // IRQ disable
+    andi s4, s4, 0xFDFF // Unhalt CPU
     bnez t1, run_line
     li a1, 4
     jal trigger_nmi
