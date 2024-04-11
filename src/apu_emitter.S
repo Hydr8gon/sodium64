@@ -39,11 +39,12 @@
 
 .data
 
+.align 4
 jit_tags: .word 0:0x400
 jit_lookup: .word 0:0x10000
 jit_pointer: .word JIT_BUFFER
 
-.align 5
+.align 4
 jit_opcodes: // Lookup table for addressing and operation functions
     .word next_opcode, 0,  apu_tcall1, 0,  apu_dirr, apu_set1,  apu_dirr, apu_bbs1 // 0x00-0x03
     .word apu_dirr, apu_ora,  apu_absr, apu_ora,  apu_brxr, apu_ora,  apu_idxr, apu_ora // 0x04-0x07
@@ -196,7 +197,7 @@ skip_sa:
     andi t0, s1, FLAG_SS
     beqz t0, skip_ss
     li t3, SB(S2, 0, 0)
-    la t4, apu_stack + 1
+    la t4, apu_stack
     jal full_address
 
 skip_ss:
@@ -347,7 +348,7 @@ load_stack:
 do_ls:
     // Emit code to load the stack pointer if needed
     ori s1, s1, FLAG_LS
-    li t3, LHU(S2, 0, 0)
+    li t3, LBU(S2, 0, 0)
     la t4, apu_stack
     j full_address
 

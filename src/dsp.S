@@ -27,25 +27,29 @@
 
 .data
 
+.align 4
 dsp_buffer: .word 0:0x800
 dsp_regs: .byte 0:0x100
 
+.align 4
 dsp_timer: .hword 0
 dsp_pointer: .hword 0
 dsp_addr: .byte 0
-
 enabled: .byte 0
+
+.align 4
+cur_samples: .dword 0:8
+mode_funcs: .word 0:8
+cached_vols: .word 0:8
 counters: .hword 0:8
 envelopes: .hword 0:8
 next_steps: .hword 0:8
-mode_funcs: .word 0:8
-cached_vols: .word 0:8
 cur_addrs: .hword 0:8
-cur_samples: .dword 0:8
 
+.align 4
 filter_jumps: .word filter_end, filter_1, filter_2, filter_3
 
-.align 5
+.align 4
 write_iomap:
     .word write_vol, write_vol, write_reg, write_reg // 0x00-0x03
     .word write_reg:(0x0F - 0x03) // 0x04-0x0F
@@ -66,6 +70,7 @@ write_iomap:
     .word write_vol, write_vol, write_reg, write_reg // 0x70-0x73
     .word write_reg:(0xFF - 0x73) // 0x74-0xFF
 
+.align 4
 timer_rates: // Lookup table for timer rates and offsets
     .hword 0x8000, 1,  2048, 0,  1536, 1040
     .hword 1280, 536,  1024, 0,  768, 1040

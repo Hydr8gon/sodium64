@@ -44,10 +44,10 @@
 
 .data
 
-// The APU boot ROM allows uploading code from the CPU
+.align 4
 apu_map: .byte 0:0x3FF, 0x40
 apu_ram: .byte 0:0x10000
-apu_rom:
+apu_rom: // Allows uploading code from the CPU
     .byte 0xCD, 0xEF, 0xBD, 0xE8, 0x00, 0xC6, 0x1D, 0xD0 // 0xFFC0-0xFFC7
     .byte 0xFC, 0x8F, 0xAA, 0xF4, 0x8F, 0xBB, 0xF5, 0x78 // 0xFFC8-0xFFCF
     .byte 0xCC, 0xF4, 0xD0, 0xFB, 0x2F, 0x19, 0xEB, 0xF4 // 0xFFD0-0xFFD7
@@ -57,31 +57,33 @@ apu_rom:
     .byte 0xF6, 0xDA, 0x00, 0xBA, 0xF4, 0xC4, 0xF4, 0xDD // 0xFFF0-0xFFF7
     .byte 0x5D, 0xD0, 0xDB, 0x1F, 0x00, 0x00, 0xC0, 0xFF // 0xFFF8-0xFFFF
 
+.align 4
 apu_cycle1: .word 341 * 4
 apu_cycle2: .word 341 * 4
 apu_ocycles: .word INT_MIN:3
+apu_inputs: .hword 0:2
+apu_outputs: .hword 0:2
 apu_timers: .byte 0:3
 apu_tmdivs: .byte 0:3
 apu_tmouts: .byte 0:3
-
 apu_control: .byte 0xB0
-apu_inputs: .hword 0:2
-apu_outputs: .hword 0:2
 
-apu_reg_x: .hword 0 // Aligned
+.align 4
+apu_count: .hword 0xFFC0
+apu_reg_x: .byte 0
 apu_reg_y: .byte 0
 apu_accum: .byte 0
-apu_stack: .hword 0x1FF
+apu_stack: .byte 0xFF
 apu_flags: .byte 0
-apu_count: .hword 0xFFC0
 
-.align 5
+.align 4
 read_iomap:
     .word read_unk, read_unk, read_dspaddr, read_dspdata // 0xF0-0xF3
     .word read_cpuio0, read_cpuio1, read_cpuio2, read_cpuio3 // 0xF4-0xF7
     .word read_unk, read_unk, read_unk, read_unk // 0xF8-0xFB
     .word read_unk, read_t0out, read_t1out, read_t2out // 0xFC-0xFF
 
+.align 4
 write_iomap:
     .word write_unk, write_control, write_dspaddr, write_dspdata // 0xF0-0xF3
     .word write_cpuio0, write_cpuio1, write_cpuio2, write_cpuio3 // 0xF4-0xF7

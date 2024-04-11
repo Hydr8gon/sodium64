@@ -19,12 +19,20 @@
 
 #include "defines.h"
 
+.globl fps_emulate
+.globl fps_display
+.globl frame_count
+
 .globl _start
 
 .data
 
+.align 4
 framebuffer: .word FRAMEBUFFER1
 fps_native: .byte 0
+fps_emulate: .byte 0
+fps_display: .byte 0
+frame_count: .byte 0
 
 .section .boot
 

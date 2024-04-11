@@ -34,6 +34,7 @@
 
 .data
 
+.align 4
 data_bank: .word 0
 accumulator: .hword 0
 register_x: .hword 0
@@ -375,8 +376,8 @@ stack_ptr: .hword 0x1FF
     .word cpu_jsrx, 0,  cpu_abx, cpu_sbc16\d,  cpu_abx, cpu_inc16,  cpu_lnx, cpu_sbc16\d // 0xFC-0xFF
 .endm
 
+.align 4
 // Define each table twice: one for binary mode and one for decimal mode
-.align 5
 opcodes_e: OPS_E
 opcodes_8: OPS_8
 opcodes_r8: OPS_R8

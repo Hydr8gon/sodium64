@@ -31,10 +31,11 @@
 
 .data
 
-wrmpya: .byte 0
+.align 4
 wrdiva: .hword 0
 rddiv: .hword 0
 rdmpy: .hword 0
+wrmpya: .byte 0
 
 .text
 

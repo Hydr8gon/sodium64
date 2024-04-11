@@ -50,23 +50,22 @@
 
 .data
 
+.align 4
 dma_stack: .hword 0
 hdma_mask: .byte 0
-
 hdmaen: .byte 0
-dmapx: .byte 0:8
-bbadx: .byte 0:8
+
+.align 4
 a1tbx: .word 0:8
 dastbx: .word 0:8
 a2abx: .word 0:8
+dmapx: .byte 0:8
+bbadx: .byte 0:8
 ntrlx: .byte 0:8
 unusedx: .byte 0:8
 
-// Possible CPU address steps
-address_steps: .byte 1, 0, -1, 0
-
-// Possible I/O address offsets, repeated every 4 bytes
-transfer_modes:
+.align 4
+transfer_modes: // I/O address offsets, repeated every 4 bytes
     .byte 0, 0, 0, 0
     .byte 0, 1, 0, 1
     .byte 0, 0, 0, 0
@@ -76,8 +75,9 @@ transfer_modes:
     .byte 0, 0, 0, 0
     .byte 0, 0, 1, 1
 
-// Lengths of a unit for each transfer mode
-unit_lengths: .byte 1, 2, 2, 4, 4, 4, 2, 4
+.align 4
+unit_lengths: .byte 1, 2, 2, 4, 4, 4, 2, 4 // Transfer mode unit lengths
+address_steps: .byte 1, 0, -1, 0 // CPU address steps
 
 .text
 

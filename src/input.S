@@ -29,8 +29,12 @@
 
 .data
 
-// Command that reads controller status when copied to PIF RAM
-joybus_cmd:
+.align 4
+btn_state: .byte 0x30
+btn_toggle: .byte 0
+
+.align 4
+joybus_cmd: // Reads controller status when copied to PIF RAM
     .dword 0xFF010401FFFFFFFF // Read controller 1
     .dword 0xFF010401FFFFFFFF // Read controller 2
     .dword 0xFF010401FFFFFFFF // Read controller 3
@@ -39,9 +43,6 @@ joybus_cmd:
     .dword 0x0000000000000000 // Nothing
     .dword 0x0000000000000000 // Nothing
     .dword 0x0000000000000001 // Run command
-
-btn_state: .byte 0x30
-btn_toggle: .byte 0
 
 .text
 

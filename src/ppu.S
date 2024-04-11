@@ -19,10 +19,6 @@
 
 #include "defines.h"
 
-.globl fps_emulate
-.globl fps_display
-.globl frame_count
-
 .globl ppu_event
 .globl section_init
 .globl read_mpyl
@@ -81,24 +77,28 @@
 
 .data
 
+.align 4
+vram: .hword 0:0x8000
+cgram: .hword 0:0x100
+oam: .byte 0:0x220
+vram_table: .byte 0:0x400
+
+.align 4
 section_ptr: .word SECTION_QUEUE1
 sect_status: .hword 0
 cur_line: .hword 0
 vblank_line: .byte 0xE1
 cooldown: .byte 0
 queue_id: .byte 0
-
-fps_emulate: .byte 0
-fps_display: .byte 0
-frame_count: .byte 0
 frame_done: .byte 0
 fb_border: .byte 0
 brightness: .byte 0
-vram_incl: .byte 0
-vram_inch: .byte 0
 
+.align 4
 vram_fetch: .hword 0
 oam_addr: .hword 0
+vram_incl: .byte 0
+vram_inch: .byte 0
 oam_lsb: .byte 0
 oph_low: .byte 0
 opv_low: .byte 0
@@ -106,6 +106,7 @@ bg_old: .byte 0
 m7_old: .byte 0
 cg_lsb: .byte 0
 
+.align 4
 mpy: .word 0
 ophct: .hword 0
 opvct: .hword 0
@@ -121,11 +122,7 @@ rdnmi: .byte 0
 timeup: .byte 0
 hvbjoy: .byte 0
 
-vram: .dword 0:0x2000 // Aligned
-vram_table: .byte 0:0x400
-oam: .byte 0:0x220
-cgram: .hword 0:0x100
-
+.align 4
 // RSP values that are saved for each section (0x50 bytes)
 obj_size: .word 0x10100808
 objcharbase: .hword 0
@@ -152,24 +149,23 @@ main_mask: .byte 0
 m7_nowrap: .byte 0
 split_line: .byte 0
 
-// Possible offsets for additional screens past the base
-scrn_ofsh: .hword 0x0000, 0x0800, 0x0000, 0x0800
-scrn_ofsv: .hword 0x0000, 0x0000, 0x0800, 0x1000
-
-// Possible object sizes; bytes are small X, small Y, large X, large Y
-obj_sizes:
-    .word 0x08081010, 0x08082020, 0x08084040, 0x10102020
-    .word 0x10104040, 0x20204040, 0x10202040, 0x10202020
-
-// Possible address increments for VRAM access
-vram_incrs: .byte 1, 32, 128, 128
-
+.align 4
 // Double-buffered addresses for queued frame data
 pal_queues: .word PALETTE_QUEUE1, PALETTE_QUEUE2
 oam_queues: .word OAM_QUEUE1, OAM_QUEUE2
 dirty_queues: .word DIRTY_QUEUE1, DIRTY_QUEUE2
 vram_queues: .word VRAM_QUEUE1, VRAM_QUEUE2
 sect_queues: .word SECTION_QUEUE1, SECTION_QUEUE2
+
+.align 4
+obj_sizes: // Possible object sizes; bytes are small X, small Y, large X, large Y
+    .word 0x08081010, 0x08082020, 0x08084040, 0x10102020
+    .word 0x10104040, 0x20204040, 0x10202040, 0x10202020
+
+.align 4
+scrn_ofsh: .hword 0x0000, 0x0800, 0x0000, 0x0800 // Horizontal screen address offsets
+scrn_ofsv: .hword 0x0000, 0x0000, 0x0800, 0x1000 // Vertical screen address offsets
+vram_incrs: .byte 1, 32, 128, 128 // VRAM access address increments
 
 .text
 

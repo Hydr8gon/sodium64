@@ -31,20 +31,20 @@
 
 .data
 
-sram: .dword 0:0x1000 // Aligned
-tlb_align: .byte 0:0x1000
+.align 12 // TLB alignment
+sram: .byte 0:0x8000
 wram: .byte 0:0x20000
 empty: .byte 0:0x2000
+wmadd: .word 0
 
+.align 4
 memory_map: .word 0:0x800
 rom_addrs: .word 0:0x100
 rom_entries: .word 0:0x100
 rom_pointer: .byte 0
 sram_dirty: .byte 0
 
-wmadd: .word 0
-
-.align 5
+.align 4
 read_iomap:
     .word read_unk:(0x2133 - 0x20FF) // 0x2100-0x2133
     .word read_mpyl, read_mpym, read_mpyh, read_slhv // 0x2134-0x2137
@@ -108,6 +108,7 @@ read_iomap:
     .word read_a2axl, read_a2axh, read_ntrlx, read_unusedx // 0x4378-0x437B
     .word read_unk, read_unk, read_unk, read_unusedx // 0x437C-0x437F
 
+.align 4
 write_iomap:
     .word write_inidisp, write_obsel, write_oamaddl, write_oamaddh // 0x2100-0x2103
     .word write_oamdata, write_bgmode, write_unk, write_bg1sc // 0x2104-0x2107
