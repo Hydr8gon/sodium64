@@ -46,7 +46,6 @@ cpu_im8: // #nn
     addi s7, s7, 2
     jr gp
 
-.align 5
 cpu_i16: // #nnnn
     // Get the address of the 16-bit immediate value
     addi s0, s7, 1

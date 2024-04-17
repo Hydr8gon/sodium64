@@ -38,13 +38,16 @@ dsp_addr: .byte 0
 enabled: .byte 0
 
 .align 4
+mode_funcs: .word 0
+cached_vols: .word 0
+counters: .hword 0
+envelopes: .hword 0
+next_steps: .hword 0
+cur_addrs: .hword 0
+
+.align 4
+voice_dups: .dword 0:14
 cur_samples: .dword 0:8
-mode_funcs: .word 0:8
-cached_vols: .word 0:8
-counters: .hword 0:8
-envelopes: .hword 0:8
-next_steps: .hword 0:8
-cur_addrs: .hword 0:8
 
 .align 4
 filter_jumps: .word filter_end, filter_1, filter_2, filter_3
@@ -100,28 +103,25 @@ not_zero:
     li t6, -1 // Voice count
     li t5, 0 // Left sample
     li t4, 0 // Right sample
+    lbu sp, enabled
 
 next_voice:
     // Check if a voice is enabled
-    lbu t7, enabled
     addi t6, t6, 1
-    srl t0, t7, t6
+    srl t0, sp, t6
     beqz t0, write_sample
     andi t0, t0, 1
     beqz t0, next_voice
 
     // Handle an envelope step if the timer matches
-    sll t1, t6, 1
-    lhu t0, next_steps(t1)
+    sll t8, t6, 4
+    lhu t0, next_steps(t8)
     bne t0, gp, get_pitch
-    sll t1, t6, 2
-    lw t0, mode_funcs(t1)
-    la ra, get_pitch
-    jr t0
+    lw t0, mode_funcs(t8)
+    jalr t0
 
 get_pitch:
     // Get the pitch scaler for the current voice
-    sll t8, t6, 4
     lhu t0, dsp_regs + 0x2(t8) // VxPITCH(L/H)
     sll t1, t0, 8
     srl t0, t0, 8
@@ -129,18 +129,76 @@ get_pitch:
     andi t0, t0, 0x3FFF
 
     // Increase the voice's position counter by the scaler
-    sll t1, t6, 1
-    lhu t9, counters(t1)
+    lhu t9, counters(t8)
     addu t2, t9, t0
-    sh t2, counters(t1)
+    sh t2, counters(t8)
 
-    // Skip decoding if still within the last 4-sample chunk
+    // Decode a new 4-sample BRR chunk if the counter overflows
     xor t9, t9, t2
     srl t9, t9, 14
-    beqz t9, mix_sample
+    bnez t9, decode_chunk
 
+mix_sample:
+    // Load the current sample from the voice's buffer
+    sll t1, t6, 3
+    srl t3, t2, 11
+    andi t3, t3, 0x6
+    xori t3, t3, 0x6
+    add t1, t1, t3
+    lh t0, cur_samples(t1)
+    beqz t0, next_voice
+
+    // Get the cached volumes for each channel
+    lh t2, cached_vols + 0(t8)
+    lh t3, cached_vols + 2(t8)
+
+    // Mix the sample on the left channel
+    mult t0, t2
+    mflo t1
+    sra t1, t1, 14
+    addu t5, t5, t1
+
+    // Mix the sample on the right channel
+    beq t2, t3, same_volume
+    mult t0, t3
+    mflo t1
+    sra t1, t1, 14
+same_volume:
+    addu t4, t4, t1
+    b next_voice
+
+.align 5
+write_sample: // t4: left, t5: right
+    // Write a sample to the buffer
+    andi t4, t4, 0xFFFF
+    sll t5, t5, 16
+    or t0, t4, t5
+    lhu t1, dsp_pointer
+    sw t0, UNCACHED(dsp_buffer)(t1)
+
+    // Increment the sample pointer
+    addi a0, t1, 4
+    andi t0, a0, 0x1FFF
+    sh t0, dsp_pointer
+
+    // Schedule the next sample and check if a buffer is ready
+    andi t0, a0, 0xFFF
+    addi a3, a3, -DSP_SAMPLE
+    bnez t0, apu_execute
+
+    // Submit a buffer to the AI when one is ready
+    lui t0, 0xA450 // AI register upper address
+    la t1, dsp_buffer - 0x1000
+    add t1, t1, a0 // Buffer address
+    sw t1, 0x0000(t0) // AI_DRAM_ADDR
+    li t1, 0x00001000 // Buffer length
+    sw t1, 0x0004(t0) // AI_LENGTH
+    j apu_execute
+
+.align 5
+decode_chunk: // t2: counter, t6: voice, t8: offset
     // Stay in the same BRR block until the counter overflows
-    lhu t0, cur_addrs(t1)
+    lhu t0, cur_addrs(t8)
     srl t3, t2, 16
     beqz t3, decode_samples
 
@@ -165,16 +223,6 @@ get_pitch:
     srl t0, t0, 8
     or t0, t0, t3
     andi t0, t0, 0xFFFF
-    b decode_samples
-
-end_voice:
-    // Disable the voice if it ends without loop
-    li t0, 1
-    sll t0, t0, t6
-    xori t0, t0, 0xFF
-    and t7, t7, t0
-    sb t7, enabled
-    b next_voice
 
 decode_samples:
     // Get the address of the voice's sample buffer
@@ -183,7 +231,7 @@ decode_samples:
     add v1, v1, t3
 
     // Configure things based on the BRR block header
-    sh t0, cur_addrs(t1)
+    sh t0, cur_addrs(t8)
     lbu t9, apu_ram(t0) // Header
     srl t1, t9, 4 // Shift
     andi t9, t9, 0xC // Filter
@@ -275,80 +323,31 @@ filter_end:
     add t3, v1, s1
     sh t0, (t3)
     bnez s1, next_sample
+    j mix_sample
 
-mix_sample:
-    // Load the current sample from the voice's buffer
-    sll t1, t6, 3
-    srl t3, t2, 11
-    andi t3, t3, 0x6
-    xori t3, t3, 0x6
-    add t1, t1, t3
-    lh t0, cur_samples(t1)
-
-    // Get the cached volumes for each channel
-    sll t1, t6, 2
-    lh t2, cached_vols + 0(t1)
-    lh t3, cached_vols + 2(t1)
-
-    // Mix the sample on the left channel
-    mult t0, t2
-    mflo t1
-    sra t1, t1, 14
-    addu t5, t5, t1
-
-    // Mix the sample on the right channel
-    beq t2, t3, same_volume
-    mult t0, t3
-    mflo t1
-    sra t1, t1, 14
-same_volume:
-    addu t4, t4, t1
-    b next_voice
-
-write_sample:
-    // Write a sample to the buffer
-    andi t4, t4, 0xFFFF
-    sll t5, t5, 16
-    or t0, t4, t5
-    lhu t1, dsp_pointer
-    sw t0, UNCACHED(dsp_buffer)(t1)
-
-    // Increment the sample pointer
-    addi a0, t1, 4
-    andi t0, a0, 0x1FFF
-    sh t0, dsp_pointer
-
-    // Schedule the next sample and check if a buffer is ready
-    andi t0, a0, 0xFFF
-    addi a3, a3, -DSP_SAMPLE
-    bnez t0, apu_execute
-
-submit_buffer:
-    // Submit a buffer to the AI when one is ready
-    lui t0, 0xA450 // AI register upper address
-    la t1, dsp_buffer - 0x1000
-    add t1, t1, a0 // Buffer address
-    sw t1, 0x0000(t0) // AI_DRAM_ADDR
-    li t1, 0x00001000 // Buffer length
-    sw t1, 0x0004(t0) // AI_LENGTH
-    j apu_execute
+end_voice:
+    // Disable the voice if it ends without loop
+    li t0, 1
+    sll t0, t0, t6
+    xori t0, t0, 0xFF
+    and sp, sp, t0
+    sb sp, enabled
+    j next_voice
 
 .align 5
-attack_mode: // t6: voice
+attack_mode: // t6: voice, t8: offset
     // Increase the envelope by 32
-    sll t1, t6, 1
-    lhu t0, envelopes(t1)
+    lhu t0, envelopes(t8)
     addi t0, t0, 32
-    sh t0, envelopes(t1)
+    sh t0, envelopes(t8)
 
     // Switch to decay mode at level 0x7E0 and clip to 0x7FF
     blt t0, 0x7E0, attack_time
-    sll t2, t6, 2
     la t3, decay_mode
-    sw t3, mode_funcs(t2)
+    sw t3, mode_funcs(t8)
     blt t0, 0x7FF, decay_time
     li t0, 0x7FF
-    sh t0, envelopes(t1)
+    sh t0, envelopes(t8)
     j decay_time
 
 .align 5
@@ -362,30 +361,27 @@ attack_time: // t6: voice
     j update_step
 
 .align 5
-decay_mode: // t6: voice
+decay_mode: // t6: voice, t8: offset
     // Decrease the envelope by an exponential amount
-    sll t1, t6, 1
-    lhu t0, envelopes(t1)
+    lhu t0, envelopes(t8)
     addi t2, t0, -1
     srl t2, t2, 8
     addi t2, t2, 1
     sub t0, t0, t2
-    sh t0, envelopes(t1)
+    sh t0, envelopes(t8)
 
     // Calculate the sustain level boundary
-    sll t1, t6, 4
-    lbu t1, dsp_regs + 0x6(t1) // VxADSR2
+    lbu t1, dsp_regs + 0x6(t8) // VxADSR2
     andi t1, t1, 0xE0
     sll t1, t1, 3
     addi t1, t1, 0x100
 
     // Switch to sustain mode at the boundary and clip to 0
     bgt t0, t1, decay_time
-    sll t2, t6, 2
     la t3, sustain_mode
-    sw t3, mode_funcs(t2)
+    sw t3, mode_funcs(t8)
     bgtz t0, sustain_time
-    sh zero, envelopes(t1)
+    sh zero, envelopes(t8)
     j sustain_time
 
 .align 5
@@ -399,23 +395,22 @@ decay_time: // t6: voice
     j update_step
 
 .align 5
-sustain_mode: // t6: voice
+sustain_mode: // t6: voice, t8: offset
     // Decrease the envelope by an exponential amount
-    sll t1, t6, 1
-    lhu t0, envelopes(t1)
+    lhu t0, envelopes(t8)
     addi t2, t0, -1
     srl t2, t2, 8
     addi t2, t2, 1
     sub t0, t0, t2
-    sh t0, envelopes(t1)
+    sh t0, envelopes(t8)
 
     // Disable the voice if its envelope decreases to zero
     bgtz t0, sustain_time
     li t0, 1
     sll t0, t0, t6
     xori t0, t0, 0xFF
-    and t7, t7, t0
-    sb t7, enabled
+    and sp, sp, t0
+    sb sp, enabled
     jr ra
 
 .align 5
@@ -432,7 +427,7 @@ gain_mode: // t6: voice
 gain_time: // t6: voice
     // Stub gain mode by fixing the volume to max
     // TODO: actually implement gain mode
-    sll t1, t6, 1
+    sll t1, t6, 4
     li t0, 0x7FF
     sh t0, envelopes(t1)
     li t0, 0xFFFF
@@ -461,22 +456,20 @@ calc_step:
 
 set_step:
     // Update a voice's step timer and cached volume
-    sll t1, t6, 1
+    sll t1, t6, 4
     sh t2, next_steps(t1)
     j update_vols
 
 .align 5
 update_vols: // t6: voice
     // Get a voice's envelope and channel volumes
-    sll t1, t6, 1
-    lhu t0, envelopes(t1)
     sll t1, t6, 4
+    lhu t0, envelopes(t1)
     lb t2, dsp_regs + 0x0(t1) // VxVOLL
     lb t3, dsp_regs + 0x1(t1) // VxVOLR
     srl t0, t0, 4
 
     // Cache the multiplied volumes to save a step during mixing
-    sll t1, t6, 2
     mult t2, t0
     mflo t2
     sh t2, cached_vols + 0(t1)
@@ -516,7 +509,6 @@ write_dspdata: // a1: value
     lw t1, write_iomap(t1)
     jr t1
 
-.align 5
 write_reg:
     // Do nothing extra for regular register writes
     jr ra
@@ -557,10 +549,9 @@ next_on:
     sll t1, t0, 8
     srl t0, t0, 8
     or t0, t0, t1
-    sll t1, t6, 1
-    sh t0, cur_addrs(t1)
-    sh zero, counters(t1)
-    sh zero, envelopes(t1)
+    sh t0, cur_addrs(t4)
+    sh zero, counters(t4)
+    sh zero, envelopes(t4)
     sll t1, t6, 3
     sd zero, cur_samples(t1)
 
@@ -568,18 +559,17 @@ next_on:
     lbu t1, dsp_regs + 0x5(t4) // VxADSR1
     la ra, next_on
     andi t1, t1, 0x80
-    sll t2, t6, 2
     beqz t1, use_gain
 
     // Set the voice to attack mode and schedule the first step
     la t0, attack_mode
-    sw t0, mode_funcs(t2)
+    sw t0, mode_funcs(t4)
     j attack_time
 
 use_gain:
     // Set the voice to gain mode and schedule the first step
     la t0, gain_mode
-    sw t0, mode_funcs(t2)
+    sw t0, mode_funcs(t4)
     j gain_time
 
 kon_end:
