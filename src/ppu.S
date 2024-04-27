@@ -1,5 +1,5 @@
 /*
-    Copyright 2021-2023 Hydr8gon
+    Copyright 2021-2024 Hydr8gon
 
     This file is part of sodium64.
 
