@@ -208,13 +208,30 @@ bxp_skip:
 
 .align 5
 apu_absa: // aaaa
-    // Choose whether to emit a memory read or just provide an address
-    li t8, 0
-    b apu_abs
-apu_absr:
-    li t8, 1
+    // Get the 16-bit immediate address
+    jal jit_read8
+    move t7, v0
+    jal jit_read8
+    sll t0, v0, 8
+    or t7, t7, t0
 
-apu_abs:
+    // End the JIT block early if a self-modifying write is detected
+    sgt t0, t7, a0
+    addi t2, t7, -2
+    slt t1, t2, t9
+    and t0, t0, t1
+    beqz t0, abs_skip
+    move t9, t2
+
+abs_skip:
+    // Emit code to load an absolute address
+    li t0, ORI(A0, ZERO, 0)
+    or t0, t0, t7
+    move ra, gp
+    j emit_op
+
+.align 5
+apu_absr: // aaaa
     // Get the 16-bit immediate address
     jal jit_read8
     move t7, v0
@@ -223,10 +240,8 @@ apu_abs:
     or t7, t7, t0
 
     // Emit code to load a value from an absolute address
-    beqz t8, abs_skip
     la t0, apu_read8
     jal emit_jal
-abs_skip:
     li t0, ORI(A0, ZERO, 0)
     or t0, t0, t7
     move ra, gp
