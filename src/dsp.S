@@ -32,6 +32,8 @@ dsp_buffer: .word 0:0x800
 dsp_regs: .byte 0:0x100
 
 .align 4
+noise_sample: .hword 0x4000
+noise_step: .hword 0x8000
 dsp_timer: .hword 0
 dsp_pointer: .hword 0
 dsp_addr: .byte 0
@@ -69,13 +71,14 @@ write_iomap:
     .word write_reg:(0x5B - 0x53) // 0x54-0x5B
     .word write_koff, write_reg, write_reg, write_reg // 0x5C-0x5F
     .word write_vol, write_vol, write_reg, write_reg // 0x60-0x63
-    .word write_reg:(0x6F - 0x63) // 0x64-0x6F
+    .word write_reg:(0x6B - 0x63) // 0x64-0x6B
+    .word time_noise, write_reg, write_reg, write_reg // 0x6C-0x6F
     .word write_vol, write_vol, write_reg, write_reg // 0x70-0x73
     .word write_reg:(0xFF - 0x73) // 0x74-0xFF
 
 .align 4
 timer_rates: // Lookup table for timer rates and offsets
-    .hword 0x8000, 1,  2048, 0,  1536, 1040
+    .hword -1, 0x8000,  2048, 0,  1536, 1040
     .hword 1280, 536,  1024, 0,  768, 1040
     .hword 640, 536,  512, 0,  384, 1040
     .hword 320, 536,  256, 0,  192, 1040
@@ -91,7 +94,7 @@ timer_rates: // Lookup table for timer rates and offsets
 
 .align 5
 dsp_sample:
-    // Decrement the global timer every sample
+    // Decrement the global timer once per sample
     lhu t0, dsp_timer
     addi gp, t0, -1
     bnez t0, not_zero
@@ -99,7 +102,13 @@ dsp_sample:
 not_zero:
     sh gp, dsp_timer
 
-    // Set initial values for the sample
+    // Handle a noise step if the timer matches
+    lhu t0, noise_step
+    bne t0, gp, skip_noise
+    jal make_noise
+
+skip_noise:
+    // Set initial values for generating a sample
     li t6, -1 // Voice count
     li t5, 0 // Left sample
     li t4, 0 // Right sample
@@ -139,6 +148,15 @@ get_pitch:
     bnez t9, decode_chunk
 
 mix_sample:
+    // Load the noise sample if enabled for the voice
+    lbu t0, dsp_regs + 0x3D // NON
+    srl t0, t0, t6
+    andi t0, t0, 0x1
+    beqz t0, load_sample
+    lh t0, noise_sample
+    b skip_sample
+
+load_sample:
     // Load the current sample from the voice's buffer
     sll t1, t6, 3
     srl t3, t2, 11
@@ -148,6 +166,7 @@ mix_sample:
     lh t0, cur_samples(t1)
     beqz t0, next_voice
 
+skip_sample:
     // Get the cached volumes for each channel
     lh t2, cached_vols + 0(t8)
     lh t3, cached_vols + 2(t8)
@@ -335,6 +354,28 @@ end_voice:
     j next_voice
 
 .align 5
+make_noise:
+    // Generate a new noise sample based on the old one
+    lh t0, noise_sample
+    sll t1, t0, 14
+    sll t2, t0, 13
+    xor t1, t1, t2
+    andi t1, t1, 0x4000
+    srl t0, t0, 1
+    or t0, t0, t1
+    sh t0, noise_sample
+    j time_noise
+
+.align 5
+time_noise:
+    // Schedule the next step using the noise rate
+    lbu t0, dsp_regs + 0x6C // FLG
+    andi a0, t0, 0x1F
+    sll a0, a0, 2
+    li t6, 8 // Noise
+    j update_step
+
+.align 5
 attack_mode: // t6: voice, t8: offset
     // Increase the envelope by 32
     lhu t0, envelopes(t8)
@@ -456,9 +497,15 @@ calc_step:
 
 set_step:
     // Update a voice's step timer and cached volume
+    bge t6, 8, set_noise
     sll t1, t6, 4
     sh t2, next_steps(t1)
     j update_vols
+
+set_noise:
+    // Update the noise step timer
+    sh t2, noise_step
+    jr ra
 
 .align 5
 update_vols: // t6: voice
