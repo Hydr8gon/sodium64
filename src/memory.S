@@ -121,7 +121,7 @@ write_iomap:
     .word write_m7y, write_cgadd, write_cgdata, write_unk // 0x2120-0x2123
     .word write_unk:(0x212B - 0x2123) // 0x2124-0x212B
     .word write_tm, write_ts, write_unk, write_unk // 0x212C-0x212F
-    .word write_unk, write_unk, write_coldata, write_setini // 0x2130-0x2133
+    .word write_unk, write_cgadsub, write_coldata, write_setini // 0x2130-0x2133
     .word write_unk:(0x213F - 0x2133) // 0x2134-0x213F
     .word write_apuio0, write_apuio1, write_apuio2, write_apuio3 // 0x2140-0x2143
     .word write_apuio0, write_apuio1, write_apuio2, write_apuio3 // 0x2144-0x2147

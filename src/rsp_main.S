@@ -271,7 +271,7 @@ next_section:
     lbu t1, FORCE_BLANK
     bnez t1, blank_set
     li t0, 0
-    lw t0, FILL_COLOR(sp)
+    lhu t0, FILL_COLOR
 blank_set:
     sh t0, RDP_SECTION + 20
     sh t0, RDP_SECTION + 22

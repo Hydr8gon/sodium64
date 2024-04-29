@@ -69,6 +69,7 @@
 .globl write_cgdata
 .globl write_tm
 .globl write_ts
+.globl write_cgadsub
 .globl write_coldata
 .globl write_setini
 .globl write_nmitimen
@@ -117,6 +118,7 @@ vtime: .hword 0
 stat78: .byte 0x1
 tm: .byte 0
 ts: .byte 0
+cgadsub: .byte 0
 nmitimen: .byte 0
 rdnmi: .byte 0
 timeup: .byte 0
@@ -141,7 +143,7 @@ m7c: .hword 0
 m7d: .hword 0
 m7x: .hword 0
 m7y: .hword 0
-filler: .hword 0
+fill_color: .hword 0
 force_blank: .byte 0
 bg_mode: .byte 0
 sub_mask: .byte 0
@@ -300,17 +302,50 @@ make_section: // a0: line
     sb a0, (t1)
 
 section_init:
+    // Choose between main or sub backdrop color with some guesswork
+    lbu t0, cgadsub
+    lhu t1, cgram
+    andi t0, t0, 0x20 // Backdrop math
+    beqz t0, set_fill
+    lhu t2, coldata
+    beqz t2, set_fill
+    move t1, t2
+
+set_fill:
+    // Space out the color's components and multiply with current brightness
+    lbu t0, brightness
+    andi t2, t1, 0x1F // R
+    andi t3, t1, 0x3E0 // G
+    sll t3, t3, 5
+    or t2, t2, t3
+    andi t3, t1, 0x7C00 // B
+    sll t3, t3, 10
+    or t2, t2, t3
+    mult t2, t0
+    mflo t1
+
+    // Pack the components back together in N64 format and set the fill color
+    andi t2, t1, 0x1F0 // R
+    sll t2, t2, 7
+    srl t1, t1, 14
+    andi t3, t1, 0x1F // G
+    sll t3, t3, 6
+    or t2, t2, t3
+    andi t3, t1, 0x7C00 // B
+    srl t3, t3, 9
+    or t2, t2, t3
+    sh t2, fill_color
+
     // Copy values for the next frame section
     la t0, obj_size
     lw t1, section_ptr
-    li t2, 0x50
+    addi t2, t0, 0x50
 section_loop:
-    addi t2, t2, -8
     ld t3, (t0)
     addi t0, t0, 8
     sd t3, (t1)
     addi t1, t1, 8
-    bnez t2, section_loop
+    bne t0, t2, section_loop
     sw t1, section_ptr
     jr ra
 
@@ -332,57 +367,41 @@ rsp_frame:
     lbu t0, brightness
     lw t4, pal_queues(t5)
     addi t4, t4, 0x7F8
-    li t6, 0x200
-
-    // Replace backdrop with the sub screen color to fake some effects
-    lhu t7, cgram
-    lhu t1, coldata
-    beqz t1, update_dpal
-    sh t1, cgram
+    li t6, 0x1FE
 
 update_dpal:
-    // Move to the next palette color
-    addi t6, t6, -2
+    // Space out a color's components and multiply with current brightness
     lhu t1, cgram(t6)
-    sltu t3, zero, t6 // Alpha
-
-    // Apply brightness to the red component and shift for N64 format
-    andi t2, t1, 0x1F
+    andi t2, t1, 0x1F // R
+    andi t3, t1, 0x3E0 // G
+    sll t3, t3, 5
+    or t2, t2, t3
+    andi t3, t1, 0x7C00 // B
+    sll t3, t3, 10
+    or t2, t2, t3
     mult t2, t0
-    mflo t2
-    srl t2, t2, 4
-    sll t2, t2, 11
-    or t3, t3, t2
+    mflo t1
 
-    // Apply brightness to the green component and shift for N64 format
-    srl t2, t1, 5
-    andi t2, t2, 0x1F
-    mult t2, t0
-    mflo t2
-    srl t2, t2, 4
-    sll t2, t2, 6
-    or t3, t3, t2
-
-    // Apply brightness to the blue component and shift for N64 format
-    srl t2, t1, 10
-    andi t2, t2, 0x1F
-    mult t2, t0
-    mflo t2
-    srl t2, t2, 4
-    sll t2, t2, 1
-    or t3, t3, t2
+    // Pack the components back together in N64 format
+    andi t2, t1, 0x1F0 // R
+    sll t2, t2, 7
+    srl t1, t1, 14
+    andi t3, t1, 0x1F // G
+    sll t3, t3, 6
+    or t2, t2, t3
+    andi t3, t1, 0x7C00 // B
+    srl t3, t3, 9
+    or t2, t2, t3
+    ori t2, t2, 0x1 // A
 
     // Set a color in the palette queue and loop until finished
-    sll t2, t3, 16
-    or t3, t3, t2
-    sw t3, 0(t4)
-    sw t3, 4(t4)
+    sll t3, t2, 16
+    or t2, t2, t3
+    sw t2, 0(t4)
+    sw t2, 4(t4)
+    addi t6, t6, -2
     addi t4, t4, -8
     bnez t6, update_dpal
-
-    // Restore backdrop but save the modified value for fill color
-    sh t7, cgram
-    andi t7, t3, 0xFFFF
 
     // Copy OAM to the queue for the next frame
     la t0, oam
@@ -465,7 +484,6 @@ count_frame:
     srl t0, t0, 5 // Z toggle
     addi t2, t2, -1
     sw t0, DMEM(MASK_OFS)(t5)
-    sw t7, DMEM(FILL_COLOR)(t5)
     sw t1, DMEM(FB_BORDER)(t5)
     sw t2, DMEM(FRAME_END)(t5)
     sw t3, DMEM(SECTION_PTR)(t5)
@@ -1155,6 +1173,7 @@ cg_high:
     sll t2, a1, 8
     or t1, t1, t2
     sh t1, cgram(t0)
+    beqz t0, update_frame
     jr ra
 
 .align 5
@@ -1177,6 +1196,13 @@ write_ts: // a1: value
     and t0, t0, a1
     sb t0, sub_mask
     j update_frame
+
+.align 5
+write_cgadsub: // a1: value
+    // Write to the CGADSUB register
+    // TODO: use for more than approximations
+    sb a1, cgadsub
+    jr ra
 
 .align 5
 write_coldata: // a1: value
@@ -1202,7 +1228,7 @@ skip_channel:
     addi t3, t3, -1
     bnez t3, next_channel
     sh t0, coldata
-    jr ra
+    j update_frame
 
 .align 5
 write_setini: // a1: value
