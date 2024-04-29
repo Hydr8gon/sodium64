@@ -23,13 +23,13 @@
 .data
 
 // Empty values that are defined as macros
-.byte 0:PALETTE_PTR
+.byte 0:VRAM_ADDRS
 
 // Frame values that aren't empty by default
+vram_addrs: .word VRAM_BUFFER, 0 // Set by CPU
 palette_ptr: .word PALETTE_QUEUE1, PALETTE_QUEUE2
 oam_ptr: .word OAM_QUEUE1, OAM_QUEUE2
 dirty_ptr: .word DIRTY_QUEUE1, DIRTY_QUEUE2
-vram_ptr: .word VRAM_QUEUE1, VRAM_QUEUE2
 section_ptr: .word SECTION_QUEUE1, SECTION_QUEUE2
 framebuffer: .word FRAMEBUFFER1, FRAMEBUFFER2
 
@@ -142,8 +142,23 @@ main:
     li sp, 0
 
 draw_frame:
-    // Set the initial section bound
-    li k1, 0
+    // Set initial values for copying VRAM
+    la a0, TILE_TABLE
+    li a2, 0x3FF
+    lw t4, VRAM_ADDRS + 4
+    lw t3, VRAM_ADDRS
+    li t2, 0xFC00
+    li t1, 0
+
+vram_loop:
+    // Copy VRAM for the current frame using RSP DMA for speed
+    jal dma_read
+    add a1, t4, t1
+    jal dma_write
+    add a1, t3, t1
+    bne t1, t2, vram_loop
+    addi t1, t1, 0x400
+    mtc0 zero, COP0_SEMAPHORE
 
     // Load OAM for the current frame
     li a0, OAM
@@ -237,6 +252,9 @@ set_visible:
     // Save the first visible object index so objects past it can be skipped
     sh t9, MAX_OBJECT
     sh t8, WRAP_BOUND
+
+    // Set the initial section bound
+    li k1, 0
 
 next_section:
     // Finish the frame after the last section is done
@@ -384,7 +402,7 @@ draw_row:
 
     // Get the base screen address for the BG
     li a0, SCRN_DATA
-    lw a1, VRAM_PTR(sp)
+    lw a1, VRAM_ADDRS
     lhu t0, BGSCRNBASE(s2)
     add a1, a1, t0
 
@@ -481,7 +499,7 @@ check_cache:
 
     // Load the tile's character data from VRAM
     li a0, CHAR_DATA
-    lw a1, VRAM_PTR(sp)
+    lw a1, VRAM_ADDRS
     add a1, a1, t3
     jal dma_read
     li a2, 0x3F
@@ -856,7 +874,7 @@ set_texels:
 
     // Set some values for loading BG entries
     li a0, SCRN_DATA
-    lw t1, VRAM_PTR(sp)
+    lw t1, VRAM_ADDRS
     li a2, 0x7
     move t5, v1
 
@@ -912,7 +930,7 @@ next_subtile:
 
     // Load the tile's character data from VRAM
     li a0, CHAR_DATA
-    lw a1, VRAM_PTR(sp)
+    lw a1, VRAM_ADDRS
     sll t0, t6, 7
     add a1, a1, t0
     jal dma_read
@@ -1181,7 +1199,7 @@ check_objcache:
 
     // Load the tile's character data from VRAM
     li a0, CHAR_DATA
-    lw a1, VRAM_PTR(sp)
+    lw a1, VRAM_ADDRS
     add a1, a1, t5
     jal dma_read
     li a2, 0x1F

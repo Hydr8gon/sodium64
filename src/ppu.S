@@ -156,7 +156,6 @@ split_line: .byte 0
 pal_queues: .word PALETTE_QUEUE1, PALETTE_QUEUE2
 oam_queues: .word OAM_QUEUE1, OAM_QUEUE2
 dirty_queues: .word DIRTY_QUEUE1, DIRTY_QUEUE2
-vram_queues: .word VRAM_QUEUE1, VRAM_QUEUE2
 sect_queues: .word SECTION_QUEUE1, SECTION_QUEUE2
 
 .align 4
@@ -428,17 +427,14 @@ dirty_loop:
     addi t1, t1, 8
     bnez t2, dirty_loop
 
-    // Copy VRAM to the queue for the next frame
+    // Ensure cached VRAM is written back to memory
     la t0, vram
-    lw t1, vram_queues(t5)
-    li t2, 0x10000
+    add t1, t0, 0x10000
 vram_loop:
-    addi t2, t2, -8
-    ld t3, (t0)
-    addi t0, t0, 8
-    sd t3, (t1)
-    addi t1, t1, 8
-    bnez t2, vram_loop
+    cache 0x19, 0x00(t0)
+    cache 0x19, 0x10(t0)
+    addi t0, t0, 0x20
+    bne t0, t1, vram_loop
 
     // Make a final frame section and reset the pointer
     lhu a0, cur_line
@@ -497,6 +493,11 @@ count_frame:
     li t0, FRAMEBUFFER1
 set_buffer:
     sw t0, DMEM(FRAMEBUFFER)(t5)
+
+    // Provide an address and set the semaphore for copying VRAM
+    la t0, UNCACHED(vram)
+    sw t0, DMEM(VRAM_ADDRS + 4)
+    lw t0, 0xA404001C
 
 frame_wait:
     // Wait for a framebuffer to be available
@@ -1024,10 +1025,15 @@ write_vmaddh: // a1: value
 
 .align 5
 write_vmdatal: // a1: value
+    // Wait for the RSP semaphore to ensure VRAM copying is done
+    lw t0, 0xA404001C
+    bnez t0, write_vmdatal
+    sw zero, 0xA404001C
+
     // Write to the low VRAM byte at the current address
     lhu t0, vmadd
     sll t1, t0, 1
-    sb a1, 1 + vram(t1)
+    sb a1, vram + 1(t1)
 
     // Set each layer's dirty bit for the modified VRAM block
     srl t1, t1, 6
@@ -1043,6 +1049,11 @@ write_vmdatal: // a1: value
 
 .align 5
 write_vmdatah: // a1: value
+    // Wait for the RSP semaphore to ensure VRAM copying is done
+    lw t0, 0xA404001C
+    bnez t0, write_vmdatah
+    sw zero, 0xA404001C
+
     // Write to the high VRAM byte at the current address
     lhu t0, vmadd
     sll t1, t0, 1
