@@ -351,6 +351,7 @@ dma_end:
 write_hdmaen: // a1: value
     // Write to the HDMAEN register
     sb a1, hdmaen
+    sb a1, hdma_mask
     jr ra
 
 .align 5
