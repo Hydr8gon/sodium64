@@ -761,16 +761,16 @@ oam_end:
 .align 5
 write_bgmode: // a1: value
     // Set the BG screen mode from 0 to 7
-    // TODO: use the tile sizes
     andi t0, a1, 0xF
     beq t0, 0x9, high_prio
-    andi t0, t0, 0x7
+    andi t0, a1, 0xF7
     sb t0, bg_mode
     j update_frame
 
 high_prio:
     // Set a special mode when mode 1 is set with the BG3 priority bit
-    li t0, 8
+    andi t0, a1, 0xF0
+    ori t0, t0, 8
     sb t0, bg_mode
     j update_frame
 

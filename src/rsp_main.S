@@ -304,6 +304,7 @@ blank_set:
 
     // Set the initial layer lookup offset
     lbu s3, BG_MODE
+    andi s3, s3, 0xF
     sll s3, s3, 4
     lw s7, MASK_OFS(sp)
 
@@ -327,6 +328,7 @@ next_layer:
     lw t1, MASK_OFS(sp)
     bne t1, s7, next_section
     lbu s3, BG_MODE
+    andi s3, s3, 0xF
     sll s3, s3, 4
     b next_layer
     xori s7, s7, 0x1
@@ -388,6 +390,12 @@ get_offsets:
     lhu s6, BGHOFS(s2)
     addi s5, s5, 1
 
+    // Get the tile size bit for the BG
+    lbu t0, BG_MODE
+    srl t0, t0, 4
+    and t0, t0, a3
+    sltu t5, zero, t0
+
     // Set the initial tile Y-coordinate and character number
     andi t0, s5, 0x7
     andi t1, k0, 0x7
@@ -415,7 +423,8 @@ draw_row:
 
 load_screen:
     // Load a row of BG entries from the first horizontal screen
-    andi t0, t1, 0xFF
+    srl t1, t1, t5
+    andi t0, t1, 0xF8
     sll t0, t0, 3
     add a1, a1, t0
     jal dma_read
@@ -437,12 +446,39 @@ load_screen:
     sh t0, RDP_TILE + 30 // y1
 
 next_tile:
-    // Get the BG entry for the current tile
+    // Get the X-coordinate and check tile size
     add t4, s6, s0
+    beqz t5, not_large
     andi t6, t4, 0x1FF
+
+    // Get the BG entry for the current 16x16 tile
+    srl t6, t6, 3
+    andi t4, t6, 0x1
+    sub t6, t6, t4
+    lhu t6, SCRN_DATA(t6)
+
+    // Adjust the tile number based on X-coordinate within the tile
+    andi t0, t6, 0x4000 // X-flip
+    srl t0, t0, 14
+    xor t4, t4, t0
+    add t6, t6, t4
+
+    // Adjust the tile number based on Y-coordinate within the tile
+    add t1, s5, s1
+    andi t1, t1, 0x8
+    sll t1, t1, 1
+    andi t0, t6, 0x8000 // Y-flip
+    srl t0, t0, 11
+    xor t1, t1, t0
+    b skip_small
+    add t6, t6, t1
+
+not_large:
+    // Get the BG entry for the current 8x8 tile
     srl t6, t6, 2
     lhu t6, SCRN_DATA(t6)
 
+skip_small:
     // Skip the tile if its priority doesn't match the layer
     andi t0, t6, 0x2000
     xor t0, t0, gp
@@ -456,14 +492,14 @@ next_tile:
     sh t1, RDP_TILE + 48 // x2
 
     // Update the RDP texture parameters based on mirroring
-    srl t5, t6, 10
-    andi t5, t5, 0x30
-    lw t3, TILE_PARAMS + 0(t5)
-    lw t4, TILE_PARAMS + 4(t5)
-    lw t5, TILE_PARAMS + 8(t5)
+    srl t0, t6, 10
+    andi t0, t0, 0x30
+    lw t3, TILE_PARAMS + 0(t0)
+    lw t4, TILE_PARAMS + 4(t0)
+    lw t0, TILE_PARAMS + 8(t0)
     sw t3, RDP_TILE + 56 // Coordinates
     sw t4, RDP_TILE + 64 // Gradients along X
-    sw t5, RDP_TILE + 88 // Gradients along Y
+    sw t0, RDP_TILE + 88 // Gradients along Y
 
     // Skip uploading if the last tile's number and palette were the same
     andi t0, t6, 0x1FFF
