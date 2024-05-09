@@ -53,28 +53,37 @@ cur_samples: .dword 0:8
 
 .align 4
 filter_jumps: .word filter_end, filter_1, filter_2, filter_3
+gain_jumps: .word linear_dec, expon_dec, linear_inc, bent_inc
 
 .align 4
 write_iomap:
     .word write_vol, write_vol, write_reg, write_reg // 0x00-0x03
-    .word write_reg:(0x0F - 0x03) // 0x04-0x0F
+    .word write_reg, write_adsr, write_reg, write_reg // 0x04-0x07
+    .word write_reg:(0x0F - 0x07) // 0x08-0x0F
     .word write_vol, write_vol, write_reg, write_reg // 0x10-0x13
-    .word write_reg:(0x1F - 0x13) // 0x14-0x1F
+    .word write_reg, write_adsr, write_reg, write_reg // 0x14-0x17
+    .word write_reg:(0x1F - 0x17) // 0x18-0x1F
     .word write_vol, write_vol, write_reg, write_reg // 0x20-0x23
-    .word write_reg:(0x2F - 0x23) // 0x24-0x2F
+    .word write_reg, write_adsr, write_reg, write_reg // 0x24-0x27
+    .word write_reg:(0x2F - 0x27) // 0x28-0x2F
     .word write_vol, write_vol, write_reg, write_reg // 0x30-0x33
-    .word write_reg:(0x3F - 0x33) // 0x34-0x3F
+    .word write_reg, write_adsr, write_reg, write_reg // 0x34-0x37
+    .word write_reg:(0x3F - 0x37) // 0x38-0x3F
     .word write_vol, write_vol, write_reg, write_reg // 0x40-0x43
-    .word write_reg:(0x4B - 0x43) // 0x44-0x4B
+    .word write_reg, write_adsr, write_reg, write_reg // 0x44-0x47
+    .word write_reg:(0x4B - 0x47) // 0x48-0x4B
     .word write_kon, write_reg, write_reg, write_reg // 0x4C-0x4F
     .word write_vol, write_vol, write_reg, write_reg // 0x50-0x53
-    .word write_reg:(0x5B - 0x53) // 0x54-0x5B
+    .word write_reg, write_adsr, write_reg, write_reg // 0x54-0x57
+    .word write_reg:(0x5B - 0x57) // 0x58-0x5B
     .word write_koff, write_reg, write_reg, write_reg // 0x5C-0x5F
     .word write_vol, write_vol, write_reg, write_reg // 0x60-0x63
-    .word write_reg:(0x6B - 0x63) // 0x64-0x6B
+    .word write_reg, write_adsr, write_reg, write_reg // 0x64-0x67
+    .word write_reg:(0x6B - 0x67) // 0x68-0x6B
     .word time_noise, write_reg, write_reg, write_reg // 0x6C-0x6F
     .word write_vol, write_vol, write_reg, write_reg // 0x70-0x73
-    .word write_reg:(0xFF - 0x73) // 0x74-0xFF
+    .word write_reg, write_adsr, write_reg, write_reg // 0x74-0x77
+    .word write_reg:(0x7F - 0x77) // 0x78-0x7F
 
 .align 4
 timer_rates: // Lookup table for timer rates and offsets
@@ -386,9 +395,9 @@ attack_mode: // t6: voice, t8: offset
     blt t0, 0x7E0, attack_time
     la t3, decay_mode
     sw t3, mode_funcs(t8)
-    blt t0, 0x7FF, decay_time
-    li t0, 0x7FF
-    sh t0, envelopes(t8)
+    li t1, 0x7FF
+    blt t0, t1, decay_time
+    sh t1, envelopes(t8)
     j decay_time
 
 .align 5
@@ -417,7 +426,7 @@ decay_mode: // t6: voice, t8: offset
     sll t1, t1, 3
     addi t1, t1, 0x100
 
-    // Switch to sustain mode at the boundary and clip to 0
+    // Switch to sustain mode at the boundary and clip to zero
     bgt t0, t1, decay_time
     la t3, sustain_mode
     sw t3, mode_funcs(t8)
@@ -464,15 +473,78 @@ sustain_time: // t6: voice
     j update_step
 
 .align 5
-gain_mode: // t6: voice
+gain_mode: // t6: voice, t8: offset
+    // Jump to the handler for the current gain mode
+    lbu t0, dsp_regs + 0x7(t8) // VxGAIN
+    andi t1, t0, 0x60
+    srl t1, t1, 3
+    lw t0, gain_jumps(t1)
+    jr t0
+
+linear_dec:
+    // Decrease the envelope by a fixed amount and clip to zero
+    lhu t0, envelopes(t8)
+    addi t0, t0, -32
+    sh t0, envelopes(t8)
+    bgtz t0, gain_time
+    sh zero, envelopes(t8)
+    j gain_time
+
+expon_dec:
+    // Decrease the envelope by an exponential amount and clip to zero
+    lhu t0, envelopes(t8)
+    addi t2, t0, -1
+    srl t2, t2, 8
+    addi t2, t2, 1
+    sub t0, t0, t2
+    sh t0, envelopes(t8)
+    bgtz t0, gain_time
+    sh zero, envelopes(t8)
+    j gain_time
+
+linear_inc:
+    // Increase the envelope by a fixed amount and clip to 0x7FF
+    lhu t0, envelopes(t8)
+    addi t0, t0, 32
+    sh t0, envelopes(t8)
+    li t1, 0x7FF
+    blt t0, t1, gain_time
+    sh t1, envelopes(t8)
+    j gain_time
+
+bent_inc:
+    // Increase the envelope by an amount bent at 0x600 and clip to 0x7FF
+    lhu t0, envelopes(t8)
+    slti t1, t0, 0x600
+    sll t1, t1, 1
+    li t2, 8
+    sll t1, t2, t1
+    add t0, t0, t1
+    sh t0, envelopes(t8)
+    li t1, 0x7FF
+    blt t0, t1, gain_time
+    sh t1, envelopes(t8)
+    j gain_time
+
+.align 5
 gain_time: // t6: voice
-    // Stub gain mode by fixing the volume to max
-    // TODO: actually implement gain mode
-    sll t1, t6, 4
-    li t0, 0x7FF
-    sh t0, envelopes(t1)
+    // Check whether direct or custom gain is selected
+    sll t8, t6, 4
+    lbu t0, dsp_regs + 0x7(t8) // VxGAIN
+    andi t1, t0, 0x80
+    beqz t1, direct_gain
+
+    // Schedule the next step using the custom gain rate
+    andi a0, t0, 0x1F
+    sll a0, a0, 2
+    j update_step
+
+direct_gain:
+    // Set a fixed volume for direct gain
+    sll t0, t0, 4
+    sh t0, envelopes(t8)
     li t0, 0xFFFF
-    sh t0, next_steps(t1)
+    sh t0, next_steps(t8)
     j update_vols
 
 .align 5
@@ -565,6 +637,16 @@ write_vol: // t0: address
     // Update a voice's cached volumes when changed
     srl t6, t0, 4
     j update_vols
+
+.align 5
+write_adsr: // t0: address
+    // Switch a voice's envelope to gain if selected
+    lbu t1, dsp_regs(t0) // VxADSR1
+    andi t4, t0, 0xF0
+    srl t6, t0, 4
+    andi t0, t1, 0x80
+    beqz t0, use_gain
+    jr ra
 
 .align 5
 write_kon: // a1: value
