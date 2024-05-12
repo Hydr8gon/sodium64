@@ -529,8 +529,8 @@ bent_inc:
 .align 5
 gain_time: // t6: voice
     // Check whether direct or custom gain is selected
-    sll t8, t6, 4
-    lbu t0, dsp_regs + 0x7(t8) // VxGAIN
+    sll t4, t6, 4
+    lbu t0, dsp_regs + 0x7(t4) // VxGAIN
     andi t1, t0, 0x80
     beqz t1, direct_gain
 
@@ -542,9 +542,9 @@ gain_time: // t6: voice
 direct_gain:
     // Set a fixed volume for direct gain
     sll t0, t0, 4
-    sh t0, envelopes(t8)
+    sh t0, envelopes(t4)
     li t0, 0xFFFF
-    sh t0, next_steps(t8)
+    sh t0, next_steps(t4)
     j update_vols
 
 .align 5
