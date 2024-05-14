@@ -53,6 +53,7 @@
 .align 4
 dma_stack: .hword 0
 hdma_mask: .byte 0
+end_mask: .byte 0
 hdmaen: .byte 0
 
 .align 4
@@ -83,10 +84,11 @@ address_steps: .byte 1, 0, -1, 0 // CPU address steps
 
 .align 5
 reload_hdma:
-    // Reload the HDMA channel mask
+    // Reload the HDMA channel masks
     lbu t0, hdmaen
     li t1, 0
     sb t0, hdma_mask
+    sb zero, end_mask
 
 reload_start:
     // Check if the current HDMA channel is enabled
@@ -232,8 +234,11 @@ hio_cpu:
 hdma_disable:
     // Disable an HDMA channel for the rest of the frame
     lbu t0, hdma_mask
-    li t1, 1
-    sll t1, t1, s1
+    lbu t1, end_mask
+    li t2, 1
+    sll t2, t2, s1
+    or t1, t1, t2
+    sb t1, end_mask
     xori t1, t1, 0xFF
     and t0, t0, t1
     sb t0, hdma_mask
@@ -349,9 +354,14 @@ dma_end:
 
 .align 5
 write_hdmaen: // a1: value
-    // Write to the HDMAEN register
+    // Write to the HDMAEN register and update the HDMA mask
     sb a1, hdmaen
-    sb a1, hdma_mask
+    lbu t0, hdma_mask
+    lbu t1, end_mask
+    or t0, t0, a1
+    xori t1, t1, 0xFF
+    and t0, t0, t1
+    sb t0, hdma_mask
     jr ra
 
 .align 5
