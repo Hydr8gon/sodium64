@@ -498,6 +498,7 @@ write_a1bx: // a0: address, a1: value
     srl t0, a0, 2
     andi t0, t0, 0x1C
     sb a1, a1tbx + 1(t0)
+    sb a1, a2abx + 1(t0)
     jr ra
 
 .align 5
