@@ -55,7 +55,7 @@ main:
 
     // Clear framebuffers and other hardcoded data
     li t0, FRAMEBUFFER1
-    li t1, ROM_BUFFER
+    li t1, JIT_BUFFER
 clear_vram:
     sd zero, (t0)
     addi t0, t0, 8

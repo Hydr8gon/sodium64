@@ -301,6 +301,28 @@ make_section: // a0: line
     sb a0, (t1)
 
 section_init:
+    // Copy values for the next frame section
+    la t0, obj_size
+    lw t1, section_ptr
+    addi t2, t0, 0x50
+section_loop:
+    ld t3, (t0)
+    addi t0, t0, 8
+    sd t3, (t1)
+    addi t1, t1, 8
+    bne t0, t2, section_loop
+    sw t1, section_ptr
+    jr ra
+
+.align 5
+update_frame:
+    // Mark the current frame section as dirty
+    li t0, 0x1
+    sb t0, sect_status
+    jr ra
+
+.align 5
+update_fill:
     // Choose between main or sub backdrop color with some guesswork
     lbu t0, cgadsub
     lhu t1, cgram
@@ -323,7 +345,7 @@ set_fill:
     mult t2, t0
     mflo t1
 
-    // Pack the components back together in N64 format and set the fill color
+    // Pack the components back together in N64 format
     andi t2, t1, 0x1F0 // R
     sll t2, t2, 7
     srl t1, t1, 14
@@ -333,26 +355,11 @@ set_fill:
     andi t3, t1, 0x7C00 // B
     srl t3, t3, 9
     or t2, t2, t3
+
+    // Update the fill color and the frame if the color changed
+    lhu t1, fill_color
     sh t2, fill_color
-
-    // Copy values for the next frame section
-    la t0, obj_size
-    lw t1, section_ptr
-    addi t2, t0, 0x50
-section_loop:
-    ld t3, (t0)
-    addi t0, t0, 8
-    sd t3, (t1)
-    addi t1, t1, 8
-    bne t0, t2, section_loop
-    sw t1, section_ptr
-    jr ra
-
-.align 5
-update_frame:
-    // Mark the current frame section as dirty
-    li t0, 0x1
-    sb t0, sect_status
+    bne t1, t2, update_frame
     jr ra
 
 .align 5
@@ -676,7 +683,7 @@ set_bright:
     sgtu t1, t0, zero
     add t0, t0, t1
     sb t0, brightness
-    j update_frame
+    j update_fill
 
 .align 5
 write_obsel: // a1: value
@@ -1184,7 +1191,7 @@ cg_high:
     sll t2, a1, 8
     or t1, t1, t2
     sh t1, cgram(t0)
-    beqz t0, update_frame
+    beqz t0, update_fill
     jr ra
 
 .align 5
@@ -1213,7 +1220,7 @@ write_cgadsub: // a1: value
     // Write to the CGADSUB register
     // TODO: use for more than approximations
     sb a1, cgadsub
-    jr ra
+    j update_fill
 
 .align 5
 write_coldata: // a1: value
@@ -1239,7 +1246,7 @@ skip_channel:
     addi t3, t3, -1
     bnez t3, next_channel
     sh t0, coldata
-    j update_frame
+    j update_fill
 
 .align 5
 write_setini: // a1: value
