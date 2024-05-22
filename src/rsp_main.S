@@ -306,7 +306,17 @@ blank_set:
     lbu s3, BG_MODE
     andi s3, s3, 0xF
     sll s3, s3, 4
-    lw s7, MASK_OFS(sp)
+
+    // Create a layer mask based on main and sub masks, with shared layers on top
+    // As a workaround for lack of blending, the order of the screens can be swapped
+    lw t0, MASK_OFS(sp)
+    lbu s7, SUB_MASK(t0)
+    xori t0, t0, 0x1
+    lbu t0, SUB_MASK(t0)
+    and t1, t0, s7 // Shared
+    sub s7, s7, t1
+    sll t0, t0, 8
+    or s7, s7, t0
 
     // Reset the background priority status
     sw zero, PRIO_CHECKS + 0
@@ -322,25 +332,23 @@ next_layer:
     beq t0, 0x40, draw_mode7
     nop
     bnez t0, draw_bg
+    nop
 
-    // After the first screen's layers are done, draw the other screen's layers on top
-    // As a workaround for lack of blending, the main and sub screens can be swapped
-    lw t1, MASK_OFS(sp)
-    bne t1, s7, next_section
+    // Move to the next set of layers if any exist, or finish the section
+    srl s7, s7, 8
+    beqz s7, next_section
     lbu s3, BG_MODE
     andi s3, s3, 0xF
-    sll s3, s3, 4
     b next_layer
-    xori s7, s7, 0x1
+    sll s3, s3, 4
 
 
 draw_bg:
     // Skip the layer if the BG is disabled
-    lbu t1, SUB_MASK(s7)
     li t2, 1
     andi t3, t0, 0x3 // Index
     sll a3, t2, t3 // Mask
-    and t1, t1, a3
+    and t1, s7, a3
     beqz t1, next_layer
 
     // Skip the priority pass if no tiles had high priority
@@ -712,8 +720,7 @@ skip_upload:
 
 draw_mode7:
     // Skip the layer if the BG is disabled
-    lbu t1, SUB_MASK(s7)
-    andi t1, t1, 0x1
+    andi t1, s7, 0x1
     beqz t1, next_layer
 
     // Update RDP parameters for a texture width of 32 (4 tiles)
@@ -1058,8 +1065,7 @@ finish_tile7:
 
 draw_obj:
     // Skip the layer if objects are disabled
-    lbu t1, SUB_MASK(s7)
-    andi t1, t1, 0x10
+    andi t1, s7, 0x10
     beqz t1, next_layer
     andi a3, t0, 0x3 // Priority
 

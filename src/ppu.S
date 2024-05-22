@@ -116,8 +116,6 @@ vmadd: .hword 0
 cgadd: .hword 0
 vtime: .hword 0
 stat78: .byte 0x1
-tm: .byte 0
-ts: .byte 0
 cgadsub: .byte 0
 nmitimen: .byte 0
 rdnmi: .byte 0
@@ -1196,23 +1194,14 @@ cg_high:
 
 .align 5
 write_tm: // a1: value
-    // Set the main screen layer mask and mask out layers on the sub screen
-    sb a1, tm
-    lbu t0, ts
-    xori t1, a1, 0x1F
+    // Set the main screen layer mask
     sb a1, main_mask
-    and t0, t0, t1
-    sb t0, sub_mask
     j update_frame
 
 .align 5
 write_ts: // a1: value
-    // Set the sub screen layer mask with main layers masked out
-    sb a1, ts
-    lbu t0, tm
-    xori t0, t0, 0x1F
-    and t0, t0, a1
-    sb t0, sub_mask
+    // Set the sub screen layer mask
+    sb a1, sub_mask
     j update_frame
 
 .align 5
