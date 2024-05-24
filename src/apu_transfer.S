@@ -173,9 +173,9 @@ apu_movwya: // MOVW YA,op
     jal emit_op
 
     // Emit code to set flags for the 16-bit value
-    li t0, SLT(T0, ZERO, T8)
+    li t0, SLT(T0, ZERO, T7)
     jal emit_op
-    li t0, OR(T0, T0, T7)
+    li t0, OR(T0, T0, T8)
     jal emit_op
     li t1, T0
     la ra, finish_opcode
