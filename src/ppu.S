@@ -658,9 +658,11 @@ read_hvbjoy: // v0: value
 
 .align 5
 write_inidisp: // a1: value
-    // Set the force blank bit
+    // Set the force blank bit and mark the frame section as dirty
     andi t0, a1, 0x80
     sb t0, force_blank
+    li t0, 0x1
+    sb t0, sect_status
 
     // Some games use mid-frame events to achieve a longer V-blank period
     // If force blank is set after a certain line, handle the frame now
