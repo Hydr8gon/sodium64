@@ -30,6 +30,7 @@ for filename in os.listdir("."):
         outFile.write(baseFile.read())
         outFile.seek(0x200000, 0)
         outFile.write(inFile.read())
+        inFile.close()
 
 if convert == 1:
     print("\nA header or .sfc extension was detected in one or more ROMs.")
