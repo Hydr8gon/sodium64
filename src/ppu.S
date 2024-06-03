@@ -96,6 +96,7 @@ fb_border: .byte 0
 brightness: .byte 0
 
 .align 4
+vram_trans: .word 0
 vram_fetch: .hword 0
 oam_addr: .hword 0
 vram_incl: .byte 0
@@ -162,6 +163,7 @@ obj_sizes: // Possible object sizes; bytes are small X, small Y, large X, large 
     .word 0x10104040, 0x20204040, 0x10202040, 0x10202020
 
 .align 4
+vram_funcs: .word 0, vram_trans8, vram_trans9, vram_trans10 // VRAM address translation functions
 scrn_ofsh: .hword 0x0000, 0x0800, 0x0000, 0x0800 // Horizontal screen address offsets
 scrn_ofsv: .hword 0x0000, 0x0000, 0x0800, 0x1000 // Vertical screen address offsets
 vram_incrs: .byte 1, 32, 128, 128 // VRAM access address increments
@@ -515,6 +517,45 @@ frame_wait:
     jr t4
 
 .align 5
+vram_trans8: // t0: address, t6: return - t1: output
+    // Perform 8-bit translation on a VRAM address
+    andi t2, t0, 0x7F00
+    sll t3, t0, 3
+    andi t3, t3, 0xF8
+    or t2, t2, t3
+    srl t3, t0, 5
+    andi t3, t3, 0x7
+    or t1, t2, t3
+    sll t1, t1, 1
+    jr t6
+
+.align 5
+vram_trans9: // t0: address, t6: return - t1: output
+    // Perform 9-bit translation on a VRAM address
+    andi t2, t0, 0x7E00
+    sll t3, t0, 3
+    andi t3, t3, 0x1F8
+    or t2, t2, t3
+    srl t3, t0, 6
+    andi t3, t3, 0x7
+    or t1, t2, t3
+    sll t1, t1, 1
+    jr t6
+
+.align 5
+vram_trans10: // t0: address, t6: return - t1: output
+    // Perform 10-bit translation on a VRAM address
+    andi t2, t0, 0x7C00
+    sll t3, t0, 3
+    andi t3, t3, 0x3F8
+    or t2, t2, t3
+    srl t3, t0, 7
+    andi t3, t3, 0x7
+    or t1, t2, t3
+    sll t1, t1, 1
+    jr t6
+
+.align 5
 read_mpyl: // v0: value
     // Read the low byte of the signed multiply result
     lbu v0, mpy + 3
@@ -560,7 +601,10 @@ read_rdvraml: // v0: value
 
     // Prefetch a new 16-bit value before increment
     lhu t0, vmadd
+    lw t3, vram_trans
     sll t1, t0, 1
+    bnez t3, vraml_trans
+vraml_ret:
     lhu t1, vram(t1)
     sh t1, vram_fetch
 
@@ -571,6 +615,11 @@ read_rdvraml: // v0: value
 vraml_end:
     jr ra
 
+vraml_trans:
+    // Call the VRAM address translation function if it's set
+    la t6, vraml_ret
+    jr t3
+
 .align 5
 read_rdvramh: // v0: value
     // Read the low byte of the prefetched VRAM data
@@ -580,7 +629,10 @@ read_rdvramh: // v0: value
 
     // Prefetch a new 16-bit value before increment
     lhu t0, vmadd
+    lw t3, vram_trans
     sll t1, t0, 1
+    bnez t3, vramh_trans
+vramh_ret:
     lhu t1, vram(t1)
     sh t1, vram_fetch
 
@@ -590,6 +642,11 @@ read_rdvramh: // v0: value
     sh t0, vmadd
 vramh_end:
     jr ra
+
+vramh_trans:
+    // Call the VRAM address translation function if it's set
+    la t6, vramh_ret
+    jr t3
 
 .align 5
 read_ophct: // v0: value
@@ -987,8 +1044,12 @@ write_bg4vofs: // a1: value
 
 .align 5
 write_vmain: // a1: value
+    // Set the VRAM address translation function
+    andi t0, a1, 0xC
+    lw t0, vram_funcs(t0)
+    sw t0, vram_trans
+
     // Get the VRAM increment and check if it applies to high or low access
-    // TODO: address translation
     andi t0, a1, 0x3
     lbu t0, vram_incrs(t0)
     andi t1, a1, 0x80
@@ -1009,26 +1070,28 @@ vmain_high:
 write_vmaddl: // a1: value
     // Set the low byte of the VRAM address
     sb a1, vmadd + 1
+    b vmadd_prefetch
 
-    // Prefetch a 16-bit value for reading
-    lhu t0, vmadd
-    sll t1, t0, 1
-    lhu t0, vram(t1)
-    sh t0, vram_fetch
-    jr ra
-
-.align 5
 write_vmaddh: // a1: value
     // Set the high byte of the VRAM address
     andi t0, a1, 0x7F
     sb t0, vmadd
 
+vmadd_prefetch:
     // Prefetch a 16-bit value for reading
     lhu t0, vmadd
+    lw t3, vram_trans
     sll t1, t0, 1
+    bnez t3, vmadd_trans
+vmadd_ret:
     lhu t0, vram(t1)
     sh t0, vram_fetch
     jr ra
+
+vmadd_trans:
+    // Call the VRAM address translation function if it's set
+    la t6, vmadd_ret
+    jr t3
 
 .align 5
 write_vmdatal: // a1: value
@@ -1039,7 +1102,10 @@ write_vmdatal: // a1: value
 
     // Write to the low VRAM byte at the current address
     lhu t0, vmadd
+    lw t3, vram_trans
     sll t1, t0, 1
+    bnez t3, datal_trans
+datal_ret:
     sb a1, vram + 1(t1)
 
     // Set each layer's dirty bit for the modified VRAM block
@@ -1054,6 +1120,11 @@ write_vmdatal: // a1: value
     sh t0, vmadd
     jr ra
 
+datal_trans:
+    // Call the VRAM address translation function if it's set
+    la t6, datal_ret
+    jr t3
+
 .align 5
 write_vmdatah: // a1: value
     // Wait for the RSP semaphore to ensure VRAM copying is done
@@ -1063,7 +1134,10 @@ write_vmdatah: // a1: value
 
     // Write to the high VRAM byte at the current address
     lhu t0, vmadd
+    lw t3, vram_trans
     sll t1, t0, 1
+    bnez t3, datah_trans
+datah_ret:
     sb a1, vram(t1)
 
     // Set each layer's dirty bit for the modified VRAM block
@@ -1077,6 +1151,11 @@ write_vmdatah: // a1: value
     andi t0, t0, 0x7FFF
     sh t0, vmadd
     jr ra
+
+datah_trans:
+    // Call the VRAM address translation function if it's set
+    la t6, datah_ret
+    jr t3
 
 .align 5
 write_m7sel: // a1: value
