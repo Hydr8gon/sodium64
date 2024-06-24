@@ -22,7 +22,6 @@
 .globl fps_emulate
 .globl fps_display
 .globl frame_count
-
 .globl _start
 
 .data
@@ -113,6 +112,44 @@ clear_vram:
     cache 0x10, 0x0100(t0)
     cache 0x10, 0x0180(t0)
 
+    // Check for Cartridge Emulator support
+    lui  t0, 0xA900       // PI register upper address
+    lw   t1, 0x0220(t0)   // DaisyDrive64 MagicID
+    bne  t1, 0x44443634, default_init   // 0x44443634 == DD64 ascii
+daisydrive_init:
+    lw   t1, 0x0224(t0)   // DaisyDrive64 Emulation settings
+    andi t2, t1, DD64_FEATURE_BITS_CX4_SUPPORT
+    beqz t2, DSP1_support
+
+    // Check what features are enabled: CX4, DSP1, etc.
+    //    Patch appropriate IO functions.
+    li t3, (0x7FB0 - 0x2100)
+    la t4, read_extension
+    la t5, write_extension
+patch_CX4_passthrough_region:
+    la t2, read_iomap
+    mul t6, t3, 4
+    add t2, t6
+    sw t4, 0x0(t2)
+    la t2, write_iomap
+    add t2, t6
+    sw t5, 0x0(t2)
+    addi t3, t3, -1
+    bne t3, (0x5FFF - 0x2100), patch_CX4_passthrough_region
+
+DSP1_support:
+    lw   t1, 0x0224(t0)
+    andi t2, t1, DD64_FEATURE_BITS_DSP1_SUPPORT
+    beqz t2, ROM_BaseAddress
+    // TODO -- DSP 1 support is still being worked on
+
+    // Check the rom start address set by the menu.
+    //    Patch the start address opcodes.
+ROM_BaseAddress:
+    lw t1, 0x0228(t0)   // DaisyDrive64 VM rom address (Set by the menu)
+    sw t1, rom_base_address
+
+default_init:
     // Setup SRAM signal speed to something consistent but safe.
     lui  t0, 0xA460       // PI register upper address
     li   t1, 0x06
