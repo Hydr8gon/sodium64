@@ -28,6 +28,9 @@
 .globl tlbl_exception
 .globl tlbs_exception
 .globl tlbm_exception
+.globl read_extension
+.globl write_extension
+.globl rom_base_address
 
 .data
 
@@ -43,6 +46,7 @@ rom_addrs: .word 0:0x100
 rom_entries: .word 0:0x100
 rom_pointer: .byte 0
 sram_dirty: .byte 0
+rom_base_address: .word DEFAULT_ROM_BASE
 
 .align 4
 read_iomap:
@@ -107,6 +111,8 @@ read_iomap:
     .word read_a1bx, read_dasxl, read_dasxh, read_dasbx // 0x4374-0x4377
     .word read_a2axl, read_a2axh, read_ntrlx, read_unusedx // 0x4378-0x437B
     .word read_unk, read_unk, read_unk, read_unusedx // 0x437C-0x437F
+    .word read_unk:(0x5FFF - 0x437F)                      // 0x4378-0x5FFF
+    .word read_unk:(0x7FB0 - 0x5FFF)                      // 0x6000-0x7FAF // Read Extension -- This gets overwritten during init.
 
 .align 4
 write_iomap:
@@ -178,6 +184,8 @@ write_iomap:
     .word write_a1bx, write_dasxl, write_dasxh, write_dasbx // 0x4374-0x4377
     .word write_a2axl, write_a2axh, write_ntrlx, write_unusedx // 0x4378-0x437B
     .word write_unk, write_unk, write_unk, write_unusedx // 0x437C-0x437F
+    .word write_unk:(0x5FFF - 0x437F)                       // 0x4378-0x5FFF
+    .word write_unk:(0x7FB0 - 0x5FFF)                       // 0x6000-0x7FAF Write Extension -- this gets overwritten during init
 
 .text
 
@@ -185,7 +193,10 @@ write_iomap:
 memory_init:
     // Detect HiROM headers with a rudimentary checksum check
     // TODO: improve this?
-    lw t0, 0xB020FFDC
+    lw t0, rom_base_address
+    li t1, 0xA000FFDC
+    add t0, t0, t1
+    lw t0, 0(t0)
     andi t1, t0, 0xFFFF
     srl t0, t0, 16
     xor t0, t0, t1
@@ -201,7 +212,10 @@ map_lorom:
     li t2, 0x2000 // Block size (8KB)
 
     // Set the SRAM mask using the header size
-    lw t9, 0xB0207FD8
+    lw t9, rom_base_address
+    li t8, 0xA0007FD8
+    add t9, t9, t8
+    lw t9, 0(t9)
     srl t9, t9, 24
     beqz t9, build_lomap
     li t3, 0x400
@@ -244,16 +258,15 @@ lowram_area:
 
 lorom_area:
     // Special case LoROM; the exception handler will dynamically load blocks
-    li t3, 0x10200000 // ROM appended to file
-    li t4, 0x7F0000
-    and t4, t4, t0 // Mirrored bank
-    srl t4, t4, 1 // 32KB every 64KB bank
-    add t3, t3, t4
-    li t4, 0x7FFF
-    and t4, t4, t0 // Offset within 32KB
-    add t3, t3, t4
-    b map_lonone
-
+    lw   t3, rom_base_address // ROM appended to file
+    li   t4, 0x7F0000
+    and  t4, t4, t0     // Mirrored bank
+    srl  t4, t4, 1      // 32KB every 64KB bank
+    add  t3, t3, t4
+    li   t4, 0x7FFF
+    and  t4, t4, t0     // Offset within 32KB
+    add  t3, t3, t4
+    b    map_lonone
 losram_area:
     // Check if this is a ROM or SRAM area
     andi t4, t0, 0xFFFF
@@ -306,7 +319,10 @@ map_hirom:
     li t2, 0x2000 // Block size (8KB)
 
     // Set the SRAM mask using the header size
-    lw t9, 0xB020FFD8
+    lw t9, rom_base_address
+    li t3, 0xA000FFD8
+    add t9, t9, t3
+    lw t9, 0(t9)
     srl t9, t9, 24
     beqz t9, build_himap
     li t3, 0x400
@@ -347,12 +363,11 @@ hiwram_area:
 
 hirom_area:
     // Special case HiROM; the exception handler will dynamically load blocks
-    li t3, 0x10200000 // ROM appended to file
-    li t4, 0x3FFFFF // ROM mask
-    and t4, t4, t0
-    add t3, t3, t4
-    b map_hinone
-
+    lw   t3, rom_base_address // ROM appended to file
+    li   t4, 0x3FFFFF   // ROM mask
+    and  t4, t4, t0
+    add  t3, t3, t4
+    b    map_hinone
 hisram_area:
     // Special case SRAM so writes can be tracked
     beqz t9, hiempty_area
@@ -501,7 +516,7 @@ tlbl_io:
     // Look up and return to an I/O read function if no memory is mapped
     andi a0, a0, 0xFFFF
     addi t0, a0, -0x2100
-    bgeu t0, 0x4380 - 0x2100, tlbl_unk
+    bgeu t0, 0x7FB0 - 0x2100, tlbl_unk
     sll t0, t0, 2
     lw k0, read_iomap(t0)
     mtc0 k0, $14 // EPC
@@ -569,7 +584,7 @@ tlbs_io:
     // Look up and return to an I/O write function if no memory is mapped
     andi a0, a0, 0xFFFF
     addi t0, a0, -0x2100
-    bgeu t0, 0x4380 - 0x2100, tlbs_unk
+    bgeu t0, 0x7FB0 - 0x2100, tlbs_unk
     sll t0, t0, 2
     lw k0, write_iomap(t0)
     mtc0 k0, $14 // EPC
@@ -611,6 +626,11 @@ tlbm_exception:
     eret
 
 .align 5
+read_extension:
+    lhu  v0, 0xAA008400(t0)
+    jr   ra
+
+.align 5
 read_unk:
     // Unknown I/O register read; use upper address byte to approximate open bus
     srl v0, a0, 8
@@ -632,8 +652,17 @@ read_wmdata: // v0: value
     jr ra
 
 .align 5
+write_extension: // a1: value, t0: address
+    sb   a1, 0xAA008400(t0) // (0x2100 << 2) = 0x8400 this is added to t0 as t0 is lowered by 0x2100.
+    lui  t2, 0xA460     // PI register upper address
+write_extension_wait1:
+    // Wait for the IO to complete
+    lw   t1, 0x0010(t2) // PI_STATUS
+    andi t1, t1, 0x1    // DMA busy
+    bnez t1, write_extension_wait1
+    jr   ra
+
 write_unk:
-    // Unknown I/O register write; do nothing
     jr ra
 
 .align 5

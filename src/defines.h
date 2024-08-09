@@ -201,3 +201,12 @@
 
 // Macro that converts an RSP DMEM address to a CPU address
 #define DMEM(addr) (0xA4000000 + (addr))
+
+// ROM base offset
+#define DEFAULT_ROM_BASE 0x10200000
+
+// DaisyDrive feature bits
+#define DD64_FEATURE_BITS_NONE         0x00000000
+#define DD64_FEATURE_BITS_SD_ACCESS    0x00000001
+#define DD64_FEATURE_BITS_CX4_SUPPORT  0x00000002
+#define DD64_FEATURE_BITS_DSP1_SUPPORT 0x00000004

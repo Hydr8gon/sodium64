@@ -22,7 +22,6 @@
 .globl fps_emulate
 .globl fps_display
 .globl frame_count
-
 .globl _start
 
 .data
@@ -113,8 +112,69 @@ clear_vram:
     cache 0x10, 0x0100(t0)
     cache 0x10, 0x0180(t0)
 
+    // Check for Cartridge Emulator support
+    lui  t0, 0xA900       // PI register upper address
+    lw   t1, 0x0220(t0)   // DaisyDrive64 MagicID
+    bne  t1, 0x44443634, dom2_signal_speed_init   // 0x44443634 == DD64 ascii
+daisydrive_init:
+    lw   t1, 0x0224(t0)   // DaisyDrive64 Emulation settings
+    andi t2, t1, DD64_FEATURE_BITS_CX4_SUPPORT
+    beqz t2, DSP1_support
+
+    // Check what features are enabled: CX4, DSP1, etc.
+    //    Patch appropriate IO functions.
+    li t3, (0x7FB0 - 0x2100)
+    la t4, read_extension
+    la t5, write_extension
+patch_CX4_passthrough_region:
+    la t2, read_iomap
+    mul t6, t3, 4
+    add t2, t6
+    sw t4, 0x0(t2)
+    la t2, write_iomap
+    add t2, t6
+    sw t5, 0x0(t2)
+    addi t3, t3, -1
+    bne t3, (0x5FFF - 0x2100), patch_CX4_passthrough_region
+
+DSP1_support:
+    lw   t1, 0x0224(t0)
+    andi t2, t1, DD64_FEATURE_BITS_DSP1_SUPPORT
+    beqz t2, ROM_BaseAddress
+    // TODO -- DSP 1 support is still being worked on
+
+    // Check the rom start address set by the menu.
+    //    Patch the start address opcodes.
+ROM_BaseAddress:
+    lw t1, 0x0228(t0)   // DaisyDrive64 VM rom address (Set by the menu)
+    sw t1, rom_base_address
+
+    // Daisy drive specific DOM2 signal speed.
+    lui  t0, 0xA460       // PI register upper address
+    li   t1, 0x06
+    sw   t1, 0x0024(t0)   // LAT
+    li   t1, 0x0B
+    sw   t1, 0x0028(t0)   // PWD
+    li   t1, 0x05
+    sw   t1, 0x002C(t0)   // PGS
+    li   t1, 0x03
+    sw   t1, 0x0030(t0)   // RLS
+    j    sram_init
+
+dom2_signal_speed_init:
+    // Setup SRAM signal speed to something consistent but safe.
+    lui  t0, 0xA460       // PI register upper address
+    li   t1, 0x06
+    sw   t1, 0x0024(t0)   // LAT
+    li   t1, 0x0B
+    sw   t1, 0x0028(t0)   // PWD
+    li   t1, 0x07
+    sw   t1, 0x002C(t0)   // PGS
+    li   t1, 0x03
+    sw   t1, 0x0030(t0)   // RLS
+
+sram_init:
     // Use DMA to copy SRAM from the cart to memory
-    lui t0, 0xA460 // PI register upper address
     la t1, sram // Local SRAM
     sw t1, 0x0000(t0) // PI_DRAM_ADDR
     li t1, 0x08000000 // Cart SRAM
@@ -282,6 +342,27 @@ reset_interrupt:
     sw t0, 0xA4040010 // SP_STATUS
     li t0, 0x00000001 // Use RDRAM
     sw t0, 0xA410000C // DP_STATUS
+
+    // Check if running on DaisyDrive64
+    lui  t0, 0xA900       // PI register upper address
+    lw   t1, 0x0220(t0)   // DaisyDrive64 MagicID
+    bne  t1, 0x44443634, loop   // 0x44443634 == DD64 ascii
+
+    // On DaisyDrive64 - DMA the entire RAM to a location in empty cartridge space. (0xb0800000)
+    // This can be used for debugging.
+    lui k0, 0xA460 // PI register upper address
+    la k1, 0x00000000 // RDRAM base address. 0x0
+    sw k1, 0x0000(k0) // PI_DRAM_ADDR
+    li k1, 0xb0800000 // Cart SRAM
+    sw k1, 0x0004(k0) // PI_CART_ADDR
+    li k1, 0x003FFFFF // 4MB size
+    sw k1, 0x0008(k0) // PI_RD_LEN
+
+pi_wait3:
+    // Wait for the DMA to complete
+    lw k1, 0x0010(k0) // PI_STATUS
+    andi k1, k1, 0x1 // DMA busy
+    bnez k1, pi_wait3
 
 loop:
     // Wait until the system resets
