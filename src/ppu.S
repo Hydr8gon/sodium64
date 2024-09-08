@@ -179,6 +179,8 @@ ppu_event:
 
     // Check if a V-blank start or end event should occur
     lbu t0, vblank_line
+    addi t1, t0, -1
+    beq s0, t1, pre_vblank
     beq s0, t0, vblank_start
     beq s0, 262, vblank_end
 
@@ -228,13 +230,19 @@ next_line:
     j cpu_execute
 
 .align 5
+pre_vblank:
+    // Set the NMI flag slightly before V-blank to fake interrupt delay
+    // This isn't accurate, but it fixes issues in games like Chrono Trigger
+    li t0, 0x80
+    sb t0, rdnmi
+    b vcount_check
+
+.align 5
 vblank_start:
-    // Set the V-blank and NMI flags
+    // Set the V-blank flag
     lbu t0, hvbjoy
     ori t0, t0, 0x80
     sb t0, hvbjoy
-    li t0, 0x80
-    sb t0, rdnmi
 
     // Skip handling the frame if it was already done
     lbu t0, frame_done
