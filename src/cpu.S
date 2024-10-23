@@ -65,7 +65,7 @@ stack_ptr: .hword 0x1FF
     .word cpu_bvc, 0,  cpu_idy, cpu_eor8,  cpu_ind, cpu_eor8,  cpu_isy, cpu_eor8 // 0x50-0x53
     .word cpu_mvn8, 0,  cpu_drx, cpu_eor8,  cpu_drx, cpu_lsr8m,  cpu_ily, cpu_eor8 // 0x54-0x57
     .word cpu_cli, 0,  cpu_aby, cpu_eor8,  cpu_phy8, 0,  cpu_tcd, 0 // 0x58-0x5B
-    .word cpu_jmle, 0,  cpu_abx, cpu_eor8,  cpu_abx, cpu_lsr8m,  cpu_lnx, cpu_eor8 // 0x5C-0x5F
+    .word cpu_jml, 0,  cpu_abx, cpu_eor8,  cpu_abx, cpu_lsr8m,  cpu_lnx, cpu_eor8 // 0x5C-0x5F
     .word cpu_rts, 0,  cpu_idx, cpu_adc8\d,  cpu_per, 0,  cpu_drs, cpu_adc8\d // 0x60-0x63
     .word cpu_dir, cpu_stz8,  cpu_dir, cpu_adc8\d,  cpu_dir, cpu_ror8m,  cpu_idl, cpu_adc8\d // 0x64-0x67
     .word cpu_pla8, 0,  cpu_im8, cpu_adc8\d,  cpu_ror8, 0,  cpu_rtle, 0 // 0x68-0x6B
@@ -97,7 +97,7 @@ stack_ptr: .hword 0x1FF
     .word cpu_bne, 0,  cpu_idy, cpu_cmp8,  cpu_ind, cpu_cmp8,  cpu_isy, cpu_cmp8 // 0xD0-0xD3
     .word cpu_pei, 0,  cpu_drx, cpu_cmp8,  cpu_drx, cpu_dec8,  cpu_ily, cpu_cmp8 // 0xD4-0xD7
     .word cpu_cld, 0,  cpu_aby, cpu_cmp8,  cpu_phx8, 0,  cpu_stp, 0 // 0xD8-0xDB
-    .word cpu_jmlie, 0,  cpu_abx, cpu_cmp8,  cpu_abx, cpu_dec8,  cpu_lnx, cpu_cmp8 // 0xDC-0xDF
+    .word cpu_jmli, 0,  cpu_abx, cpu_cmp8,  cpu_abx, cpu_dec8,  cpu_lnx, cpu_cmp8 // 0xDC-0xDF
     .word cpu_im8, cpu_cpx8,  cpu_idx, cpu_sbc8\d,  cpu_sep, 0,  cpu_drs, cpu_sbc8\d // 0xE0-0xE3
     .word cpu_dir, cpu_cpx8,  cpu_dir, cpu_sbc8\d,  cpu_dir, cpu_inc8,  cpu_idl, cpu_sbc8\d // 0xE4-0xE7
     .word cpu_inx8, 0,  cpu_im8, cpu_sbc8\d,  cpu_nop, 0,  cpu_xba, 0 // 0xE8-0xEB

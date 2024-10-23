@@ -22,11 +22,9 @@
 .globl cpu_bra
 .globl cpu_brl
 .globl cpu_jmp
-.globl cpu_jmle
 .globl cpu_jml
 .globl cpu_jmpi
 .globl cpu_jmpx
-.globl cpu_jmlie
 .globl cpu_jmli
 .globl cpu_jsr
 .globl cpu_jsle
@@ -101,13 +99,6 @@ cpu_jmp: // JMP nnnn
     j cpu_execute
 
 .align 5
-cpu_jmle: // JML nnnnnn (emulation mode)
-    // Set the PC to the 16-bit immediate value
-    MEM_READ16 1(s7)
-    move s7, v0
-    j cpu_execute
-
-.align 5
 cpu_jml: // JML nnnnnn
     // Set the PC and bank to the 24-bit immediate value
     MEM_READ16 1(s7)
@@ -142,15 +133,6 @@ cpu_jmpx: // JMP (nnnn,X)
     MEM_READ16
     and s7, s7, s1
     add s7, s7, v0
-    j cpu_execute
-
-.align 5
-cpu_jmlie: // JML [nnnn] (emulation mode)
-    // Set the PC to the value at the 16-bit immediate address
-    MEM_READ16 1(s7)
-    move s0, v0
-    MEM_READ16
-    move s7, v0
     j cpu_execute
 
 .align 5
@@ -194,9 +176,12 @@ cpu_jsle: // JSL nnnnnn (emulation mode)
     addi a1, s7, 3
     MEM_WRITE16 1(s0)
 
-    // Set the PC to the 16-bit immediate value
+    // Set the PC and bank to the 24-bit immediate value
     MEM_READ16 1(s7)
-    move s7, v0
+    move s0, v0
+    MEM_READ8 3(s7)
+    sll t0, v0, 16
+    or s7, s0, t0
     j cpu_execute
 
 .align 5
