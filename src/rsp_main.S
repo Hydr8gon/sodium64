@@ -40,11 +40,17 @@ rdp_init:
     .dword 0x3510810000000000 // Set Tile (palette)
     .dword 0x3550000002054150 // Set Tile (block)
 
-rdp_mode7:
-    // RDP commands that run when changing to/from mode 7
+rdp_regular:
+    // RDP commands that run before drawing regular tiles
     .dword 0x2800000000000000 // Sync Tile
     .dword 0x3548020001054150 // Set Tile (texture)
     .dword 0x320000000101F01F // Set Tile Size
+
+rdp_mode7:
+    // RDP commands that run before drawing mode 7 tiles
+    .dword 0x2800000000000000 // Sync Tile
+    .dword 0x3548080001054150 // Set Tile (texture)
+    .dword 0x320000000107F07F // Set Tile Size
 
 rdp_frame:
     // RDP commands that run at the start of a frame
@@ -57,12 +63,20 @@ rdp_section:
     .dword 0x2800000000000000 // Sync Tile
     .dword 0x2D030020004303A0 // Set Scissor
     .dword 0x3700000000000000 // Set Fill Color
-    .dword 0x2F3888FF00040001 // Set Other Modes (fill)
+    .dword 0x2F3088FF00040001 // Set Other Modes (fill)
     .dword 0x3642F3A000030020 // Fill Rectangle
-    .dword 0x2F0888FF00040001 // Set Other Modes (1 cycle)
+    .dword 0x2F0088FF00040001 // Set Other Modes (1-cycle)
 
 rdp_tile:
-    // RDP commands that run when a tile is being drawn
+    // RDP commands that run when a regular tile is drawn
+    .dword 0x3D50000300000000 // Set Texture Image (texture)
+    .dword 0x2800000000000000 // Sync Tile
+    .dword 0x330000000201F800 // Load Block (texture)
+    .dword 0x2400000001000000 // Texture Rectangle 1
+    .dword 0x0000000004000400 // Texture Rectangle 2
+
+rdp_tile7:
+    // RDP commands that run when a mode 7 tile is drawn
     .dword 0x3D50000300000000 // Set Texture Image (texture)
     .dword 0x2800000000000000 // Sync Tile
     .dword 0x330000000201F800 // Load Block (texture)
@@ -79,15 +93,15 @@ rdp_tile:
     .dword 0x0000000000000000 // Texture Triangle 11
     .dword 0x0000000000000000 // Texture Triangle 12
 
+tile_params:
+    // S/T coordinates and gradients along X/Y
+    .dword 0x0000000004000400 // No mirror
+    .dword 0x00E00000FC000400 // X-mirror
+    .dword 0x000000E00400FC00 // Y-mirror
+    .dword 0x00E000E0FC00FC00 // XY-mirror
+
 // Possible code paths for tile decoding
 tile_jumps: .word decode_tile4, decode_tile16, decode_tile256
-
-tile_params:
-    // S/T coordinates, gradients along X, gradients along Y
-    .word 0x00000000, 0x00100000, 0x00000010, 0 // No mirror
-    .word 0x00700000, 0xFFF00000, 0x00000010, 0 // X-mirror
-    .word 0x00000070, 0x00100000, 0x0000FFF0, 0 // Y-mirror
-    .word 0x00700070, 0xFFF00000, 0x0000FFF0, 0 // XY-mirror
 
 layer_chart:
     // Bit 7: object, bit 6: BG priority, bits 3-2: BG type, bits 1-0: index
@@ -108,6 +122,7 @@ layer_chart:
 
 vec_data:
     // Constants that are always kept in vector registers
+    .hword 0x0002, 0x0000, 0x0002, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000 // Tile increment
     .hword 0x8000, 0x4000, 0x2000, 0x1000, 0x0800, 0x0400, 0x0200, 0x0100 // Mask
     .hword 0x0100, 0x0100, 0x0100, 0x0100, 0x0100, 0x0100, 0x0100, 0x0100 // Shift byte
     .hword 0x0002, 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080, 0x0100 // Shift 1
@@ -122,21 +137,22 @@ vec_data:
 main:
     // Load the constants for vector math
     li t0, VEC_DATA
-    lqv $v24, 0, 0x00, t0
-    lqv $v25, 0, 0x10, t0
-    lqv $v26, 0, 0x20, t0
-    lqv $v27, 0, 0x30, t0
-    lqv $v28, 0, 0x40, t0
-    lqv $v29, 0, 0x50, t0
-    lqv $v30, 0, 0x60, t0
-    lqv $v31, 0, 0x70, t0
+    lqv $v23, 0, 0x00, t0
+    lqv $v24, 0, 0x10, t0
+    lqv $v25, 0, 0x20, t0
+    lqv $v26, 0, 0x30, t0
+    lqv $v27, 0, 0x40, t0
+    lqv $v28, 0, 0x50, t0
+    lqv $v29, 0, 0x60, t0
+    lqv $v30, 0, 0x70, t0
+    lqv $v31, 0, 0x80, t0
 
     // Run the RDP initialization commands
     li t0, 0x2 // Use DMEM
     mtc0 t0, COP0_DP_STATUS
     li a0, RDP_INIT
     jal rdp_send
-    li a1, RDP_FRAME
+    li a1, RDP_MODE7
 
     // Set the initial frame queue offset
     li sp, 0
@@ -188,6 +204,7 @@ table_loop:
     // Update the RDP framebuffer and palette addresses
     lw t0, FRAMEBUFFER(sp)
     lw t1, PALETTE_PTR(sp)
+    addi t0, t0, 280 * -16 // Underflow offset
     sw t0, RDP_FRAME + 4
     sw t1, RDP_FRAME + 12
 
@@ -198,8 +215,8 @@ table_loop:
 
     // Initialize values for finding the first visible object
     li t9, 0x200 // Index
-    li t8, 239
-    lw t0, FB_BORDER(sp)
+    lw t0, FB_OFFSET(sp)
+    li t8, 239 + 16
     sll t0, t0, 1
     sub t8, t8, t0 // Y-bound
 
@@ -274,7 +291,7 @@ next_section:
     lbu k1, SPLIT_LINE
 
     // Update the RDP scissor and fill bounds for the section
-    lw t0, FB_BORDER(sp)
+    lw t0, FB_OFFSET(sp)
     add t1, t0, k0
     sll t1, t1, 2
     sh t1, RDP_SECTION + 10
@@ -309,7 +326,7 @@ blank_set:
 
     // Create a layer mask based on main and sub masks, with shared layers on top
     // As a workaround for lack of blending, the order of the screens can be swapped
-    lw t0, MASK_OFS(sp)
+    lw t0, MASK_SEL(sp)
     lbu s7, SUB_MASK(t0)
     xori t0, t0, 0x1
     lbu t0, SUB_MASK(t0)
@@ -444,16 +461,29 @@ load_screen:
     jal dma_read
     add a1, a1, t0
 
-    // Update the RDP draw command with the tile's Y-coordinate
-    lw t0, FB_BORDER(sp)
+    // Update the RDP draw command with the row's initial coordinates
+    lw t0, FB_OFFSET(sp)
+    lui t1, 0x0100 // Tile index
     add t0, t0, s1
     sll t0, t0, 2
-    addi t1, t0, 8 << 2
-    sh t1, RDP_TILE + 26 // y3
-    sh t0, RDP_TILE + 28 // y2
-    sh t0, RDP_TILE + 30 // y1
+    or t1, t1, t0 // Upper Y
+    addi t2, s0, 12
+    sll t2, t2, 14
+    or t1, t1, t2 // Upper X
+    sw t1, RDP_TILE + 28
+    li t2, 0x23020020
+    add t1, t1, t2 // Lower X/Y
+    sw t1, RDP_TILE + 24
+
+    // Load the draw command for X-coordinate adjustments
+    li v0, RDP_TILE + 24
+    ldv $v15, 0, 0x00, v0
 
 next_tile:
+    // Update the RDP draw command for the next tile in the row
+    sdv $v15, 0, 0x00, v0
+    vadd $v15, $v15, $v23, 0
+
     // Get the X-coordinate and check tile size
     add t4, s6, s0
     beqz t5, not_large
@@ -492,22 +522,13 @@ skip_small:
     xor t0, t0, gp
     bnez t0, skip_priority
 
-    // Update the RDP draw command with the tile's X-coordinate
-    addi t1, s0, 20
-    sh t1, RDP_TILE + 32 // x1
-    addi t1, s0, 12
-    sh t1, RDP_TILE + 40 // x3
-    sh t1, RDP_TILE + 48 // x2
-
     // Update the RDP texture parameters based on mirroring
-    srl t0, t6, 10
-    andi t0, t0, 0x30
-    lw t3, TILE_PARAMS + 0(t0)
-    lw t4, TILE_PARAMS + 4(t0)
-    lw t0, TILE_PARAMS + 8(t0)
-    sw t3, RDP_TILE + 56 // Coordinates
-    sw t4, RDP_TILE + 64 // Gradients along X
-    sw t0, RDP_TILE + 88 // Gradients along Y
+    srl t1, t6, 11
+    andi t1, t1, 0x18
+    lw t3, TILE_PARAMS + 0(t1)
+    lw t4, TILE_PARAMS + 4(t1)
+    sw t3, RDP_TILE + 32 // S/T coordinates
+    sw t4, RDP_TILE + 36 // Gradients along X/Y
 
     // Skip uploading if the last tile's number and palette were the same
     andi t0, t6, 0x1FFF
@@ -674,7 +695,7 @@ draw_tile:
     // Run the RDP to draw a tile
     li a0, RDP_TILE
     jal rdp_send
-    li a1, TILE_JUMPS
+    li a1, RDP_TILE7
 
 finish_tile:
     // Move to the next tile of the row until finished
@@ -714,7 +735,7 @@ skip_upload:
     // Run the RDP to draw a tile, skipping texture upload
     li a0, RDP_TILE + 24
     jal rdp_send
-    li a1, TILE_JUMPS
+    li a1, RDP_TILE7
     b finish_tile
 
 
@@ -722,12 +743,6 @@ draw_mode7:
     // Skip the layer if the BG is disabled
     andi t1, s7, 0x1
     beqz t1, next_layer
-
-    // Update RDP parameters for a texture width of 32 (4 tiles)
-    li t0, 0x08 // Width / 4
-    sb t0, RDP_MODE7 + 10
-    li t0, 0x0107F07F // Tile size
-    sw t0, RDP_MODE7 + 20
 
     // Run the RDP for the start of mode 7
     li a0, RDP_MODE7
@@ -797,44 +812,43 @@ draw_mode7:
     sw v1, MODE7_BOUNDS + 12
 
     // Update the RDP texture parameters with rotscale values
-    sra t0, s2, 4
-    sh t0, RDP_TILE + 64 // S-gradient along X (int)
-    sra t1, s5, 4
-    sh t1, RDP_TILE + 66 // T-gradient along X (int)
-    sll t0, s2, 12
-    sh t0, RDP_TILE + 80 // S-gradient along X (frac)
-    sll t1, s5, 12
-    sh t1, RDP_TILE + 82 // T-gradient along X (frac)
-    sra t0, s4, 4
-    sh t0, RDP_TILE + 88 // S-gradient along Y (int)
-    sra t1, s6, 4
-    sh t1, RDP_TILE + 90 // T-gradient along Y (int)
-    sll t0, s4, 12
-    sh t0, RDP_TILE + 96 // S-gradient along Y (frac)
-    sll t1, s6, 12
-    sh t1, RDP_TILE + 98 // T-gradient along Y (frac)
+    sra t0, s2, 3
+    sh t0, RDP_TILE7 + 64 // S-gradient along X (int)
+    sra t1, s5, 3
+    sh t1, RDP_TILE7 + 66 // T-gradient along X (int)
+    sll t0, s2, 13
+    sh t0, RDP_TILE7 + 80 // S-gradient along X (frac)
+    sll t1, s5, 13
+    sh t1, RDP_TILE7 + 82 // T-gradient along X (frac)
+    sra t0, s4, 3
+    sh t0, RDP_TILE7 + 88 // S-gradient along Y (int)
+    sra t1, s6, 3
+    sh t1, RDP_TILE7 + 90 // T-gradient along Y (int)
+    sll t0, s4, 13
+    sh t0, RDP_TILE7 + 96 // S-gradient along Y (frac)
+    sll t1, s6, 13
+    sh t1, RDP_TILE7 + 98 // T-gradient along Y (frac)
 
 draw_row7:
     // Set the initial tile X-coordinate
     li s0, 0
 
     // Update the RDP draw command with the tile's Y-coordinate
-    lw t0, FB_BORDER(sp)
+    lw t0, FB_OFFSET(sp)
     add t0, t0, s1
     sll t0, t0, 2
     addi t1, t0, 8 << 2
-    sh t1, RDP_TILE + 26 // y3
-    sll t1, t0, 16
-    or t0, t0, t1
-    sw t0, RDP_TILE + 28 // y2, y1
+    sh t1, RDP_TILE7 + 26 // y3
+    sh t0, RDP_TILE7 + 28 // y2
+    sh t0, RDP_TILE7 + 30 // y1
 
 next_tile7:
     // Update the RDP draw command with the tile's X-coordinate
     addi t0, s0, 20
-    sh t0, RDP_TILE + 32 // x1
+    sh t0, RDP_TILE7 + 32 // x1
     addi t1, s0, 12
-    sh t1, RDP_TILE + 40 // x3
-    sh t1, RDP_TILE + 48 // x2
+    sh t1, RDP_TILE7 + 40 // x3
+    sh t1, RDP_TILE7 + 48 // x2
 
     // Calculate the S-offset of the top-left tile within the texture
     lw t0, MODE7_BOUNDS + 0
@@ -897,23 +911,23 @@ set_texels:
     sll t1, t1, 12
     li t0, 0x02000200
     or t0, t0, t1
-    sw t0, RDP_TILE + 20
+    sw t0, RDP_TILE7 + 20
 
     // Update the RDP texture parameters with current coordinates
-    srl t4, t8, 4
-    andi t4, t4, 0x7F
-    sll t0, s8, 7
+    srl t4, t8, 3
+    andi t4, t4, 0xFF
+    sll t0, s8, 8
     add t4, t4, t0
-    sh t4, RDP_TILE + 56 // S-coordinate (int)
-    srl t4, t9, 4
-    andi t4, t4, 0x7F
-    sll t0, gp, 7
+    sh t4, RDP_TILE7 + 56 // S-coordinate (int)
+    srl t4, t9, 3
+    andi t4, t4, 0xFF
+    sll t0, gp, 8
     add t4, t4, t0
-    sh t4, RDP_TILE + 58 // T-coordinate (int)
-    sll t4, t8, 12
-    sh t4, RDP_TILE + 72 // S-coordinate (frac)
-    sll t4, t9, 12
-    sh t4, RDP_TILE + 74 // T-coordinate (frac)
+    sh t4, RDP_TILE7 + 58 // T-coordinate (int)
+    sll t4, t8, 13
+    sh t4, RDP_TILE7 + 72 // S-coordinate (frac)
+    sll t4, t9, 13
+    sh t4, RDP_TILE7 + 74 // T-coordinate (frac)
 
     // Set some values for loading BG entries
     li a0, SCRN_DATA
@@ -1015,14 +1029,14 @@ next_subtile:
     andi t0, s0, 0x8
     sll t0, t0, 8
     add a1, a1, t0
-    sw a1, RDP_TILE + 4
+    sw a1, RDP_TILE7 + 4
     jal dma_write
     addi a2, t3, -1
 
     // Run the RDP to draw a tile
-    li a0, RDP_TILE
+    li a0, RDP_TILE7
     jal rdp_send
-    li a1, TILE_JUMPS
+    li a1, TILE_PARAMS
 
 finish_tile7:
     // Move to the next tile, adjusting the VRAM coordinates
@@ -1045,21 +1059,10 @@ finish_tile7:
     blt s1, k1, draw_row7
     add t9, t9, t0
 
-    // Restore RDP parameters that were changed for mode 7
-    li t0, 0x02
-    sb t0, RDP_MODE7 + 10 // Texture width / 4
-    li t0, 0x0101F01F
-    sw t0, RDP_MODE7 + 20 // Tile size
-    li t0, 0x0201F800
-    sw t0, RDP_TILE + 20 // Texels to load
-    sw zero, RDP_TILE + 72 // Coordinates (frac)
-    sw zero, RDP_TILE + 80 // Gradients along X (frac)
-    sw zero, RDP_TILE + 96 // Gradients along Y (frac)
-
     // Run the RDP for the end of mode 7
-    li a0, RDP_MODE7
+    li a0, RDP_REGULAR
     jal rdp_send
-    li a1, RDP_FRAME
+    li a1, RDP_MODE7
     b next_layer
 
 
@@ -1160,14 +1163,12 @@ check_object:
     bnez t7, next_object
 
     // Update the RDP texture parameters based on mirroring
-    srl t5, t1, 10
-    andi t5, t5, 0x30
+    srl t5, t1, 11
+    andi t5, t5, 0x18
     lw t3, TILE_PARAMS + 0(t5)
     lw t4, TILE_PARAMS + 4(t5)
-    lw t5, TILE_PARAMS + 8(t5)
-    sw t3, RDP_TILE + 56 // Coordinates
-    sw t4, RDP_TILE + 64 // Gradients along X
-    sw t5, RDP_TILE + 88 // Gradients along Y
+    sw t3, RDP_TILE + 32 // S/T coordinates
+    sw t4, RDP_TILE + 36 // Gradients along X/Y
 
     // Set initial values for drawing the object
     sll t3, t1, 3
@@ -1197,22 +1198,24 @@ object_ymir:
     addi gp, zero, -8
 
 next_objy:
-    // Update the RDP draw command with the object's Y-coordinate
-    lw t7, FB_BORDER(sp)
+    // Build a base value for the draw command with the row's Y-coordinate
+    lw t7, FB_OFFSET(sp)
+    lui t6, 0x0100 // Tile index
     add t7, t7, s8
+    andi t7, t7, 0x1FF
     sll t7, t7, 2
-    addi t6, t7, 8 << 2
-    sh t6, RDP_TILE + 26 // y3
-    sh t7, RDP_TILE + 28 // y2
-    sh t7, RDP_TILE + 30 // y1
+    or t6, t6, t7 // Upper Y
 
 next_objx:
-    // Update the RDP draw command with the object's X-coordinate
-    addi t7, s2, 12 // Vertical border
-    sh t7, RDP_TILE + 40 // x3
-    sh t7, RDP_TILE + 48 // x2
-    addi t7, t7, 8
-    sh t7, RDP_TILE + 32 // x1
+    // Update the RDP draw command with the tile's coordinates
+    addi t7, s2, 12
+    andi t7, t7, 0x1FF
+    sll t7, t7, 14
+    or t0, t6, t7 // Upper X
+    sw t0, RDP_TILE + 28
+    li t7, 0x23020020
+    add t0, t0, t7 // Lower X/Y
+    sw t0, RDP_TILE + 24
 
     // Check if the tile's VRAM is dirty for objects
     lhu t0, OBJCHARBASE
@@ -1294,7 +1297,7 @@ draw_objtile:
     // Run the RDP to draw an object tile
     li a0, RDP_TILE
     jal rdp_send
-    li a1, TILE_JUMPS
+    li a1, RDP_TILE7
 
     // Loop through object tiles in the X-direction
     addi s0, s0, -8

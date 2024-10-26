@@ -493,9 +493,10 @@ count_frame:
     lhu t2, cur_line
     lw t3, sect_queues(t5)
     srl t0, t0, 5 // Z toggle
+    addi t1, t1, 8
     addi t2, t2, -1
-    sw t0, DMEM(MASK_OFS)(t5)
-    sw t1, DMEM(FB_BORDER)(t5)
+    sw t0, DMEM(MASK_SEL)(t5)
+    sw t1, DMEM(FB_OFFSET)(t5)
     sw t2, DMEM(FRAME_END)(t5)
     sw t3, DMEM(SECTION_PTR)(t5)
 

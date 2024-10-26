@@ -172,9 +172,9 @@
 #define M7_NOWRAP (MAIN_MASK + 0x1)
 #define SPLIT_LINE (M7_NOWRAP + 0x1)
 // Start of frame values
-#define MASK_OFS (SPLIT_LINE + 0x1)
-#define FB_BORDER (MASK_OFS + 0x8)
-#define FRAME_END (FB_BORDER + 0x8)
+#define MASK_SEL (SPLIT_LINE + 0x1)
+#define FB_OFFSET (MASK_SEL + 0x8)
+#define FRAME_END (FB_OFFSET + 0x8)
 #define VRAM_ADDRS (FRAME_END + 0x8)
 #define PALETTE_PTR (VRAM_ADDRS + 0x8)
 #define OAM_PTR (PALETTE_PTR + 0x8)
@@ -183,17 +183,19 @@
 #define FRAMEBUFFER (SECTION_PTR + 0x8)
 // End of frame values
 #define RDP_INIT (FRAMEBUFFER + 0x8)
-#define RDP_MODE7 (RDP_INIT + 0x20)
+#define RDP_REGULAR (RDP_INIT + 0x20)
+#define RDP_MODE7 (RDP_REGULAR + 0x18)
 #define RDP_FRAME (RDP_MODE7 + 0x18)
 #define RDP_SECTION (RDP_FRAME + 0x18)
 #define RDP_TILE (RDP_SECTION + 0x30)
-#define TILE_JUMPS (RDP_TILE + 0x78)
-#define TILE_PARAMS (TILE_JUMPS + 0xC)
-#define LAYER_CHART (TILE_PARAMS + 0x40)
+#define RDP_TILE7 (RDP_TILE + 0x28)
+#define TILE_PARAMS (RDP_TILE7 + 0x78)
+#define TILE_JUMPS (TILE_PARAMS + 0x20)
+#define LAYER_CHART (TILE_JUMPS + 0xC)
 #define MAX_OBJECT (LAYER_CHART + 0x90)
 #define WRAP_BOUND (MAX_OBJECT + 0x2)
 #define PRIO_CHECKS (WRAP_BOUND + 0x2)
-#define VEC_DATA 0xF80
+#define VEC_DATA 0xF70
 
 // Macros that convert addresses between cached and uncached
 #define CACHED(addr) ((addr) - 0x20000000)
