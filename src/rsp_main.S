@@ -530,11 +530,6 @@ skip_small:
     sw t3, RDP_TILE + 32 // S/T coordinates
     sw t4, RDP_TILE + 36 // Gradients along X/Y
 
-    // Skip uploading if the last tile's number and palette were the same
-    andi t0, t6, 0x1FFF
-    beq t0, v1, skip_upload
-    move v1, t0
-
     // Check if the tile's VRAM is dirty for the current BG
     andi s8, t6, 0x3FF // Character number
     lhu t0, BGCHARBASE(s2)
@@ -554,8 +549,16 @@ skip_small:
     sw zero, TILE_TABLE(t1)
 
 check_cache:
-    // Skip decoding if the tile is already cached with the same palette
+    // Skip drawing if the tile was marked as empty
     lbu t1, TILE_TABLE(s8)
+    beq t1, 0xFF, finish_tile
+
+    // Skip uploading if the last tile's number and palette were the same
+    andi t0, t6, 0x1FFF
+    beq t0, v1, skip_upload
+    move v1, t0
+
+    // Skip decoding if the tile is already cached with the same palette
     srl t2, t6, 5
     andi t2, t2, 0xE0 // Palette offset
     ori t0, t2, 0x1 // Cache bit
@@ -571,6 +574,7 @@ check_cache:
 
     // Set initial values and jump to the tile decoder
     li t7, 0x40 // Texture offset
+    vand $v10, $v10, $v31, 0 // Empty check
     jr t9
     li t8, CHAR_DATA + 0xE // Character offset
 
@@ -599,6 +603,7 @@ loop_tile4:
     vadd $v02, $v02, $v00, 0
 
     // Write the line to the texture buffer and loop until complete
+    vor $v10, $v10, $v02, 0
     bnez t7, loop_tile4
     spv $v02, 0, 0, t7
     b cache_tile
@@ -635,6 +640,7 @@ loop_tile16:
     vadd $v02, $v01, $v00, 0
 
     // Write the line to the texture buffer and loop until complete
+    vor $v10, $v10, $v02, 0
     bnez t7, loop_tile16
     spv $v02, 0, 0, t7
     b cache_tile
@@ -674,12 +680,29 @@ decode_tile256:
     vmudn $v00, $v00, $v25, 0 // Shift to upper byte
 
     // Write the line to the texture buffer and loop until complete
+    vor $v10, $v10, $v00, 0
     addi t7, t7, -0x8
     spv $v00, 0, 0, t7
     bnez t7, decode_tile256
     addi t8, t8, -0x2
 
 cache_tile:
+    // Mark a tile as empty if it has no visible pixels
+    li t0, 0xFF0
+    sqv $v10, 0, 0, t0
+    lw t1, 0x0(t0)
+    lw t2, 0x4(t0)
+    lw t3, 0x8(t0)
+    lw t4, 0xC(t0)
+    or t0, t1, t2
+    or t0, t0, t3
+    or t0, t0, t4
+    bnez t0, not_empty
+    li t0, 0xFF
+    b finish_tile
+    sb t0, TILE_TABLE(s8)
+
+not_empty:
     // DMA the texture to the tile cache in RDRAM
     li a0, TEXTURE
     li a1, TILE_CACHE_BG1

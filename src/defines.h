@@ -35,7 +35,8 @@
 #define BLOCK_SIZE 16
 
 // Values that control the cooldown between frame sections
-#define SECTION_MIN 4
+#define SECTION_SHIFT 1
+#define SECTION_MIN 8
 #define SECTION_INC 1
 
 // Flags for tracking JIT block state

@@ -209,6 +209,7 @@ run_line:
     lbu t0, cooldown
     addi t1, t0, SECTION_INC
     sb t1, cooldown
+    srl t0, t0, SECTION_SHIFT
 
 skip_section:
     // Update the section status and trigger HDMA
