@@ -390,11 +390,11 @@ opcodes_a8d: OPS_A8 d
 opcodes_16d: OPS_16 d
 
 .text
+.set noreorder
 
 .align 5
 cpu_init:
     // Set the initial program counter value (s7)
-    move s0, ra // Backup return address
     li s1, 0xFFFC // RESET vector
     MEM_READ16 0(s1)
     move s7, v0
@@ -407,8 +407,8 @@ cpu_init:
 
     // Set the initial APU cycle count (s3) and DSP cycle count (a3)
     move s3, s5
+    jr ra
     move a3, s5
-    jr s0
 
 .align 5
 set_nz8: // a0: value
@@ -418,19 +418,8 @@ set_nz8: // a0: value
     sll t0, t0, 1 // Z
     or s4, s4, t0
     andi t0, a0, 0x80 // N
+    j cpu_execute
     or s4, s4, t0
-
-    // Run an APU or PPU event once enough cycles have passed
-    ble s5, s3, apu_execute
-    blez s5, ppu_event
-
-    // Fetch an opcode and jump to its functions in the lookup table
-    MEM_READ8 0(s7)
-    sll t0, v0, 3
-    add t0, t0, s6
-    lw t1, 0(t0)
-    lw gp, 4(t0)
-    jr t1
 
 .align 5
 set_nz16: // a0: value
@@ -441,20 +430,22 @@ set_nz16: // a0: value
     or s4, s4, t0
     srl t0, a0, 8
     andi t0, t0, 0x80 // N
+    j cpu_execute
     or s4, s4, t0
 
+.align 5
 cpu_execute:
     // Run an APU or PPU event once enough cycles have passed
     ble s5, s3, apu_execute
+    MEM_READ8 0(s7)
     blez s5, ppu_event
 
     // Fetch an opcode and jump to its functions in the lookup table
-    MEM_READ8 0(s7)
     sll t0, v0, 3
     add t0, t0, s6
     lw t1, 0(t0)
-    lw gp, 4(t0)
     jr t1
+    lw gp, 4(t0)
 
 .align 5
 trigger_nmi: // a1: vector offset
@@ -465,8 +456,8 @@ trigger_nmi: // a1: vector offset
 
     // Set the vector to jump to for emulation mode
     li s0, 0xFFFA // NMI vector (emulation mode)
-    add s0, s0, a1
     b nmi_cont
+    add s0, s0, a1
 
 nmi_notemu:
     // Set the vector to jump to
@@ -495,8 +486,8 @@ nmi_cont:
 
     // Jump to the NMI vector
     MEM_READ16
-    move s7, v0
     jr ra
+    move s7, v0
 
 .align 5
 update_mode:
@@ -505,21 +496,22 @@ update_mode:
     beqz t0, not_emu
 
     // Switch to emulation mode
-    la s6, opcodes_e
-    andi s7, 0xFFFF // Clear PC bank
     li t0, 0x1
+    la s6, opcodes_e
+    andi s7, s7, 0xFFFF // Clear PC bank
     sb t0, stack_ptr // Reset SP bank
     sb zero, register_x // Clear high byte
     sb zero, register_y // Clear high byte
-    move s8, zero // Clear direct offset
     sb zero, data_bank + 1
     b check_bcd
+    move s8, zero // Clear direct offset
 
 not_emu:
     // Check if both 8-bit flags are set
     li t1, 0x30
     and t0, s4, t1
     bne t0, t1, not_8
+    nop
 
     // Switch to full 8-bit mode
     la s6, opcodes_8
@@ -531,6 +523,7 @@ not_8:
     // Check if the 8-bit register flag is set
     andi t0, s4, 0x10
     beqz t0, not_r8
+    nop
 
     // Switch to 8-bit register mode
     la s6, opcodes_r8
@@ -542,10 +535,12 @@ not_r8:
     // Check if the 8-bit accumulator flag is set
     andi t0, s4, 0x20
     beqz t0, not_a8
+    nop
 
     // Switch to 8-bit accumulator mode
     la s6, opcodes_a8
     b check_bcd
+    nop
 
 not_a8:
     // Switch to 16-bit mode
@@ -555,5 +550,6 @@ check_bcd:
     // Adjust for decimal mode if the flag is set
     andi t0, s4, 0x8
     beqz t0, cpu_execute
-    addi s6, s6, opcodes_ed - opcodes_e
+    nop
     j cpu_execute
+    addi s6, s6, opcodes_ed - opcodes_e

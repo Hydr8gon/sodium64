@@ -38,19 +38,20 @@
 .globl cpu_ily
 
 .text
+.set noreorder
 
 .align 5
 cpu_im8: // #nn
     // Get the address of the 8-bit immediate value
     addi s0, s7, 1
-    addi s7, s7, 2
     jr gp
+    addi s7, s7, 2
 
 cpu_i16: // #nnnn
     // Get the address of the 16-bit immediate value
     addi s0, s7, 1
-    addi s7, s7, 3
     jr gp
+    addi s7, s7, 3
 
 .align 5
 cpu_dir: // nn
@@ -58,8 +59,8 @@ cpu_dir: // nn
     MEM_READ8 1(s7)
     add s0, s8, v0
     andi s0, s0, 0xFFFF
-    addi s7, s7, 2
     jr gp
+    addi s7, s7, 2
 
 .align 5
 cpu_drx: // nn,X
@@ -69,8 +70,8 @@ cpu_drx: // nn,X
     add t0, t0, v0
     add s0, s8, t0
     andi s0, s0, 0xFFFF
-    addi s7, s7, 2
     jr gp
+    addi s7, s7, 2
 
 .align 5
 cpu_dry: // nn,Y
@@ -80,8 +81,8 @@ cpu_dry: // nn,Y
     add t0, t0, v0
     add s0, s8, t0
     andi s0, s0, 0xFFFF
-    addi s7, s7, 2
     jr gp
+    addi s7, s7, 2
 
 .align 5
 cpu_drs: // nn,S
@@ -89,8 +90,8 @@ cpu_drs: // nn,S
     MEM_READ8 1(s7)
     lhu s0, stack_ptr
     add s0, s0, v0
-    addi s7, s7, 2
     jr gp
+    addi s7, s7, 2
 
 .align 5
 cpu_abs: // nnnn
@@ -98,8 +99,8 @@ cpu_abs: // nnnn
     MEM_READ16 1(s7)
     lw s0, data_bank
     add s0, s0, v0
-    addi s7, s7, 3
     jr gp
+    addi s7, s7, 3
 
 .align 5
 cpu_abx: // nnnn,X
@@ -109,8 +110,8 @@ cpu_abx: // nnnn,X
     add t0, t0, v0
     lw s0, data_bank
     add s0, s0, t0
-    addi s7, s7, 3
     jr gp
+    addi s7, s7, 3
 
 .align 5
 cpu_aby: // nnnn,Y
@@ -120,8 +121,8 @@ cpu_aby: // nnnn,Y
     add t0, t0, v0
     lw s0, data_bank
     add s0, s0, t0
-    addi s7, s7, 3
     jr gp
+    addi s7, s7, 3
 
 .align 5
 cpu_lng: // nnnnnn
@@ -130,8 +131,8 @@ cpu_lng: // nnnnnn
     sll s0, v0, 16
     MEM_READ16 1(s7)
     or s0, s0, v0
-    addi s7, s7, 4
     jr gp
+    addi s7, s7, 4
 
 .align 5
 cpu_lnx: // nnnnnn,X
@@ -142,8 +143,8 @@ cpu_lnx: // nnnnnn,X
     lhu t0, register_x
     add t0, t0, v0
     add s0, s0, t0
-    addi s7, s7, 4
     jr gp
+    addi s7, s7, 4
 
 .align 5
 cpu_ind: // (nn)
@@ -156,8 +157,8 @@ cpu_ind: // (nn)
     MEM_READ16
     lw s0, data_bank
     add s0, s0, v0
-    addi s7, s7, 2
     jr gp
+    addi s7, s7, 2
 
 .align 5
 cpu_idx: // (nn,X)
@@ -172,8 +173,8 @@ cpu_idx: // (nn,X)
     MEM_READ16
     lw s0, data_bank
     add s0, s0, v0
-    addi s7, s7, 2
     jr gp
+    addi s7, s7, 2
 
 .align 5
 cpu_idy: // (nn),Y
@@ -188,8 +189,8 @@ cpu_idy: // (nn),Y
     lhu t0, register_y
     add s0, s0, v0
     add s0, s0, t0
-    addi s7, s7, 2
     jr gp
+    addi s7, s7, 2
 
 .align 5
 cpu_isy: // (nn,S),Y
@@ -204,8 +205,8 @@ cpu_isy: // (nn,S),Y
     lhu t0, register_y
     add s0, s0, v0
     add s0, s0, t0
-    addi s7, s7, 2
     jr gp
+    addi s7, s7, 2
 
 .align 5
 cpu_idl: // [nn]
@@ -219,8 +220,8 @@ cpu_idl: // [nn]
     sll s1, v0, 16
     MEM_READ16
     or s0, s1, v0
-    addi s7, s7, 2
     jr gp
+    addi s7, s7, 2
 
 .align 5
 cpu_ily: // [nn],Y
@@ -236,5 +237,5 @@ cpu_ily: // [nn],Y
     lhu t0, register_y
     add t0, t0, v0
     add s0, s1, t0
-    addi s7, s7, 2
     jr gp
+    addi s7, s7, 2

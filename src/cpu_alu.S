@@ -81,60 +81,67 @@
 .globl cpu_ror16m
 
 .text
+.set noreorder
 
 .align 5
 cpu_ora8: // ORA op (8-bit)
     // Bitwise or a value with the accumulator and set flags (8-bit)
     MEM_READ8
-    lbu a0, accumulator + 1
+    la t0, accumulator + 1
+    lbu a0, (t0)
     or a0, a0, v0
-    sb a0, accumulator + 1
     j set_nz8
+    sb a0, (t0)
 
 .align 5
 cpu_ora16: // ORA op (16-bit)
     // Bitwise or a value with the accumulator and set flags (16-bit)
     MEM_READ16
-    lhu a0, accumulator
+    la t0, accumulator
+    lhu a0, (t0)
     or a0, a0, v0
-    sh a0, accumulator
     j set_nz16
+    sh a0, (t0)
 
 .align 5
 cpu_and8: // AND op (8-bit)
     // Bitwise and a value with the accumulator and set flags (8-bit)
     MEM_READ8
-    lbu a0, accumulator + 1
+    la t0, accumulator + 1
+    lbu a0, (t0)
     and a0, a0, v0
-    sb a0, accumulator + 1
     j set_nz8
+    sb a0, (t0)
 
 .align 5
 cpu_and16: // AND op (16-bit)
     // Bitwise and a value with the accumulator and set flags (16-bit)
     MEM_READ16
-    lhu a0, accumulator
+    la t0, accumulator
+    lhu a0, (t0)
     and a0, a0, v0
-    sh a0, accumulator
     j set_nz16
+    sh a0, (t0)
 
 .align 5
 cpu_eor8: // EOR op (8-bit)
     // Bitwise exclusive-or a value with the accumulator and set flags (8-bit)
     MEM_READ8
-    lbu a0, accumulator + 1
+    la t0, accumulator + 1
+    lbu a0, (t0)
     xor a0, a0, v0
-    sb a0, accumulator + 1
     j set_nz8
+    sb a0, (t0)
 
 .align 5
 cpu_eor16: // EOR op (16-bit)
     // Bitwise exclusive-or a value with the accumulator and set flags (16-bit)
     MEM_READ16
-    lhu a0, accumulator
+    la t0, accumulator
+    lhu a0, (t0)
     xor a0, a0, v0
-    sh a0, accumulator
     j set_nz16
+    sh a0, (t0)
 
 .align 5
 cpu_adc8: // ADC op (8-bit)
@@ -156,8 +163,8 @@ cpu_adc8: // ADC op (8-bit)
     srl t1, t1, 1
     andi t1, t1, 0x40 // V
     or s4, s4, t1
-    andi a0, a0, 0xFF
     j set_nz8
+    andi a0, a0, 0xFF
 
 .align 5
 cpu_adc16: // ADC op (16-bit)
@@ -179,8 +186,8 @@ cpu_adc16: // ADC op (16-bit)
     srl t1, t1, 9
     andi t1, t1, 0x40 // V
     or s4, s4, t1
-    andi a0, a0, 0xFFFF
     j set_nz16
+    andi a0, a0, 0xFFFF
 
 .align 5
 cpu_adc8d: // ADC op (8-bit BCD)
@@ -197,6 +204,7 @@ cpu_adc8d: // ADC op (8-bit BCD)
 
     // Adjust the first digit on overflow
     blt a0, 0xA, adc8_dec2
+    nop
     addi a0, a0, 0x6
     andi a0, a0, 0xF
     addi a0, a0, 0x10
@@ -216,6 +224,7 @@ adc8_dec2:
 
     // Adjust the last digit on overflow (8-bit)
     blt a0, 0xA0, adc8_end
+    nop
     addi a0, a0, 0x60
 
 adc8_end:
@@ -229,8 +238,8 @@ adc8_end:
     or t1, t1, t0
     sll t1, t1, 6 // V
     or s4, s4, t1
-    andi a0, a0, 0xFF
     j set_nz8
+    andi a0, a0, 0xFF
 
 .align 5
 cpu_adc16d: // ADC op (16-bit BCD)
@@ -247,6 +256,7 @@ cpu_adc16d: // ADC op (16-bit BCD)
 
     // Adjust the first digit on overflow
     blt a0, 0xA, adc16_dec2
+    nop
     addi a0, a0, 0x6
     andi a0, a0, 0xF
     addi a0, a0, 0x10
@@ -260,6 +270,7 @@ adc16_dec2:
 
     // Adjust the second digit on overflow
     blt a0, 0xA0, adc16_dec3
+    nop
     addi a0, a0, 0x60
     andi a0, a0, 0xFF
     addi a0, a0, 0x100
@@ -273,6 +284,7 @@ adc16_dec3:
 
     // Adjust the third digit on overflow
     blt a0, 0xA00, adc16_dec4
+    nop
     addi a0, a0, 0x600
     andi a0, a0, 0xFFF
     addi a0, a0, 0x1000
@@ -292,6 +304,7 @@ adc16_dec4:
 
     // Adjust the last digit on overflow (16-bit)
     blt a0, 0xA000, adc16_end
+    nop
     addi a0, a0, 0x6000
 
 adc16_end:
@@ -305,8 +318,8 @@ adc16_end:
     or t1, t1, t0
     sll t1, t1, 6 // V
     or s4, s4, t1
-    andi a0, a0, 0xFFFF
     j set_nz16
+    andi a0, a0, 0xFFFF
 
 .align 5
 cpu_sbc8: // SBC op (8-bit)
@@ -329,8 +342,8 @@ cpu_sbc8: // SBC op (8-bit)
     srl t1, t1, 1
     andi t1, t1, 0x40 // V
     or s4, s4, t1
-    andi a0, a0, 0xFF
     j set_nz8
+    andi a0, a0, 0xFF
 
 .align 5
 cpu_sbc16: // SBC op (16-bit)
@@ -353,8 +366,8 @@ cpu_sbc16: // SBC op (16-bit)
     srl t1, t1, 9
     andi t1, t1, 0x40 // V
     or s4, s4, t1
-    andi a0, a0, 0xFFFF
     j set_nz16
+    andi a0, a0, 0xFFFF
 
 .align 5
 cpu_sbc8d: // SBC op (8-bit BCD)
@@ -372,6 +385,7 @@ cpu_sbc8d: // SBC op (8-bit BCD)
 
     // Adjust the first digit on overflow
     bgez a0, sbc8_dec2
+    nop
     addi a0, a0, -0x6
     andi a0, a0, 0xF
     addi a0, a0, -0x10
@@ -385,6 +399,7 @@ sbc8_dec2:
 
     // Adjust the last digit on overflow (8-bit)
     bgez a0, sbc8_end
+    nop
     addi a0, a0, -0x60
 
 sbc8_end:
@@ -401,8 +416,8 @@ sbc8_end:
     srl t1, t1, 1
     andi t1, t1, 0x40 // V
     or s4, s4, t1
-    andi a0, a0, 0xFF
     j set_nz8
+    andi a0, a0, 0xFF
 
 .align 5
 cpu_sbc16d: // SBC op (16-bit BCD)
@@ -420,6 +435,7 @@ cpu_sbc16d: // SBC op (16-bit BCD)
 
     // Adjust the first digit on overflow
     bgez a0, sbc16_dec2
+    nop
     addi a0, a0, -0x6
     andi a0, a0, 0xF
     addi a0, a0, -0x10
@@ -433,6 +449,7 @@ sbc16_dec2:
 
     // Adjust the second digit on overflow
     bgez a0, sbc16_dec3
+    nop
     addi a0, a0, -0x60
     andi a0, a0, 0xFF
     addi a0, a0, -0x100
@@ -446,6 +463,7 @@ sbc16_dec3:
 
     // Adjust the third digit on overflow
     bgez a0, sbc16_dec4
+    nop
     addi a0, a0, -0x600
     andi a0, a0, 0xFFF
     addi a0, a0, -0x1000
@@ -459,6 +477,7 @@ sbc16_dec4:
 
     // Adjust the last digit on overflow (16-bit)
     bgez a0, sbc16_end
+    nop
     addi a0, a0, -0x6000
 
 sbc16_end:
@@ -475,8 +494,8 @@ sbc16_end:
     srl t1, t1, 9
     andi t1, t1, 0x40 // V
     or s4, s4, t1
-    andi a0, a0, 0xFFFF
     j set_nz16
+    andi a0, a0, 0xFFFF
 
 .align 5
 cpu_cmp8: // CMP op (8-bit)
@@ -487,8 +506,8 @@ cpu_cmp8: // CMP op (8-bit)
     andi s4, s4, 0xFFFE
     sleu t0, a0, t0 // C
     or s4, s4, t0
-    andi a0, a0, 0xFF
     j set_nz8
+    andi a0, a0, 0xFF
 
 .align 5
 cpu_cmp16: // CMP op (16-bit)
@@ -499,8 +518,8 @@ cpu_cmp16: // CMP op (16-bit)
     andi s4, s4, 0xFFFE
     sleu t0, a0, t0 // C
     or s4, s4, t0
-    andi a0, a0, 0xFFFF
     j set_nz16
+    andi a0, a0, 0xFFFF
 
 .align 5
 cpu_cpx8: // CPX op (8-bit)
@@ -511,8 +530,8 @@ cpu_cpx8: // CPX op (8-bit)
     andi s4, s4, 0xFFFE
     sleu t0, a0, t0 // C
     or s4, s4, t0
-    andi a0, a0, 0xFF
     j set_nz8
+    andi a0, a0, 0xFF
 
 .align 5
 cpu_cpx16: // CPX op (16-bit)
@@ -523,8 +542,8 @@ cpu_cpx16: // CPX op (16-bit)
     andi s4, s4, 0xFFFE
     sleu t0, a0, t0 // C
     or s4, s4, t0
-    andi a0, a0, 0xFFFF
     j set_nz16
+    andi a0, a0, 0xFFFF
 
 .align 5
 cpu_cpy8: // CPY op (8-bit)
@@ -535,8 +554,8 @@ cpu_cpy8: // CPY op (8-bit)
     andi s4, s4, 0xFFFE
     sleu t0, a0, t0 // C
     or s4, s4, t0
-    andi a0, a0, 0xFF
     j set_nz8
+    andi a0, a0, 0xFF
 
 .align 5
 cpu_cpy16: // CPY op (16-bit)
@@ -547,8 +566,8 @@ cpu_cpy16: // CPY op (16-bit)
     andi s4, s4, 0xFFFE
     sleu t0, a0, t0 // C
     or s4, s4, t0
-    andi a0, a0, 0xFFFF
     j set_nz16
+    andi a0, a0, 0xFFFF
 
 .align 5
 cpu_bit8: // BIT #nn (8-bit)
@@ -562,8 +581,8 @@ cpu_bit8: // BIT #nn (8-bit)
     seq t0, t0, 0
     sll t0, t0, 1 // Z
     or s4, s4, t0
-    addi s7, s7, 2
     j cpu_execute
+    addi s7, s7, 2
 
 .align 5
 cpu_bit16: // BIT #nnnn (16-bit)
@@ -577,8 +596,8 @@ cpu_bit16: // BIT #nnnn (16-bit)
     seq t0, t0, 0
     sll t0, t0, 1 // Z
     or s4, s4, t0
-    addi s7, s7, 3
     j cpu_execute
+    addi s7, s7, 3
 
 .align 5
 cpu_bit8m: // BIT op (8-bit)
@@ -593,8 +612,8 @@ cpu_bit8m: // BIT op (8-bit)
     sll t0, t0, 1 // Z
     or s4, s4, t0
     andi t0, v0, 0xC0 // NV
-    or s4, s4, t0
     j cpu_execute
+    or s4, s4, t0
 
 .align 5
 cpu_bit16m: // BIT op (16-bit)
@@ -610,8 +629,8 @@ cpu_bit16m: // BIT op (16-bit)
     or s4, s4, t0
     srl t0, v0, 8
     andi t0, t0, 0xC0 // NV
-    or s4, s4, t0
     j cpu_execute
+    or s4, s4, t0
 
 .align 5
 cpu_inc8: // INC op (8-bit)
@@ -619,8 +638,8 @@ cpu_inc8: // INC op (8-bit)
     MEM_READ8
     addi a1, v0, 1
     MEM_WRITE8
-    andi a0, a1, 0xFF
     j set_nz8
+    andi a0, a1, 0xFF
 
 .align 5
 cpu_inc16: // INC op (16-bit)
@@ -628,8 +647,8 @@ cpu_inc16: // INC op (16-bit)
     MEM_READ16
     addi a1, v0, 1
     MEM_WRITE16
-    andi a0, a1, 0xFFFF
     j set_nz16
+    andi a0, a1, 0xFFFF
 
 .align 5
 cpu_inx8: // INX (8-bit)
@@ -638,8 +657,8 @@ cpu_inx8: // INX (8-bit)
     addi a0, a0, 1
     sb a0, register_x + 1
     andi a0, a0, 0xFF
-    addi s7, s7, 1
     j set_nz8
+    addi s7, s7, 1
 
 .align 5
 cpu_inx16: // INX (16-bit)
@@ -648,8 +667,8 @@ cpu_inx16: // INX (16-bit)
     addi a0, a0, 1
     sh a0, register_x
     andi a0, a0, 0xFFFF
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_iny8: // INY (8-bit)
@@ -658,8 +677,8 @@ cpu_iny8: // INY (8-bit)
     addi a0, a0, 1
     sb a0, register_y + 1
     andi a0, a0, 0xFF
-    addi s7, s7, 1
     j set_nz8
+    addi s7, s7, 1
 
 .align 5
 cpu_iny16: // INY (16-bit)
@@ -668,8 +687,8 @@ cpu_iny16: // INY (16-bit)
     addi a0, a0, 1
     sh a0, register_y
     andi a0, a0, 0xFFFF
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_ina8: // INA (8-bit)
@@ -678,8 +697,8 @@ cpu_ina8: // INA (8-bit)
     addi a0, a0, 1
     sb a0, accumulator + 1
     andi a0, a0, 0xFF
-    addi s7, s7, 1
     j set_nz8
+    addi s7, s7, 1
 
 .align 5
 cpu_ina16: // INA (16-bit)
@@ -688,8 +707,8 @@ cpu_ina16: // INA (16-bit)
     addi a0, a0, 1
     sh a0, accumulator
     andi a0, a0, 0xFFFF
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_dec8: // DEC op (8-bit)
@@ -697,8 +716,8 @@ cpu_dec8: // DEC op (8-bit)
     MEM_READ8
     addi a1, v0, -1
     MEM_WRITE8
-    andi a0, a1, 0xFF
     j set_nz8
+    andi a0, a1, 0xFF
 
 .align 5
 cpu_dec16: // DEC op (16-bit)
@@ -706,8 +725,8 @@ cpu_dec16: // DEC op (16-bit)
     MEM_READ16
     addi a1, v0, -1
     MEM_WRITE16
-    andi a0, a1, 0xFFFF
     j set_nz16
+    andi a0, a1, 0xFFFF
 
 .align 5
 cpu_dex8: // DEX (8-bit)
@@ -716,8 +735,8 @@ cpu_dex8: // DEX (8-bit)
     addi a0, a0, -1
     sb a0, register_x + 1
     andi a0, a0, 0xFF
-    addi s7, s7, 1
     j set_nz8
+    addi s7, s7, 1
 
 .align 5
 cpu_dex16: // DEX (16-bit)
@@ -726,8 +745,8 @@ cpu_dex16: // DEX (16-bit)
     addi a0, a0, -1
     sh a0, register_x
     andi a0, a0, 0xFFFF
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_dey8: // DEY (8-bit)
@@ -736,8 +755,8 @@ cpu_dey8: // DEY (8-bit)
     addi a0, a0, -1
     sb a0, register_y + 1
     andi a0, a0, 0xFF
-    addi s7, s7, 1
     j set_nz8
+    addi s7, s7, 1
 
 .align 5
 cpu_dey16: // DEY (16-bit)
@@ -746,8 +765,8 @@ cpu_dey16: // DEY (16-bit)
     addi a0, a0, -1
     sh a0, register_y
     andi a0, a0, 0xFFFF
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_dea8: // DEA (8-bit)
@@ -756,8 +775,8 @@ cpu_dea8: // DEA (8-bit)
     addi a0, a0, -1
     sb a0, accumulator + 1
     andi a0, a0, 0xFF
-    addi s7, s7, 1
     j set_nz8
+    addi s7, s7, 1
 
 .align 5
 cpu_dea16: // DEA (16-bit)
@@ -766,8 +785,8 @@ cpu_dea16: // DEA (16-bit)
     addi a0, a0, -1
     sh a0, accumulator
     andi a0, a0, 0xFFFF
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_tsb8: // TSB op (8-bit)
@@ -786,6 +805,7 @@ cpu_tsb8: // TSB op (8-bit)
     or a1, t0, v0
     MEM_WRITE8
     j cpu_execute
+    nop
 
 .align 5
 cpu_tsb16: // TSB op (16-bit)
@@ -804,6 +824,7 @@ cpu_tsb16: // TSB op (16-bit)
     or a1, t0, v0
     MEM_WRITE16
     j cpu_execute
+    nop
 
 .align 5
 cpu_trb8: // TRB op (8-bit)
@@ -823,6 +844,7 @@ cpu_trb8: // TRB op (8-bit)
     and a1, a1, v0
     MEM_WRITE8
     j cpu_execute
+    nop
 
 .align 5
 cpu_trb16: // TRB op (16-bit)
@@ -842,6 +864,7 @@ cpu_trb16: // TRB op (16-bit)
     and a1, a1, v0
     MEM_WRITE16
     j cpu_execute
+    nop
 
 .align 5
 cpu_asl8: // ASL A (8-bit)
@@ -853,8 +876,8 @@ cpu_asl8: // ASL A (8-bit)
     srl t0, t0, 7 // C
     or s4, s4, t0
     andi a0, a0, 0xFF
-    addi s7, s7, 1
     j set_nz8
+    addi s7, s7, 1
 
 .align 5
 cpu_asl16: // ASL A (16-bit)
@@ -866,8 +889,8 @@ cpu_asl16: // ASL A (16-bit)
     srl t0, t0, 15 // C
     or s4, s4, t0
     andi a0, a0, 0xFFFF
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_asl8m: // ASL op (8-bit)
@@ -878,8 +901,8 @@ cpu_asl8m: // ASL op (8-bit)
     srl t0, v0, 7 // C
     or s4, s4, t0
     MEM_WRITE8
-    andi a0, a1, 0xFF
     j set_nz8
+    andi a0, a1, 0xFF
 
 .align 5
 cpu_asl16m: // ASL op (16-bit)
@@ -890,8 +913,8 @@ cpu_asl16m: // ASL op (16-bit)
     srl t0, v0, 15 // C
     or s4, s4, t0
     MEM_WRITE16
-    andi a0, a1, 0xFFFF
     j set_nz16
+    andi a0, a1, 0xFFFF
 
 .align 5
 cpu_lsr8: // LSR A (8-bit)
@@ -902,8 +925,8 @@ cpu_lsr8: // LSR A (8-bit)
     andi s4, s4, 0xFFFE
     andi t0, t0, 0x1 // C
     or s4, s4, t0
-    addi s7, s7, 1
     j set_nz8
+    addi s7, s7, 1
 
 .align 5
 cpu_lsr16: // LSR A (16-bit)
@@ -914,8 +937,8 @@ cpu_lsr16: // LSR A (16-bit)
     andi s4, s4, 0xFFFE
     andi t0, t0, 0x1 // C
     or s4, s4, t0
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_lsr8m: // LSR op (8-bit)
@@ -926,8 +949,8 @@ cpu_lsr8m: // LSR op (8-bit)
     andi t0, v0, 0x1 // C
     or s4, s4, t0
     MEM_WRITE8
-    move a0, a1
     j set_nz8
+    move a0, a1
 
 .align 5
 cpu_lsr16m: // LSR op (16-bit)
@@ -938,8 +961,8 @@ cpu_lsr16m: // LSR op (16-bit)
     andi t0, v0, 0x1 // C
     or s4, s4, t0
     MEM_WRITE16
-    move a0, a1
     j set_nz16
+    move a0, a1
 
 .align 5
 cpu_rol8: // ROL A (8-bit)
@@ -953,8 +976,8 @@ cpu_rol8: // ROL A (8-bit)
     srl t0, t0, 7 // C
     or s4, s4, t0
     andi a0, a0, 0xFF
-    addi s7, s7, 1
     j set_nz8
+    addi s7, s7, 1
 
 .align 5
 cpu_rol16: // ROL A (16-bit)
@@ -968,8 +991,8 @@ cpu_rol16: // ROL A (16-bit)
     srl t0, t0, 15 // C
     or s4, s4, t0
     andi a0, a0, 0xFFFF
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_rol8m: // ROL op (8-bit)
@@ -982,8 +1005,8 @@ cpu_rol8m: // ROL op (8-bit)
     srl t0, v0, 7 // C
     or s4, s4, t0
     MEM_WRITE8
-    andi a0, a1, 0xFF
     j set_nz8
+    andi a0, a1, 0xFF
 
 .align 5
 cpu_rol16m: // ROL op (16-bit)
@@ -996,8 +1019,8 @@ cpu_rol16m: // ROL op (16-bit)
     srl t0, v0, 15 // C
     or s4, s4, t0
     MEM_WRITE16
-    andi a0, a1, 0xFFFF
     j set_nz16
+    andi a0, a1, 0xFFFF
 
 .align 5
 cpu_ror8: // ROR A (8-bit)
@@ -1011,8 +1034,8 @@ cpu_ror8: // ROR A (8-bit)
     andi t0, t0, 0x1 // C
     or s4, s4, t0
     andi a0, a0, 0xFF
-    addi s7, s7, 1
     j set_nz8
+    addi s7, s7, 1
 
 .align 5
 cpu_ror16: // ROR A (16-bit)
@@ -1026,8 +1049,8 @@ cpu_ror16: // ROR A (16-bit)
     andi t0, t0, 0x1 // C
     or s4, s4, t0
     andi a0, a0, 0xFFFF
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_ror8m: // ROR op (8-bit)
@@ -1040,8 +1063,8 @@ cpu_ror8m: // ROR op (8-bit)
     andi t0, v0, 0x1 // C
     or s4, s4, t0
     MEM_WRITE8
-    andi a0, a1, 0xFF
     j set_nz8
+    andi a0, a1, 0xFF
 
 .align 5
 cpu_ror16m: // ROR op (16-bit)
@@ -1054,5 +1077,5 @@ cpu_ror16m: // ROR op (16-bit)
     andi t0, v0, 0x1 // C
     or s4, s4, t0
     MEM_WRITE16
-    andi a0, a1, 0xFFFF
     j set_nz16
+    andi a0, a1, 0xFFFF

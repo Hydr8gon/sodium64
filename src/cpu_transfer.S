@@ -82,222 +82,223 @@
 .globl cpu_mvn16
 
 .text
+.set noreorder
 
 .align 5
 cpu_tay8: // TAY (8-bit)
     // Transfer the accumulator to register Y and set flags (8-bit)
     lbu a0, accumulator + 1
     sb a0, register_y + 1
-    addi s7, s7, 1
     j set_nz8
+    addi s7, s7, 1
 
 .align 5
 cpu_tay16: // TAY (16-bit)
     // Transfer the accumulator to register Y and set flags (16-bit)
     lhu a0, accumulator
     sh a0, register_y
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_tax8: // TAX (8-bit)
     // Transfer the accumulator to register X and set flags (8-bit)
     lbu a0, accumulator + 1
     sb a0, register_x + 1
-    addi s7, s7, 1
     j set_nz8
+    addi s7, s7, 1
 
 .align 5
 cpu_tax16: // TAX (16-bit)
     // Transfer the accumulator to register X and set flags (16-bit)
     lhu a0, accumulator
     sh a0, register_x
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_tsx8: // TSX (8-bit)
     // Transfer the stack pointer to register X and set flags (8-bit)
     lbu a0, stack_ptr + 1
     sb a0, register_x + 1
-    addi s7, s7, 1
     j set_nz8
+    addi s7, s7, 1
 
 .align 5
 cpu_tsx16: // TSX (16-bit)
     // Transfer the stack pointer to register X and set flags (16-bit)
     lhu a0, stack_ptr
     sh a0, register_x
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_tya8: // TYA (8-bit)
     // Transfer register Y to the accumulator and set flags (8-bit)
     lbu a0, register_y + 1
     sb a0, accumulator + 1
-    addi s7, s7, 1
     j set_nz8
+    addi s7, s7, 1
 
 .align 5
 cpu_tya16: // TYA (16-bit)
     // Transfer register Y to the accumulator and set flags (16-bit)
     lhu a0, register_y
     sh a0, accumulator
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_txa8: // TXA (8-bit)
     // Transfer register X to the accumulator and set flags (8-bit)
     lbu a0, register_x + 1
     sb a0, accumulator + 1
-    addi s7, s7, 1
     j set_nz8
+    addi s7, s7, 1
 
 .align 5
 cpu_txa16: // TXA (16-bit)
     // Transfer register X to the accumulator and set flags (16-bit)
     lhu a0, register_x
     sh a0, accumulator
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_txse: // TXS (emulation mode)
     // Transfer register X to the stack pointer (emulation mode)
     lbu a0, register_x + 1
     sb a0, stack_ptr + 1
-    addi s7, s7, 1
     j cpu_execute
+    addi s7, s7, 1
 
 .align 5
 cpu_txs: // TXS
     // Transfer register X to the stack pointer
     lhu a0, register_x
     sh a0, stack_ptr
-    addi s7, s7, 1
     j cpu_execute
+    addi s7, s7, 1
 
 .align 5
 cpu_txy8: // TXY (8-bit)
     // Transfer register X to register Y and set flags (8-bit)
     lbu a0, register_x + 1
     sb a0, register_y + 1
-    addi s7, s7, 1
     j set_nz8
+    addi s7, s7, 1
 
 .align 5
 cpu_txy16: // TXY (16-bit)
     // Transfer register X to register Y and set flags (16-bit)
     lhu a0, register_x
     sh a0, register_y
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_tyx8: // TYX (8-bit)
     // Transfer register Y to register X and set flags (8-bit)
     lbu a0, register_y + 1
     sb a0, register_x + 1
-    addi s7, s7, 1
     j set_nz8
+    addi s7, s7, 1
 
 .align 5
 cpu_tyx16: // TYX (16-bit)
     // Transfer register Y to register X and set flags (16-bit)
     lhu a0, register_y
     sh a0, register_x
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_tdc: // TDC
     // Transfer the direct offset to the accumulator and set flags
     move a0, s8
     sh a0, accumulator
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_tcd: // TCD
     // Transfer the accumulator to the direct offset and set flags
     lhu a0, accumulator
     move s8, a0
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_tsc: // TSC
     // Transfer the stack pointer to the accumulator and set flags
     lhu a0, stack_ptr
     sh a0, accumulator
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_tcse: // TCS (emulation mode)
     // Transfer the accumulator to the stack pointer (emulation mode)
     lbu a0, accumulator + 1
     sb a0, stack_ptr + 1
-    addi s7, s7, 1
     j cpu_execute
+    addi s7, s7, 1
 
 .align 5
 cpu_tcs: // TCS
     // Transfer the accumulator to the stack pointer
     lhu a0, accumulator
     sh a0, stack_ptr
-    addi s7, s7, 1
     j cpu_execute
+    addi s7, s7, 1
 
 .align 5
 cpu_lda8: // LDA op (8-bit)
     // Load a value to the accumulator and set flags (8-bit)
     MEM_READ8
-    move a0, v0
-    sb a0, accumulator + 1
+    sb v0, accumulator + 1
     j set_nz8
+    move a0, v0
 
 .align 5
 cpu_lda16: // LDA op (16-bit)
     // Load a value to the accumulator and set flags (16-bit)
     MEM_READ16
-    move a0, v0
-    sh a0, accumulator
+    sh v0, accumulator
     j set_nz16
+    move a0, v0
 
 .align 5
 cpu_ldx8: // LDX op (8-bit)
     // Load a value to register X and set flags (8-bit)
     MEM_READ8
-    move a0, v0
-    sb a0, register_x + 1
+    sb v0, register_x + 1
     j set_nz8
+    move a0, v0
 
 .align 5
 cpu_ldx16: // LDX op (16-bit)
     // Load a value to register X and set flags (16-bit)
     MEM_READ16
-    move a0, v0
-    sh a0, register_x
+    sh v0, register_x
     j set_nz16
+    move a0, v0
 
 .align 5
 cpu_ldy8: // LDY op (8-bit)
     // Load a value to register Y and set flags (8-bit)
     MEM_READ8
-    move a0, v0
-    sb a0, register_y + 1
+    sb v0, register_y + 1
     j set_nz8
+    move a0, v0
 
 .align 5
 cpu_ldy16: // LDY op (16-bit)
     // Load a value to register Y and set flags (16-bit)
     MEM_READ16
-    move a0, v0
-    sh a0, register_y
+    sh v0, register_y
     j set_nz16
+    move a0, v0
 
 .align 5
 cpu_stz8: // STZ op (8-bit)
@@ -305,6 +306,7 @@ cpu_stz8: // STZ op (8-bit)
     li a1, 0
     MEM_WRITE8
     j cpu_execute
+    nop
 
 .align 5
 cpu_stz16: // STZ op (16-bit)
@@ -312,6 +314,7 @@ cpu_stz16: // STZ op (16-bit)
     li a1, 0
     MEM_WRITE16
     j cpu_execute
+    nop
 
 .align 5
 cpu_sta8: // STA op (8-bit)
@@ -319,6 +322,7 @@ cpu_sta8: // STA op (8-bit)
     lbu a1, accumulator + 1
     MEM_WRITE8
     j cpu_execute
+    nop
 
 .align 5
 cpu_sta16: // STA op (16-bit)
@@ -326,6 +330,7 @@ cpu_sta16: // STA op (16-bit)
     lhu a1, accumulator
     MEM_WRITE16
     j cpu_execute
+    nop
 
 .align 5
 cpu_stx8: // STX op (8-bit)
@@ -333,6 +338,7 @@ cpu_stx8: // STX op (8-bit)
     lbu a1, register_x + 1
     MEM_WRITE8
     j cpu_execute
+    nop
 
 .align 5
 cpu_stx16: // STX op (16-bit)
@@ -340,6 +346,7 @@ cpu_stx16: // STX op (16-bit)
     lhu a1, register_x
     MEM_WRITE16
     j cpu_execute
+    nop
 
 .align 5
 cpu_sty8: // STY op (8-bit)
@@ -347,6 +354,7 @@ cpu_sty8: // STY op (8-bit)
     lbu a1, register_y + 1
     MEM_WRITE8
     j cpu_execute
+    nop
 
 .align 5
 cpu_sty16: // STY op (16-bit)
@@ -354,6 +362,7 @@ cpu_sty16: // STY op (16-bit)
     lhu a1, register_y
     MEM_WRITE16
     j cpu_execute
+    nop
 
 .align 5
 cpu_pha8: // PHA (8-bit)
@@ -363,8 +372,8 @@ cpu_pha8: // PHA (8-bit)
     addi s0, s0, -1
     MEM_WRITE8 1(s0)
     sh s0, stack_ptr
-    addi s7, s7, 1
     j cpu_execute
+    addi s7, s7, 1
 
 .align 5
 cpu_pha16: // PHA (16-bit)
@@ -374,8 +383,8 @@ cpu_pha16: // PHA (16-bit)
     addi s0, s0, -2
     MEM_WRITE16 1(s0)
     sh s0, stack_ptr
-    addi s7, s7, 1
     j cpu_execute
+    addi s7, s7, 1
 
 .align 5
 cpu_phx8: // PHX (8-bit)
@@ -385,8 +394,8 @@ cpu_phx8: // PHX (8-bit)
     addi s0, s0, -1
     MEM_WRITE8 1(s0)
     sh s0, stack_ptr
-    addi s7, s7, 1
     j cpu_execute
+    addi s7, s7, 1
 
 .align 5
 cpu_phx16: // PHX (16-bit)
@@ -396,8 +405,8 @@ cpu_phx16: // PHX (16-bit)
     addi s0, s0, -2
     MEM_WRITE16 1(s0)
     sh s0, stack_ptr
-    addi s7, s7, 1
     j cpu_execute
+    addi s7, s7, 1
 
 .align 5
 cpu_phy8: // PHY (8-bit)
@@ -407,8 +416,8 @@ cpu_phy8: // PHY (8-bit)
     addi s0, s0, -1
     MEM_WRITE8 1(s0)
     sh s0, stack_ptr
-    addi s7, s7, 1
     j cpu_execute
+    addi s7, s7, 1
 
 .align 5
 cpu_phy16: // PHY (16-bit)
@@ -418,8 +427,8 @@ cpu_phy16: // PHY (16-bit)
     addi s0, s0, -2
     MEM_WRITE16 1(s0)
     sh s0, stack_ptr
-    addi s7, s7, 1
     j cpu_execute
+    addi s7, s7, 1
 
 .align 5
 cpu_php: // PHP
@@ -429,8 +438,8 @@ cpu_php: // PHP
     addi s0, s0, -1
     MEM_WRITE8 1(s0)
     sh s0, stack_ptr
-    addi s7, s7, 1
     j cpu_execute
+    addi s7, s7, 1
 
 .align 5
 cpu_phb: // PHB
@@ -440,8 +449,8 @@ cpu_phb: // PHB
     addi s0, s0, -1
     MEM_WRITE8 1(s0)
     sh s0, stack_ptr
-    addi s7, s7, 1
     j cpu_execute
+    addi s7, s7, 1
 
 .align 5
 cpu_phk: // PHK
@@ -451,8 +460,8 @@ cpu_phk: // PHK
     addi s0, s0, -1
     MEM_WRITE8 1(s0)
     sh s0, stack_ptr
-    addi s7, s7, 1
     j cpu_execute
+    addi s7, s7, 1
 
 .align 5
 cpu_phd: // PHD
@@ -462,8 +471,8 @@ cpu_phd: // PHD
     addi s0, s0, -2
     MEM_WRITE16 1(s0)
     sh s0, stack_ptr
-    addi s7, s7, 1
     j cpu_execute
+    addi s7, s7, 1
 
 .align 5
 cpu_pei: // PEI nn
@@ -478,8 +487,8 @@ cpu_pei: // PEI nn
     addi s0, s0, -2
     MEM_WRITE16 1(s0)
     sh s0, stack_ptr
-    addi s7, s7, 2
     j cpu_execute
+    addi s7, s7, 2
 
 .align 5
 cpu_pea: // PEA #nnnn
@@ -490,8 +499,8 @@ cpu_pea: // PEA #nnnn
     addi s0, s0, -2
     MEM_WRITE16 1(s0)
     sh s0, stack_ptr
-    addi s7, s7, 3
     j cpu_execute
+    addi s7, s7, 3
 
 .align 5
 cpu_per: // PER disp16
@@ -499,11 +508,12 @@ cpu_per: // PER disp16
     MEM_READ16 1(s7)
     addi s7, s7, 3
     add a1, s7, v0
-    lhu s0, stack_ptr
+    la s1, stack_ptr
+    lhu s0, (s1)
     addi s0, s0, -2
     MEM_WRITE16 1(s0)
-    sh s0, stack_ptr
     j cpu_execute
+    sh s0, (s1)
 
 .align 5
 cpu_pla8: // PLA (8-bit)
@@ -514,8 +524,8 @@ cpu_pla8: // PLA (8-bit)
     sh t0, stack_ptr
     move a0, v0
     sb a0, accumulator + 1
-    addi s7, s7, 1
     j set_nz8
+    addi s7, s7, 1
 
 .align 5
 cpu_pla16: // PLA (16-bit)
@@ -526,8 +536,8 @@ cpu_pla16: // PLA (16-bit)
     sh t0, stack_ptr
     move a0, v0
     sh a0, accumulator
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_plx8: // PLX (8-bit)
@@ -538,8 +548,8 @@ cpu_plx8: // PLX (8-bit)
     sh t0, stack_ptr
     move a0, v0
     sb a0, register_x + 1
-    addi s7, s7, 1
     j set_nz8
+    addi s7, s7, 1
 
 .align 5
 cpu_plx16: // PLX (16-bit)
@@ -550,8 +560,8 @@ cpu_plx16: // PLX (16-bit)
     sh t0, stack_ptr
     move a0, v0
     sh a0, register_x
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_ply8: // PLY (8-bit)
@@ -562,8 +572,8 @@ cpu_ply8: // PLY (8-bit)
     sh t0, stack_ptr
     move a0, v0
     sb a0, register_y + 1
-    addi s7, s7, 1
     j set_nz8
+    addi s7, s7, 1
 
 .align 5
 cpu_ply16: // PLY (16-bit)
@@ -574,8 +584,8 @@ cpu_ply16: // PLY (16-bit)
     sh t0, stack_ptr
     move a0, v0
     sh a0, register_y
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_pld: // PLD
@@ -586,8 +596,8 @@ cpu_pld: // PLD
     sh t0, stack_ptr
     move a0, v0
     move s8, a0
-    addi s7, s7, 1
     j set_nz16
+    addi s7, s7, 1
 
 .align 5
 cpu_plb: // PLB
@@ -598,8 +608,8 @@ cpu_plb: // PLB
     sh t0, stack_ptr
     move a0, v0
     sb a0, data_bank + 1
-    addi s7, s7, 1
     j set_nz8
+    addi s7, s7, 1
 
 .align 5
 cpu_plp: // PLP
@@ -610,8 +620,8 @@ cpu_plp: // PLP
     sh t0, stack_ptr
     andi s4, s4, 0xFF00
     or s4, s4, v0
-    addi s7, s7, 1
     j update_mode
+    addi s7, s7, 1
 
 .align 5
 cpu_mvp8: // MVP ss,dd (8-bit)
@@ -640,13 +650,13 @@ cpu_mvp8: // MVP ss,dd (8-bit)
     sb t0, register_y + 1
 
     // Decrement the accumulator and don't increment the PC until it underflows
-    lhu t0, accumulator
+    la t2, accumulator
+    lhu t0, (t2)
     addi t1, t0, -1
-    sh t1, accumulator
-    bnez t0, mvp8_cont
-    addi s7, s7, 3
-mvp8_cont:
+    bnez t0, cpu_execute
+    sh t1, (t2)
     j cpu_execute
+    addi s7, s7, 3
 
 .align 5
 cpu_mvp16: // MVP ss,dd (16-bit)
@@ -675,13 +685,13 @@ cpu_mvp16: // MVP ss,dd (16-bit)
     sh t0, register_y
 
     // Decrement the accumulator and don't increment the PC until it underflows
-    lhu t0, accumulator
+    la t2, accumulator
+    lhu t0, (t2)
     addi t1, t0, -1
-    sh t1, accumulator
-    bnez t0, mvp16_cont
-    addi s7, s7, 3
-mvp16_cont:
+    bnez t0, cpu_execute
+    sh t1, (t2)
     j cpu_execute
+    addi s7, s7, 3
 
 .align 5
 cpu_mvn8: // MVN ss,dd (8-bit)
@@ -710,13 +720,13 @@ cpu_mvn8: // MVN ss,dd (8-bit)
     sb t0, register_y + 1
 
     // Decrement the accumulator and don't increment the PC until it underflows
-    lhu t0, accumulator
+    la t2, accumulator
+    lhu t0, (t2)
     addi t1, t0, -1
-    sh t1, accumulator
-    bnez t0, mvn8_cont
-    addi s7, s7, 3
-mvn8_cont:
+    bnez t0, cpu_execute
+    sh t1, (t2)
     j cpu_execute
+    addi s7, s7, 3
 
 .align 5
 cpu_mvn16: // MVN ss,dd (16-bit)
@@ -745,10 +755,10 @@ cpu_mvn16: // MVN ss,dd (16-bit)
     sh t0, register_y
 
     // Decrement the accumulator and don't increment the PC until it underflows
-    lhu t0, accumulator
+    la t2, accumulator
+    lhu t0, (t2)
     addi t1, t0, -1
-    sh t1, accumulator
-    bnez t0, mvn16_cont
-    addi s7, s7, 3
-mvn16_cont:
+    bnez t0, cpu_execute
+    sh t1, (t2)
     j cpu_execute
+    addi s7, s7, 3
