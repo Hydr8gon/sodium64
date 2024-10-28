@@ -38,19 +38,11 @@ rdp_init:
     .dword 0x3C080E10001C8241 // Set Combine
     .dword 0x39000000FFFFFFFF // Set Blend Color
     .dword 0x3510810000000000 // Set Tile (palette)
-    .dword 0x3550000002054150 // Set Tile (block)
-
-rdp_regular:
-    // RDP commands that run before drawing regular tiles
-    .dword 0x2800000000000000 // Sync Tile
-    .dword 0x3548020001054150 // Set Tile (texture)
-    .dword 0x320000000101F01F // Set Tile Size
-
-rdp_mode7:
-    // RDP commands that run before drawing mode 7 tiles
-    .dword 0x2800000000000000 // Sync Tile
-    .dword 0x3548080001054150 // Set Tile (texture)
-    .dword 0x320000000107F07F // Set Tile Size
+    .dword 0x3550000001054150 // Set Tile (block)
+    .dword 0x3548020002054150 // Set Tile (regular)
+    .dword 0x320000000201F01F // Set Tile Size (regular)
+    .dword 0x3548080003054150 // Set Tile (mode 7)
+    .dword 0x320000000307F07F // Set Tile Size (mode 7)
 
 rdp_frame:
     // RDP commands that run at the start of a frame
@@ -71,16 +63,16 @@ rdp_tile:
     // RDP commands that run when a regular tile is drawn
     .dword 0x3D50000300000000 // Set Texture Image (texture)
     .dword 0x2800000000000000 // Sync Tile
-    .dword 0x330000000201F800 // Load Block (texture)
-    .dword 0x2400000001000000 // Texture Rectangle 1
+    .dword 0x330000000101F800 // Load Block (texture)
+    .dword 0x2400000002000000 // Texture Rectangle 1
     .dword 0x0000000004000400 // Texture Rectangle 2
 
 rdp_tile7:
     // RDP commands that run when a mode 7 tile is drawn
     .dword 0x3D50000300000000 // Set Texture Image (texture)
     .dword 0x2800000000000000 // Sync Tile
-    .dword 0x330000000201F800 // Load Block (texture)
-    .dword 0x0A81000000000000 // Texture Triangle 1
+    .dword 0x330000000101F800 // Load Block (texture)
+    .dword 0x0A83000000000000 // Texture Triangle 1
     .dword 0x0100000000000000 // Texture Triangle 2
     .dword 0x0000000000000000 // Texture Triangle 3
     .dword 0x0000000000000000 // Texture Triangle 4
@@ -152,7 +144,7 @@ main:
     mtc0 t0, COP0_DP_STATUS
     li a0, RDP_INIT
     jal rdp_send
-    li a1, RDP_MODE7
+    li a1, RDP_FRAME
 
     // Set the initial frame queue offset
     li sp, 0
@@ -463,7 +455,7 @@ load_screen:
 
     // Update the RDP draw command with the row's initial coordinates
     lw t0, FB_OFFSET(sp)
-    lui t1, 0x0100 // Tile index
+    lui t1, 0x0200 // Tile index
     add t0, t0, s1
     sll t0, t0, 2
     or t1, t1, t0 // Upper Y
@@ -471,7 +463,7 @@ load_screen:
     sll t2, t2, 14
     or t1, t1, t2 // Upper X
     sw t1, RDP_TILE + 28
-    li t2, 0x23020020
+    li t2, 0x22020020
     add t1, t1, t2 // Lower X/Y
     sw t1, RDP_TILE + 24
 
@@ -767,14 +759,8 @@ draw_mode7:
     andi t1, s7, 0x1
     beqz t1, next_layer
 
-    // Run the RDP for the start of mode 7
-    li a0, RDP_MODE7
-    jal rdp_send
-    li a1, RDP_FRAME
-
     // Set the initial tile Y-coordinate
-    andi t0, k0, 0x7
-    sub s1, k0, t0
+    move s1, k0
 
     // Calculate the initial screen X-coordinate
     lh t0, M7HOFS
@@ -814,26 +800,6 @@ draw_mode7:
     move a1, s6
     add t9, t3, v0
 
-    // Calculate the min and max X-offsets within a mode 7 tile
-    sll a0, s2, 3
-    sub a0, a0, s2
-    sll a1, s4, 3
-    sub a1, a1, s4
-    jal min_max
-    add a2, a0, a1
-    sw v0, MODE7_BOUNDS + 0
-    sw v1, MODE7_BOUNDS + 4
-
-    // Calculate the min and max Y-offsets within a mode 7 tile
-    sll a0, s5, 3
-    sub a0, a0, s5
-    sll a1, s6, 3
-    sub a1, a1, s6
-    jal min_max
-    add a2, a0, a1
-    sw v0, MODE7_BOUNDS + 8
-    sw v1, MODE7_BOUNDS + 12
-
     // Update the RDP texture parameters with rotscale values
     sra t0, s2, 3
     sh t0, RDP_TILE7 + 64 // S-gradient along X (int)
@@ -852,7 +818,46 @@ draw_mode7:
     sll t1, s6, 13
     sh t1, RDP_TILE7 + 98 // T-gradient along Y (frac)
 
+    // Determine mode 7 tile height from the lower section bound
+    sub a3, k1, s1
+    addi a3, a3, -1
+    bltu a3, 7, calc_bounds
+    nop
+    li a3, 7
+
+calc_bounds:
+    // Calculate the min and max X-offsets within a mode 7 tile
+    move a0, a3
+    jal multiply
+    move a1, s4
+    move a0, v0
+    sll a1, s2, 3
+    sub a1, a1, s2
+    jal min_max
+    add a2, a0, a1
+    sw v0, MODE7_BOUNDS + 0
+    sw v1, MODE7_BOUNDS + 4
+
+    // Calculate the min and max Y-offsets within a mode 7 tile
+    move a0, a3
+    jal multiply
+    move a1, s6
+    move a0, v0
+    sll a1, s5, 3
+    sub a1, a1, s5
+    jal min_max
+    add a2, a0, a1
+    sw v0, MODE7_BOUNDS + 8
+    b bounds_skip
+    sw v1, MODE7_BOUNDS + 12
+
 draw_row7:
+    // Recalculate bounds if the tile height can be reduced
+    sub a3, k1, s1
+    addi a3, a3, -1
+    bltu a3, 7, calc_bounds
+
+bounds_skip:
     // Set the initial tile X-coordinate
     li s0, 0
 
@@ -932,7 +937,7 @@ set_texels:
     sll t1, v1, 7
     addi t1, t1, -1
     sll t1, t1, 12
-    li t0, 0x02000200
+    li t0, 0x01000200
     or t0, t0, t1
     sw t0, RDP_TILE7 + 20
 
@@ -1081,11 +1086,6 @@ finish_tile7:
     sll t0, s6, 3
     blt s1, k1, draw_row7
     add t9, t9, t0
-
-    // Run the RDP for the end of mode 7
-    li a0, RDP_REGULAR
-    jal rdp_send
-    li a1, RDP_MODE7
     b next_layer
 
 
@@ -1223,7 +1223,7 @@ object_ymir:
 next_objy:
     // Build a base value for the draw command with the row's Y-coordinate
     lw t7, FB_OFFSET(sp)
-    lui t6, 0x0100 // Tile index
+    lui t6, 0x0200 // Tile index
     add t7, t7, s8
     andi t7, t7, 0x1FF
     sll t7, t7, 2
@@ -1236,7 +1236,7 @@ next_objx:
     sll t7, t7, 14
     or t0, t6, t7 // Upper X
     sw t0, RDP_TILE + 28
-    li t7, 0x23020020
+    li t7, 0x22020020
     add t0, t0, t7 // Lower X/Y
     sw t0, RDP_TILE + 24
 

@@ -184,9 +184,7 @@
 #define FRAMEBUFFER (SECTION_PTR + 0x8)
 // End of frame values
 #define RDP_INIT (FRAMEBUFFER + 0x8)
-#define RDP_REGULAR (RDP_INIT + 0x20)
-#define RDP_MODE7 (RDP_REGULAR + 0x18)
-#define RDP_FRAME (RDP_MODE7 + 0x18)
+#define RDP_FRAME (RDP_INIT + 0x40)
 #define RDP_SECTION (RDP_FRAME + 0x18)
 #define RDP_TILE (RDP_SECTION + 0x30)
 #define RDP_TILE7 (RDP_TILE + 0x28)
