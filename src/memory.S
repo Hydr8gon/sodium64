@@ -216,6 +216,15 @@ map_lorom:
     li t1, 0xFFFFFF // Maximum address
     li t2, 0x2000 // Block size (8KB)
 
+    // Set the ROM mask using the header size
+    lw t4, 0xA0007FD4(t8)
+    li t7, 0x7F0000
+    li t3, 0x800
+    andi t4, t4, 0xFF
+    sll t4, t3, t4
+    addi t4, t4, -1
+    and t7, t7, t4
+
     // Set the SRAM mask using the header size
     lw t9, 0xA0007FD8(t8)
     srl t9, t9, 24
@@ -260,8 +269,7 @@ lowram_area:
 
 lorom_area:
     // Special case LoROM; the exception handler will dynamically load blocks
-    li t4, 0x7F0000
-    and t4, t4, t0 // Mirrored bank
+    and t4, t7, t0 // Mirrored bank
     srl t4, t4, 1 // 32KB every 64KB bank
     add t3, t8, t4
     li t4, 0x7FFF
@@ -320,6 +328,15 @@ map_hirom:
     li t1, 0xFFFFFF // Maximum address
     li t2, 0x2000 // Block size (8KB)
 
+    // Set the ROM mask using the header size
+    lw t4, 0xA000FFD4(t8)
+    li t7, 0x3FFFFF
+    li t3, 0x400
+    andi t4, t4, 0xFF
+    sll t4, t3, t4
+    addi t4, t4, -1
+    and t7, t7, t4
+
     // Set the SRAM mask using the header size
     lw t9, 0xA000FFD8(t8)
     srl t9, t9, 24
@@ -362,8 +379,7 @@ hiwram_area:
 
 hirom_area:
     // Special case HiROM; the exception handler will dynamically load blocks
-    li t4, 0x3FFFFF // ROM mask
-    and t4, t4, t0
+    and t4, t7, t0
     add t3, t8, t4
     b map_hinone
 
