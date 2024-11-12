@@ -92,9 +92,6 @@ tile_params:
     .dword 0x000000E00400FC00 // Y-mirror
     .dword 0x00E000E0FC00FC00 // XY-mirror
 
-// Possible code paths for tile decoding
-tile_jumps: .word decode_tile4, decode_tile16, decode_tile256
-
 layer_chart:
     // Bit 7: object, bit 6: BG priority, bits 3-2: BG type, bits 1-0: index
     // BG type: 0 = rotscale, 1 = 4-color, 2 = 16-color, 3 = 256-color
@@ -108,6 +105,15 @@ layer_chart:
     .byte 0x80, 0x08, 0x81, 0x82, 0x48, 0x83, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0, 0, 0, 0 // Mode 6
     .byte 0x80, 0x40, 0x81, 0x82, 0x83, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0, 0, 0, 0 // Mode 7
     .byte 0x06, 0x80, 0x81, 0x09, 0x08, 0x82, 0x49, 0x48, 0x83, 0x46, 0x00, 0x00, 0, 0, 0, 0 // Mode 1 (BG3 high)
+
+obj_sizes:
+    // Possible object sizes; bytes are small X, small Y, large X, large Y
+    .word 0x08081010, 0x08082020, 0x08084040, 0x10102020
+    .word 0x10104040, 0x20204040, 0x10202040, 0x10202020
+
+scrn_ofsh: .hword 0x0000, 0x0800, 0x0000, 0x0800 // Horizontal screen address offsets
+scrn_ofsv: .hword 0x0000, 0x0000, 0x0800, 0x1000 // Vertical screen address offsets
+tile_jumps: .word decode_tile4, decode_tile16, decode_tile256 // Tile decoding functions
 
 // Gap to ensure vector data is aligned
 .byte 0:(VEC_DATA - MAX_OBJECT)
@@ -227,8 +233,12 @@ next_visible:
     srl t2, t2, t3
 
     // Get the object's size based on the large bit
+    lbu t4, OBSEL
     andi t3, t2, 0x2 // Large
-    lhu s0, OBJ_SIZE(t3)
+    andi t4, t4, 0xE0
+    srl t4, t4, 3
+    or t3, t3, t4
+    lhu s0, OBJ_SIZES(t3)
     andi s1, s0, 0xFF // Y-size
     srl s0, s0, 8 // X-size
 
@@ -271,11 +281,11 @@ next_section:
     beq k1, t0, next_frame
 
     // Load values for the next section
-    li a0, OBJ_SIZE
+    li a0, BGHOFS
     lw a1, SECTION_PTR(sp)
     jal dma_read
-    li a2, 0x4F
-    addi a1, a1, 0x50
+    li a2, SECTION_SIZE - 1
+    addi a1, a1, SECTION_SIZE
     sw a1, SECTION_PTR(sp)
 
     // Set the section bounds
@@ -295,11 +305,12 @@ next_section:
     sh t2, RDP_SECTION + 34
 
     // Update the RDP fill color for the section
-    lbu t1, FORCE_BLANK
-    bnez t1, blank_set
-    li t0, 0
     lhu t0, FILL_COLOR
-blank_set:
+    andi t1, t0, 0x1
+    beqz t1, no_blank
+    nop
+    li t0, 0
+no_blank:
     sh t0, RDP_SECTION + 20
     sh t0, RDP_SECTION + 22
 
@@ -319,9 +330,9 @@ blank_set:
     // Create a layer mask based on main and sub masks, with shared layers on top
     // As a workaround for lack of blending, the order of the screens can be swapped
     lw t0, MASK_SEL(sp)
-    lbu s7, SUB_MASK(t0)
+    lbu s7, TS(t0)
     xori t0, t0, 0x1
-    lbu t0, SUB_MASK(t0)
+    lbu t0, TS(t0)
     and t1, t0, s7 // Shared
     sub s7, s7, t1
     sll t0, t0, 8
@@ -376,7 +387,11 @@ draw_bg:
     addi s4, s4, 3 // Character shift
 
     // Check if the BG type or character base changed
-    lhu t0, BGCHARBASE(s2)
+    lhu t0, BGNBA
+    sll t1, s2, 1
+    srl t0, t0, t1
+    andi t0, t0, 0x7
+    sll t0, t0, 13
     or t0, t0, s4
     lhu t1, CACHE_BASES(s2)
     beq t0, t1, load_cache
@@ -426,16 +441,21 @@ draw_row:
     sub s0, zero, t0
 
     // Get the base screen address for the BG
+    srl t3, s2, 1
+    lbu t2, BGXSC(t3)
     li a0, SCRN_DATA
     lw a1, VRAM_ADDRS
-    lhu t0, BGSCRNBASE(s2)
+    andi t0, t2, 0x7C
+    sll t0, t0, 9
     add a1, a1, t0
 
     // Apply the vertical base offset if past the bounds of the first screen
     add t1, s5, s1
     andi t0, t1, 0x100
     beqz t0, load_screen
-    lhu t0, BGBASEOFSV(s2)
+    andi t0, t2, 0x3
+    sll t0, t0, 1
+    lhu t0, SCRN_OFSV(t0)
     add a1, a1, t0
 
 load_screen:
@@ -449,7 +469,9 @@ load_screen:
 
     // Load a row of BG entries from the second horizontal screen
     addi a0, a0, 0x40
-    lhu t0, BGBASEOFSH(s2)
+    andi t0, t2, 0x3
+    sll t0, t0, 1
+    lhu t0, SCRN_OFSH(t0)
     jal dma_read
     add a1, a1, t0
 
@@ -524,7 +546,7 @@ skip_small:
 
     // Check if the tile's VRAM is dirty for the current BG
     andi s8, t6, 0x3FF // Character number
-    lhu t0, BGCHARBASE(s2)
+    lhu t0, CACHE_BASES(s2)
     sll t1, s8, s4
     add t3, t0, t1
     srl t0, t3, 6
@@ -915,7 +937,9 @@ calc_tofs:
 
 check_wrap:
     // Check if tiles should wrap out of bounds
-    lbu t0, M7_NOWRAP
+    // TODO: handle this better and use screen flip bits
+    lbu t0, M7SEL
+    andi t0, t0, 0x80
     beqz t0, set_texels
     lui t1, 0x3
     ori t1, t1, 0xFFFF
@@ -1114,8 +1138,11 @@ below_max:
     move t9, v1
 
     // Check if the object character base changed
-    lhu t0, OBJCHARBASE
+    // TODO: use the gap setting
+    lbu t0, OBSEL
     lhu t2, CACHE_BASES + 8
+    andi t0, t0, 0x3
+    sll t0, t0, 14
     beq t0, t2, load_objcache
     sh t0, CACHE_BASES + 8
 
@@ -1152,8 +1179,12 @@ check_object:
     bnez t0, next_object
 
     // Get the object's size based on the large bit
+    lbu t4, OBSEL
     andi t3, t2, 0x2 // Large
-    lhu s0, OBJ_SIZE(t3)
+    andi t4, t4, 0xE0
+    srl t4, t4, 3
+    or t3, t3, t4
+    lhu s0, OBJ_SIZES(t3)
     andi s1, s0, 0xFF // Y-size
     srl s0, s0, 8 // X-size
 
@@ -1241,7 +1272,7 @@ next_objx:
     sw t0, RDP_TILE + 24
 
     // Check if the tile's VRAM is dirty for objects
-    lhu t0, OBJCHARBASE
+    lhu t0, CACHE_BASES + 8
     sll t4, s5, 5
     add t5, t0, t4
     srl t0, t5, 6

@@ -39,6 +39,9 @@
 #define SECTION_MIN 8
 #define SECTION_INC 1
 
+// The frame section data structure's size in bytes
+#define SECTION_SIZE 0x30
+
 // Flags for tracking JIT block state
 #define FLAG_SX (1 << 0)
 #define FLAG_SY (1 << 1)
@@ -148,16 +151,11 @@
 #define MODE7_BOUNDS (CHAR_DATA + 0x80)
 #define CACHE_BASES (MODE7_BOUNDS + 0x10)
 // Start of section values
-#define OBJ_SIZE (CACHE_BASES + 0x10)
-#define OBJCHARBASE (OBJ_SIZE + 0x4)
-#define OAMADD (OBJCHARBASE + 0x2)
-#define BGSCRNBASE (OAMADD + 0x2)
-#define BGBASEOFSH (BGSCRNBASE + 0x8)
-#define BGBASEOFSV (BGBASEOFSH + 0x8)
-#define BGCHARBASE (BGBASEOFSV + 0x8)
-#define BGHOFS (BGCHARBASE + 0x8)
+#define BGHOFS (CACHE_BASES + 0x10)
 #define BGVOFS (BGHOFS + 0x8)
-#define M7HOFS (BGVOFS + 0x8)
+#define BGNBA (BGVOFS + 0x8)
+#define OAMADD (BGNBA + 0x2)
+#define M7HOFS (OAMADD + 0x2)
 #define M7VOFS (M7HOFS + 0x2)
 #define M7A (M7VOFS + 0x2)
 #define M7B (M7A + 0x2)
@@ -166,12 +164,13 @@
 #define M7X (M7D + 0x2)
 #define M7Y (M7X + 0x2)
 #define FILL_COLOR (M7Y + 0x2)
-#define FORCE_BLANK (FILL_COLOR + 0x2)
-#define BG_MODE (FORCE_BLANK + 0x1)
-#define SUB_MASK (BG_MODE + 0x1)
-#define MAIN_MASK (SUB_MASK + 0x1)
-#define M7_NOWRAP (MAIN_MASK + 0x1)
-#define SPLIT_LINE (M7_NOWRAP + 0x1)
+#define BGXSC (FILL_COLOR + 0x2)
+#define OBSEL (BGXSC + 0x4)
+#define M7SEL (OBSEL + 0x1)
+#define TS (M7SEL + 0x1)
+#define TM (TS + 0x1)
+#define BG_MODE (TM + 0x1)
+#define SPLIT_LINE (BG_MODE + 0x1)
 // Start of frame values
 #define MASK_SEL (SPLIT_LINE + 0x1)
 #define FB_OFFSET (MASK_SEL + 0x8)
@@ -189,9 +188,12 @@
 #define RDP_TILE (RDP_SECTION + 0x30)
 #define RDP_TILE7 (RDP_TILE + 0x28)
 #define TILE_PARAMS (RDP_TILE7 + 0x78)
-#define TILE_JUMPS (TILE_PARAMS + 0x20)
-#define LAYER_CHART (TILE_JUMPS + 0xC)
-#define MAX_OBJECT (LAYER_CHART + 0x90)
+#define LAYER_CHART (TILE_PARAMS + 0x20)
+#define OBJ_SIZES (LAYER_CHART + 0x90)
+#define SCRN_OFSH (OBJ_SIZES + 0x20)
+#define SCRN_OFSV (SCRN_OFSH + 0x8)
+#define TILE_JUMPS (SCRN_OFSV + 0x8)
+#define MAX_OBJECT (TILE_JUMPS + 0xC)
 #define WRAP_BOUND (MAX_OBJECT + 0x2)
 #define PRIO_CHECKS (WRAP_BOUND + 0x2)
 #define VEC_DATA 0xF70

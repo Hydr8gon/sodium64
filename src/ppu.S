@@ -124,16 +124,11 @@ timeup: .byte 0
 hvbjoy: .byte 0
 
 .align 4
-// RSP values that are saved for each section (0x50 bytes)
-obj_size: .word 0x10100808
-objcharbase: .hword 0
-oamadd: .hword 0
-bgscrnbase: .hword 0:4
-bgbaseofsh: .hword 0:4
-bgbaseofsv: .hword 0:4
-bgcharbase: .hword 0:4
+// Values that are saved for each frame section (0x30 bytes)
 bghofs: .hword 0:4
 bgvofs: .hword 0:4
+bgnba: .hword 0
+oamadd: .hword 0
 m7hofs: .hword 0
 m7vofs: .hword 0
 m7a: .hword 0
@@ -143,11 +138,12 @@ m7d: .hword 0
 m7x: .hword 0
 m7y: .hword 0
 fill_color: .hword 0
-force_blank: .byte 0
+bgxsc: .byte 0:4
+obsel: .byte 0
+m7sel: .byte 0
+ts: .byte 0
+tm: .byte 0
 bg_mode: .byte 0
-sub_mask: .byte 0
-main_mask: .byte 0
-m7_nowrap: .byte 0
 split_line: .byte 0
 
 .align 4
@@ -158,14 +154,7 @@ dirty_queues: .word DIRTY_QUEUE1, DIRTY_QUEUE2
 sect_queues: .word SECTION_QUEUE1, SECTION_QUEUE2
 
 .align 4
-obj_sizes: // Possible object sizes; bytes are small X, small Y, large X, large Y
-    .word 0x08081010, 0x08082020, 0x08084040, 0x10102020
-    .word 0x10104040, 0x20204040, 0x10202040, 0x10202020
-
-.align 4
 vram_funcs: .word 0, vram_trans8, vram_trans9, vram_trans10 // VRAM address translation functions
-scrn_ofsh: .hword 0x0000, 0x0800, 0x0000, 0x0800 // Horizontal screen address offsets
-scrn_ofsv: .hword 0x0000, 0x0000, 0x0800, 0x1000 // Vertical screen address offsets
 vram_incrs: .byte 1, 32, 128, 128 // VRAM access address increments
 
 .text
@@ -311,9 +300,9 @@ make_section: // a0: line
 
 section_init:
     // Copy values for the next frame section
-    la t0, obj_size
+    la t0, bghofs
     lw t1, section_ptr
-    addi t2, t0, 0x50
+    addi t2, t0, SECTION_SIZE
 section_loop:
     ld t3, (t0)
     addi t0, t0, 8
@@ -367,6 +356,8 @@ set_fill:
 
     // Update the fill color and the frame if the color changed
     lhu t1, fill_color
+    andi t3, t1, 0x1 // Force blank
+    or t2, t2, t3
     sh t2, fill_color
     bne t1, t2, update_frame
     jr ra
@@ -725,11 +716,16 @@ read_hvbjoy: // v0: value
 
 .align 5
 write_inidisp: // a1: value
-    // Set the force blank bit and mark the frame section as dirty
+    // Set the force blank bit and mark the section as dirty if changed
+    lhu t1, fill_color
     andi t0, a1, 0x80
-    sb t0, force_blank
-    li t0, 0x1
-    sb t0, sect_status
+    srl t0, t0, 7
+    andi t2, t1, 0xFFFE
+    or t2, t2, t0
+    beq t1, t2, set_bright
+    sh t2, fill_color
+    li t1, 0x1
+    sb t1, sect_status
 
     // Some games use mid-frame events to achieve a longer V-blank period
     // If force blank is set after a certain line, handle the frame now
@@ -754,17 +750,8 @@ set_bright:
 
 .align 5
 write_obsel: // a1: value
-    // Update the OBJ character base address in DMEM
-    // TODO: use the gap setting
-    andi t0, a1, 0x3
-    sll t0, t0, 14
-    sh t0, objcharbase
-
-    // Update the OBJ small and large sizes in DMEM
-    andi t0, a1, 0xE0
-    srl t0, t0, 3
-    lw t0, obj_sizes(t0)
-    sw t0, obj_size
+    // Write to the OBSEL register
+    sb a1, obsel
     j update_frame
 
 .align 5
@@ -850,100 +837,38 @@ high_prio:
 
 .align 5
 write_bg1sc: // a1: value
-    // Update BG1's screen base address in DMEM
-    andi t0, a1, 0x7C
-    sll t0, t0, 9
-    sh t0, bgscrnbase + 0
-
-    // Update BG1's horizontal base offset in DMEM
-    andi t1, a1, 0x3
-    sll t1, t1, 1
-    lhu t0, scrn_ofsh(t1)
-    sh t0, bgbaseofsh + 0
-
-    // Update BG1's vertical base offset in DMEM
-    lhu t0, scrn_ofsv(t1)
-    sh t0, bgbaseofsv + 0
+    // Write to the BG1SC register
+    sb a1, bgxsc + 0
     j update_frame
 
 .align 5
 write_bg2sc: // a1: value
-    // Update BG2's screen base address in DMEM
-    andi t0, a1, 0x7C
-    sll t0, t0, 9
-    sh t0, bgscrnbase + 2
-
-    // Update BG2's horizontal base offset in DMEM
-    andi t1, a1, 0x3
-    sll t1, t1, 1
-    lhu t0, scrn_ofsh(t1)
-    sh t0, bgbaseofsh + 2
-
-    // Update BG2's vertical base offset in DMEM
-    lhu t0, scrn_ofsv(t1)
-    sh t0, bgbaseofsv + 2
+    // Write to the BG2SC register
+    sb a1, bgxsc + 1
     j update_frame
 
 .align 5
 write_bg3sc: // a1: value
-    // Update BG3's screen base address in DMEM
-    andi t0, a1, 0x7C
-    sll t0, t0, 9
-    sh t0, bgscrnbase + 4
-
-    // Update BG3's horizontal base offset in DMEM
-    andi t1, a1, 0x3
-    sll t1, t1, 1
-    lhu t0, scrn_ofsh(t1)
-    sh t0, bgbaseofsh + 4
-
-    // Update BG3's vertical base offset in DMEM
-    lhu t0, scrn_ofsv(t1)
-    sh t0, bgbaseofsv + 4
+    // Write to the BG3SC register
+    sb a1, bgxsc + 2
     j update_frame
 
 .align 5
 write_bg4sc: // a1: value
-    // Update BG4's screen base address in DMEM
-    andi t0, a1, 0x7C
-    sll t0, t0, 9
-    sh t0, bgscrnbase + 6
-
-    // Update BG4's horizontal base offset in DMEM
-    andi t1, a1, 0x3
-    sll t1, t1, 1
-    lhu t0, scrn_ofsh(t1)
-    sh t0, bgbaseofsh + 6
-
-    // Update BG4's vertical base offset in DMEM
-    lhu t0, scrn_ofsv(t1)
-    sh t0, bgbaseofsv + 6
+    // Write to the BG4SC register
+    sb a1, bgxsc + 3
     j update_frame
 
 .align 5
 write_bg12nba: // a1: value
-    // Update BG1's character base address in DMEM
-    andi t0, a1, 0x7
-    sll t0, t0, 13
-    sh t0, bgcharbase + 0
-
-    // Update BG2's character base address in DMEM
-    andi t0, a1, 0x70
-    sll t0, t0, 9
-    sh t0, bgcharbase + 2
+    // Set the low byte of the combined BGNBA register
+    sb a1, bgnba + 1
     j update_frame
 
 .align 5
 write_bg34nba: // a1: value
-    // Update BG3's character base address in DMEM
-    andi t0, a1, 0x7
-    sll t0, t0, 13
-    sh t0, bgcharbase + 4
-
-    // Update BG4's character base address in DMEM
-    andi t0, a1, 0x70
-    sll t0, t0, 9
-    sh t0, bgcharbase + 6
+    // Set the high byte of the combined BGNBA register
+    sb a1, bgnba + 0
     j update_frame
 
 .align 5
@@ -1169,10 +1094,8 @@ datah_trans:
 
 .align 5
 write_m7sel: // a1: value
-    // Set whether mode 7 should wrap out of bounds or not
-    // TODO: use the rest of the bits
-    srl t0, a1, 7
-    sb t0, m7_nowrap
+    // Write to the M7SEL register
+    sb a1, m7sel
     j update_frame
 
 .align 5
@@ -1285,14 +1208,14 @@ cg_high:
 
 .align 5
 write_tm: // a1: value
-    // Set the main screen layer mask
-    sb a1, main_mask
+    // Write to the TM register
+    sb a1, tm
     j update_frame
 
 .align 5
 write_ts: // a1: value
-    // Set the sub screen layer mask
-    sb a1, sub_mask
+    // Write to the TS register
+    sb a1, ts
     j update_frame
 
 .align 5
