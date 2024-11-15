@@ -67,8 +67,20 @@
 .globl write_m7y
 .globl write_cgadd
 .globl write_cgdata
+.globl write_w12sel
+.globl write_w34sel
+.globl write_wobjsel
+.globl write_wh0
+.globl write_wh1
+.globl write_wh2
+.globl write_wh3
+.globl write_wbglog
+.globl write_wobjlog
 .globl write_tm
 .globl write_ts
+.globl write_tmw
+.globl write_tsw
+.globl write_cgwsel
 .globl write_cgadsub
 .globl write_coldata
 .globl write_setini
@@ -117,14 +129,13 @@ vmadd: .hword 0
 cgadd: .hword 0
 vtime: .hword 0
 stat78: .byte 0x1
-cgadsub: .byte 0
 nmitimen: .byte 0
 rdnmi: .byte 0
 timeup: .byte 0
 hvbjoy: .byte 0
 
 .align 4
-// Values that are saved for each frame section (0x30 bytes)
+// Values that are saved for each frame section (0x40 bytes)
 bghofs: .hword 0:4
 bgvofs: .hword 0:4
 bgnba: .hword 0
@@ -137,13 +148,24 @@ m7c: .hword 0
 m7d: .hword 0
 m7x: .hword 0
 m7y: .hword 0
-fill_color: .hword 0
+wbgsel: .hword 0
+sub_color: .hword 0
+main_color: .hword 0
 bgxsc: .byte 0:4
+whx: .byte 0:4
 obsel: .byte 0
 m7sel: .byte 0
+wobjsel: .byte 0
+wbglog: .byte 0
+wobjlog: .byte 0
+cgwsel: .byte 0
+cgadsub: .byte 0
 ts: .byte 0
 tm: .byte 0
+tsw: .byte 0
+tmw: .byte 0
 bg_mode: .byte 0
+force_blank: .byte 0
 split_line: .byte 0
 
 .align 4
@@ -321,14 +343,10 @@ update_frame:
 
 .align 5
 update_fill:
-    // Choose between main or sub backdrop color with some guesswork
-    lbu t0, cgadsub
-    lhu t1, cgram
-    andi t0, t0, 0x20 // Backdrop math
-    beqz t0, set_fill
-    lhu t2, coldata
-    beqz t2, set_fill
-    move t1, t2
+    // Load the first fill color and both destinations
+    lhu t1, coldata
+    la t4, sub_color
+    la t5, main_color
 
 set_fill:
     // Space out the color's components and multiply with current brightness
@@ -354,12 +372,20 @@ set_fill:
     srl t3, t3, 9
     or t2, t2, t3
 
-    // Update the fill color and the frame if the color changed
-    lhu t1, fill_color
-    andi t3, t1, 0x1 // Force blank
-    or t2, t2, t3
-    sh t2, fill_color
-    bne t1, t2, update_frame
+    // Set the fill color and update the frame if changed
+    lhu t1, (t4)
+    beq t1, t2, next_fill
+    sh t2, (t4)
+    li t1, 0x1
+    sb t1, sect_status
+
+next_fill:
+    // Move to the next color until both are done
+    beq t4, t5, end_fill
+    lhu t1, cgram
+    move t4, t5
+    b set_fill
+end_fill:
     jr ra
 
 .align 5
@@ -716,14 +742,11 @@ read_hvbjoy: // v0: value
 
 .align 5
 write_inidisp: // a1: value
-    // Set the force blank bit and mark the section as dirty if changed
-    lhu t1, fill_color
+    // Set the force blank bit and update the frame if changed
+    lbu t1, force_blank
     andi t0, a1, 0x80
-    srl t0, t0, 7
-    andi t2, t1, 0xFFFE
-    or t2, t2, t0
-    beq t1, t2, set_bright
-    sh t2, fill_color
+    beq t1, t0, set_bright
+    sb t0, force_blank
     li t1, 0x1
     sb t1, sect_status
 
@@ -750,40 +773,44 @@ set_bright:
 
 .align 5
 write_obsel: // a1: value
-    // Write to the OBSEL register
+    // Write to the OBSEL register and update the frame if changed
+    lbu t0, obsel
     sb a1, obsel
-    j update_frame
+    bne t0, a1, update_frame
+    jr ra
 
 .align 5
 write_oamaddl: // a1: value
     // Set the low byte of the OAM address reload
-    lhu t0, oamadd
+    lhu t2, oamadd
     andi t1, a1, 0xFF
-    andi t0, t0, 0x8100
-    or t0, t0, t1
-    sh t0, oamadd
+    andi t0, t2, 0x8100
+    or t1, t1, t0
+    sh t1, oamadd
 
-    // Reload the OAM address
-    sll t0, t0, 1
+    // Reload the OAM address and update the frame if changed
+    sll t0, t1, 1
     andi t0, t0, 0x3FE
     sh t0, oam_addr
-    j update_frame
+    bne t2, t1, update_frame
+    jr ra
 
 .align 5
 write_oamaddh: // a1: value
     // Set the high bits of the OAM address reload
-    lhu t0, oamadd
+    lhu t2, oamadd
     sll t1, a1, 8
     andi t1, t1, 0x8100
-    andi t0, t0, 0xFF
-    or t0, t0, t1
-    sh t0, oamadd
+    andi t0, t2, 0xFF
+    or t1, t1, t0
+    sh t1, oamadd
 
-    // Reload the OAM address
-    sll t0, t0, 1
+    // Reload the OAM address and update the frame if changed
+    sll t0, t1, 1
     andi t0, t0, 0x3FE
     sh t0, oam_addr
-    j update_frame
+    bne t2, t1, update_frame
+    jr ra
 
 .align 5
 write_oamdata: // a1: value
@@ -822,54 +849,70 @@ oam_end:
 .align 5
 write_bgmode: // a1: value
     // Set the BG screen mode from 0 to 7
+    lbu t1, bg_mode
     andi t0, a1, 0xF
     beq t0, 0x9, high_prio
     andi t0, a1, 0xF7
+
+set_mode:
+    // Update the frame if changed
     sb t0, bg_mode
-    j update_frame
+    bne t1, t0, update_frame
+    jr ra
 
 high_prio:
     // Set a special mode when mode 1 is set with the BG3 priority bit
     andi t0, a1, 0xF0
     ori t0, t0, 8
-    sb t0, bg_mode
-    j update_frame
+    b set_mode
 
 .align 5
 write_bg1sc: // a1: value
-    // Write to the BG1SC register
+    // Write to the BG1SC register and update the frame if changed
+    lbu t0, bgxsc + 0
     sb a1, bgxsc + 0
-    j update_frame
+    bne t0, a1, update_frame
+    jr ra
 
 .align 5
 write_bg2sc: // a1: value
-    // Write to the BG2SC register
+    // Write to the BG2SC register and update the frame if changed
+    lbu t0, bgxsc + 1
     sb a1, bgxsc + 1
-    j update_frame
+    bne t0, a1, update_frame
+    jr ra
 
 .align 5
 write_bg3sc: // a1: value
-    // Write to the BG3SC register
+    // Write to the BG3SC register and update the frame if changed
+    lbu t0, bgxsc + 2
     sb a1, bgxsc + 2
-    j update_frame
+    bne t0, a1, update_frame
+    jr ra
 
 .align 5
 write_bg4sc: // a1: value
-    // Write to the BG4SC register
+    // Write to the BG4SC register and update the frame if changed
+    lbu t0, bgxsc + 3
     sb a1, bgxsc + 3
-    j update_frame
+    bne t0, a1, update_frame
+    jr ra
 
 .align 5
 write_bg12nba: // a1: value
-    // Set the low byte of the combined BGNBA register
+    // Set the low byte of the combined BGNBA register and update the frame if changed
+    lbu t0, bgnba + 1
     sb a1, bgnba + 1
-    j update_frame
+    bne t0, a1, update_frame
+    jr ra
 
 .align 5
 write_bg34nba: // a1: value
-    // Set the high byte of the combined BGNBA register
+    // Set the high byte of the combined BGNBA register and update the frame if changed
+    lbu t0, bgnba + 0
     sb a1, bgnba + 0
-    j update_frame
+    bne t0, a1, update_frame
+    jr ra
 
 .align 5
 write_bg1hofs: // a1: value
@@ -1094,9 +1137,11 @@ datah_trans:
 
 .align 5
 write_m7sel: // a1: value
-    // Write to the M7SEL register
+    // Write to the M7SEL register and update the frame if changed
+    lbu t0, m7sel
     sb a1, m7sel
-    j update_frame
+    bne t0, a1, update_frame
+    jr ra
 
 .align 5
 write_m7a: // a1: value
@@ -1207,23 +1252,124 @@ cg_high:
     jr ra
 
 .align 5
+write_w12sel: // a1: value
+    // Set the low byte of the combined WBGSEL register and update the frame if changed
+    lbu t0, wbgsel + 1
+    sb a1, wbgsel + 1
+    bne t0, a1, update_frame
+    jr ra
+
+.align 5
+write_w34sel: // a1: value
+    // Set the high byte of the combined WBGSEL register and update the frame if changed
+    lbu t0, wbgsel + 0
+    sb a1, wbgsel + 0
+    bne t0, a1, update_frame
+    jr ra
+
+.align 5
+write_wobjsel: // a1: value
+    // Write to the WOBJSEL register and update the frame if changed
+    lbu t0, wobjsel
+    sb a1, wobjsel
+    bne t0, a1, update_frame
+    jr ra
+
+.align 5
+write_wh0: // a1: value
+    // Write to the WH0 register and update the frame if changed
+    lbu t0, whx + 0
+    sb a1, whx + 0
+    bne t0, a1, update_frame
+    jr ra
+
+.align 5
+write_wh1: // a1: value
+    // Write to the WH1 register and update the frame if changed
+    lbu t0, whx + 1
+    sb a1, whx + 1
+    bne t0, a1, update_frame
+    jr ra
+
+.align 5
+write_wh2: // a1: value
+    // Write to the WH2 register and update the frame if changed
+    lbu t0, whx + 2
+    sb a1, whx + 2
+    bne t0, a1, update_frame
+    jr ra
+
+.align 5
+write_wh3: // a1: value
+    // Write to the WH3 register and update the frame if changed
+    lbu t0, whx + 3
+    sb a1, whx + 3
+    bne t0, a1, update_frame
+    jr ra
+
+.align 5
+write_wbglog: // a1: value
+    // Write to the WBGLOG register and update the frame if changed
+    lbu t0, wbglog
+    sb a1, wbglog
+    bne t0, a1, update_frame
+    jr ra
+
+.align 5
+write_wobjlog: // a1: value
+    // Write to the WOBJLOG register and update the frame if changed
+    lbu t0, wobjlog
+    sb a1, wobjlog
+    bne t0, a1, update_frame
+    jr ra
+
+.align 5
 write_tm: // a1: value
-    // Write to the TM register
+    // Write to the TM register and update the frame if changed
+    lbu t0, tm
     sb a1, tm
-    j update_frame
+    bne t0, a1, update_frame
+    jr ra
 
 .align 5
 write_ts: // a1: value
-    // Write to the TS register
+    // Write to the TS register and update the frame if changed
+    lbu t0, ts
     sb a1, ts
-    j update_frame
+    bne t0, a1, update_frame
+    jr ra
+
+.align 5
+write_tmw: // a1: value
+    // Write to the TMW register and update the frame if changed
+    lbu t0, tmw
+    sb a1, tmw
+    bne t0, a1, update_frame
+    jr ra
+
+.align 5
+write_tsw: // a1: value
+    // Write to the TSW register and update the frame if changed
+    lbu t0, tsw
+    sb a1, tsw
+    bne t0, a1, update_frame
+    jr ra
+
+.align 5
+write_cgwsel: // a1: value
+    // Write to the CGWSEL register and update the frame if changed
+    lbu t0, cgwsel
+    sb a1, cgwsel
+    bne t0, a1, update_frame
+    jr ra
 
 .align 5
 write_cgadsub: // a1: value
-    // Write to the CGADSUB register
-    // TODO: use for more than approximations
+    // Write to the CGADSUB register and update the frame if changed
+    lbu t0, cgadsub
     sb a1, cgadsub
-    j update_fill
+    bne t0, a1, update_frame
+    jr ra
 
 .align 5
 write_coldata: // a1: value

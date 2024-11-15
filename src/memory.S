@@ -118,10 +118,11 @@ write_iomap:
     .word write_bg4vofs, write_vmain, write_vmaddl, write_vmaddh // 0x2114-0x2117
     .word write_vmdatal, write_vmdatah, write_m7sel, write_m7a // 0x2118-0x211B
     .word write_m7b, write_m7c, write_m7d, write_m7x // 0x211C-0x211F
-    .word write_m7y, write_cgadd, write_cgdata, write_unk // 0x2120-0x2123
-    .word write_unk:(0x212B - 0x2123) // 0x2124-0x212B
-    .word write_tm, write_ts, write_unk, write_unk // 0x212C-0x212F
-    .word write_unk, write_cgadsub, write_coldata, write_setini // 0x2130-0x2133
+    .word write_m7y, write_cgadd, write_cgdata, write_w12sel // 0x2120-0x2123
+    .word write_w34sel, write_wobjsel, write_wh0, write_wh1 // 0x2124-0x2127
+    .word write_wh2, write_wh3, write_wbglog, write_wobjlog // 0x2128-0x212B
+    .word write_tm, write_ts, write_tmw, write_tsw // 0x212C-0x212F
+    .word write_cgwsel, write_cgadsub, write_coldata, write_setini // 0x2130-0x2133
     .word write_unk:(0x213F - 0x2133) // 0x2134-0x213F
     .word write_apuio0, write_apuio1, write_apuio2, write_apuio3 // 0x2140-0x2143
     .word write_apuio0, write_apuio1, write_apuio2, write_apuio3 // 0x2144-0x2147

@@ -35,7 +35,7 @@ framebuffer: .word FRAMEBUFFER1, FRAMEBUFFER2
 
 rdp_init:
     // RDP commands that only need to run once
-    .dword 0x3C080E10001C8241 // Set Combine
+    .dword 0x2F0088FF00040001 // Set Other Modes
     .dword 0x39000000FFFFFFFF // Set Blend Color
     .dword 0x3510810000000000 // Set Tile (palette)
     .dword 0x3550000001054150 // Set Tile (block)
@@ -50,14 +50,15 @@ rdp_frame:
     .dword 0x3D10000000000000 // Set Texture Image (palette)
     .dword 0x3300000000400000 // Load Block (palette)
 
-rdp_section:
-    // RDP commands that run when changing the frame section
+rdp_fill:
+    // RDP commands that run when filling the backdrop
     .dword 0x2800000000000000 // Sync Tile
     .dword 0x2D030020004303A0 // Set Scissor
-    .dword 0x3700000000000000 // Set Fill Color
-    .dword 0x2F3088FF00040001 // Set Other Modes (fill)
+    .dword 0x3A00000000000000 // Set Primitive Color
+    .dword 0x3C080E10001D86C3 // Set Combine (primitive)
     .dword 0x3642F3A000030020 // Fill Rectangle
-    .dword 0x2F0088FF00040001 // Set Other Modes (1-cycle)
+    .dword 0x2700000000000000 // Sync Pipe
+    .dword 0x3C080E10001C8241 // Set Combine (texture)
 
 rdp_tile:
     // RDP commands that run when a regular tile is drawn
@@ -111,9 +112,14 @@ obj_sizes:
     .word 0x08081010, 0x08082020, 0x08084040, 0x10102020
     .word 0x10104040, 0x20204040, 0x10202040, 0x10202020
 
-scrn_ofsh: .hword 0x0000, 0x0800, 0x0000, 0x0800 // Horizontal screen address offsets
 scrn_ofsv: .hword 0x0000, 0x0000, 0x0800, 0x1000 // Vertical screen address offsets
+fill_jumps: .word fill_sub, fill_win, fill_notwin, fill_main // Backdrop fill functions
 tile_jumps: .word decode_tile4, decode_tile16, decode_tile256 // Tile decoding functions
+
+// 32-bit constants
+texrec_ofs: .word 0x22020020
+fillrec_mask: .word 0xFF000FFF
+ldblk_bits: .word 0x01000200
 
 // Gap to ensure vector data is aligned
 .byte 0:(VEC_DATA - MAX_OBJECT)
@@ -209,7 +215,7 @@ table_loop:
     // Run the RDP to start the frame
     li a0, RDP_FRAME
     jal rdp_send
-    li a1, RDP_SECTION
+    li a1, RDP_FILL
 
     // Initialize values for finding the first visible object
     li t9, 0x200 // Index
@@ -296,31 +302,107 @@ next_section:
     lw t0, FB_OFFSET(sp)
     add t1, t0, k0
     sll t1, t1, 2
-    sh t1, RDP_SECTION + 10
-    sh t1, RDP_SECTION + 38
+    sh t1, RDP_FILL + 10
+    sh t1, RDP_FILL + 38
     add t2, t0, k1
     sll t2, t2, 2
-    sh t2, RDP_SECTION + 14
-    ori t2, t2, 0xF000
-    sh t2, RDP_SECTION + 34
+    sh t2, RDP_FILL + 14
+    sh t2, RDP_FILL + 34
 
-    // Update the RDP fill color for the section
-    lhu t0, FILL_COLOR
-    andi t1, t0, 0x1
-    beqz t1, no_blank
+    // Set some values for filling the backdrop
+    lw t0, FILLREC_MASK
+    lw t5, RDP_FILL + 36
+    lw t6, RDP_FILL + 32
+    and t5, t5, t0
+    and t6, t6, t0
+    li t7, 0 // Left bound
+    li t8, 255 // Right bound
+    li t9, 0 // Bound index
+
+    // Clear the backdrop if force blank is enabled
+    lbu t4, FORCE_BLANK
+    beqz t4, not_blank
+    li s0, 0
+    b fill_backdrop
+
+not_blank:
+    // Check if color math is enabled for backdrop pixels
+    lbu t0, CGADSUB
+    andi t0, t0, 0x20
+    beqz t0, fill_main
+
+    // Fill the backdrop based the math window, so effects like SMW transitions work
+    // TODO: implement color math properly if possible
+    lbu t0, CGWSEL
+    srl t0, t0, 2
+    andi t0, t0, 0xC
+    lw t0, FILL_JUMPS(t0)
+    jr t0
     nop
-    li t0, 0
-no_blank:
-    sh t0, RDP_SECTION + 20
-    sh t0, RDP_SECTION + 22
 
-    // Run the RDP to prepare the section
-    li a0, RDP_SECTION
+fill_main:
+    // Use the main color first, with or without windows
+    b fill_backdrop
+fill_win:
+    lhu s0, MAIN_COLOR
+    b use_window
+    lhu s1, SUB_COLOR
+
+fill_sub:
+    // Use the sub color first, with or without windows
+    b fill_backdrop
+fill_notwin:
+    lhu s0, SUB_COLOR
+    lhu s1, MAIN_COLOR
+
+use_window:
+    // Calculate window bounds and load the first one
+    lbu a0, WOBJSEL
+    jal calc_windows
+    srl a0, a0, 4
+    lbu t8, WIN_BOUNDS
+
+fill_backdrop:
+    // Update the RDP fill bounds for a window segment
+    addi t1, t7, 12
+    sll t1, t1, 14
+    or t0, t5, t1
+    sw t0, RDP_FILL + 36
+    addi t1, t8, 13
+    sll t1, t1, 14
+    or t0, t6, t1
+    sw t0, RDP_FILL + 32
+
+    // Update the RDP primitive color for the segment
+    andi t0, s0, 0x3E // B
+    sll t0, t0, 10
+    andi t1, s0, 0x7C0 // G
+    sll t1, t1, 13
+    or t0, t0, t1
+    andi t1, s0, 0xF800 // R
+    sll t1, t1, 16
+    or t0, t0, t1
+    ori t0, t0, 0xFF
+    sw t0, RDP_FILL + 20
+
+    // Run the RDP to fill the segment
+    li a0, RDP_FILL
     jal rdp_send
     li a1, RDP_TILE
 
-    // Don't draw any layers if force blank is set
-    bnez t1, next_section
+    // Swap the main and sub colors
+    move t0, s0
+    move s0, s1
+    move s1, t0
+
+    // Move to the next segment until the section is done
+    addi t9, t9, 1
+    move t7, t8
+    bne t7, 255, fill_backdrop
+    lbu t8, WIN_BOUNDS(t9)
+
+    // Don't draw any layers if force blank was set
+    bnez t4, next_section
 
     // Set the initial layer lookup offset
     lbu s3, BG_MODE
@@ -346,6 +428,7 @@ next_layer:
     // Look up the next layer and check if it's BG or OBJ
     // Layers are drawn in an order that mimics priority without slow depth testing
     // This isn't fully accurate; OBJ priority effects like SMB3 pipes won't work
+    // TODO: implement windows for layers
     lbu t0, LAYER_CHART(s3)
     bge t0, 0x80, draw_obj
     addi s3, s3, 1
@@ -469,9 +552,8 @@ load_screen:
 
     // Load a row of BG entries from the second horizontal screen
     addi a0, a0, 0x40
-    andi t0, t2, 0x3
-    sll t0, t0, 1
-    lhu t0, SCRN_OFSH(t0)
+    andi t0, t2, 0x1
+    sll t0, t0, 11
     jal dma_read
     add a1, a1, t0
 
@@ -484,8 +566,8 @@ load_screen:
     addi t2, s0, 12
     sll t2, t2, 14
     or t1, t1, t2 // Upper X
+    lw t2, TEXREC_OFS
     sw t1, RDP_TILE + 28
-    li t2, 0x22020020
     add t1, t1, t2 // Lower X/Y
     sw t1, RDP_TILE + 24
 
@@ -960,8 +1042,8 @@ set_texels:
     // Update the amount of texels the RDP should load to TMEM
     sll t1, v1, 7
     addi t1, t1, -1
+    lw t0, LDBLK_BITS
     sll t1, t1, 12
-    li t0, 0x01000200
     or t0, t0, t1
     sw t0, RDP_TILE7 + 20
 
@@ -1266,8 +1348,8 @@ next_objx:
     andi t7, t7, 0x1FF
     sll t7, t7, 14
     or t0, t6, t7 // Upper X
+    lw t7, TEXREC_OFS
     sw t0, RDP_TILE + 28
-    li t7, 0x22020020
     add t0, t0, t7 // Lower X/Y
     sw t0, RDP_TILE + 24
 
@@ -1385,12 +1467,11 @@ skip_wrap:
     jal dma_write
     li a2, 0x1FF
     b next_layer
-    nop
 
 skip_objdecode:
     // Update the RDP texture address and draw a cached tile
-    li a1, TILE_CACHE_OBJ
     sll t0, s5, 6
+    li a1, TILE_CACHE_OBJ
     add a1, a1, t0
     b draw_objtile
     sw a1, RDP_TILE + 4
@@ -1402,6 +1483,48 @@ next_frame:
     mtc0 t0, COP0_SP_STATUS
     b draw_frame
     xori sp, sp, 4
+
+
+calc_windows: // a0: mask settings
+    // Load offsets where the window area changes
+    lbu t0, WHX + 0
+    lbu t1, WHX + 1
+    li t2, 255
+
+    // Determine window areas based on the mask settings
+    // TODO: support window 2 and combine logic
+    li t3, 2
+    beq a0, t3, win_in
+    li t3, 3
+    beq a0, t3, win_out
+    nop
+
+win_none:
+    // Define the entire screen as non-window area
+    jr ra
+    sb t2, WIN_BOUNDS + 0
+
+win_in:
+    // Define the space between bounds as window area
+    bgt t0, t1, win_none
+    sb t0, WIN_BOUNDS + 0
+    sb t1, WIN_BOUNDS + 1
+    jr ra
+    sb t2, WIN_BOUNDS + 2
+
+win_all:
+    // Define the entire screen as window area
+    jr ra
+    sb t2, WIN_BOUNDS + 1
+
+win_out:
+    // Define the space between bounds as non-window area
+    bgt t0, t1, win_all
+    sb zero, WIN_BOUNDS + 0
+    sb t0, WIN_BOUNDS + 1
+    sb t1, WIN_BOUNDS + 2
+    jr ra
+    sb t2, WIN_BOUNDS + 3
 
 
 multiply: // a0: multiplicand, a1: multiplier - v0: product
@@ -1448,7 +1571,6 @@ max2:
     move v1, a2
 max3:
     jr ra
-    nop
 
 
 dma_write: // a0: RSP address, a1: DRAM address, a2: size
@@ -1477,7 +1599,6 @@ rdp_send: // a0: start address, a1: end address
     mfc0 t0, COP0_DP_STATUS
     andi t0, t0, 0x40 // Command busy
     bnez t0, rdp_send
-    nop
     mtc0 a0, COP0_DP_START
     mtc0 a1, COP0_DP_END
     jr ra

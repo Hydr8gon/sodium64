@@ -40,7 +40,7 @@
 #define SECTION_INC 1
 
 // The frame section data structure's size in bytes
-#define SECTION_SIZE 0x30
+#define SECTION_SIZE 0x40
 
 // Flags for tracking JIT block state
 #define FLAG_SX (1 << 0)
@@ -163,14 +163,25 @@
 #define M7D (M7C + 0x2)
 #define M7X (M7D + 0x2)
 #define M7Y (M7X + 0x2)
-#define FILL_COLOR (M7Y + 0x2)
-#define BGXSC (FILL_COLOR + 0x2)
-#define OBSEL (BGXSC + 0x4)
+#define WBGSEL (M7Y + 0x2)
+#define SUB_COLOR (WBGSEL + 0x2)
+#define MAIN_COLOR (SUB_COLOR + 0x2)
+#define BGXSC (MAIN_COLOR + 0x2)
+#define WHX (BGXSC + 0x4)
+#define OBSEL (WHX + 0x4)
 #define M7SEL (OBSEL + 0x1)
-#define TS (M7SEL + 0x1)
+#define WOBJSEL (M7SEL + 0x1)
+#define WBGLOG (WOBJSEL + 0x1)
+#define WOBJLOG (WBGLOG + 0x1)
+#define CGWSEL (WOBJLOG + 0x1)
+#define CGADSUB (CGWSEL + 0x1)
+#define TS (CGADSUB + 0x1)
 #define TM (TS + 0x1)
-#define BG_MODE (TM + 0x1)
-#define SPLIT_LINE (BG_MODE + 0x1)
+#define TSW (TM + 0x1)
+#define TMW (TSW + 0x1)
+#define BG_MODE (TMW + 0x1)
+#define FORCE_BLANK (BG_MODE + 0x1)
+#define SPLIT_LINE (FORCE_BLANK + 0x1)
 // Start of frame values
 #define MASK_SEL (SPLIT_LINE + 0x1)
 #define FB_OFFSET (MASK_SEL + 0x8)
@@ -184,18 +195,22 @@
 // End of frame values
 #define RDP_INIT (FRAMEBUFFER + 0x8)
 #define RDP_FRAME (RDP_INIT + 0x40)
-#define RDP_SECTION (RDP_FRAME + 0x18)
-#define RDP_TILE (RDP_SECTION + 0x30)
+#define RDP_FILL (RDP_FRAME + 0x18)
+#define RDP_TILE (RDP_FILL + 0x38)
 #define RDP_TILE7 (RDP_TILE + 0x28)
 #define TILE_PARAMS (RDP_TILE7 + 0x78)
 #define LAYER_CHART (TILE_PARAMS + 0x20)
 #define OBJ_SIZES (LAYER_CHART + 0x90)
-#define SCRN_OFSH (OBJ_SIZES + 0x20)
-#define SCRN_OFSV (SCRN_OFSH + 0x8)
-#define TILE_JUMPS (SCRN_OFSV + 0x8)
-#define MAX_OBJECT (TILE_JUMPS + 0xC)
+#define SCRN_OFSV (OBJ_SIZES + 0x20)
+#define FILL_JUMPS (SCRN_OFSV + 0x8)
+#define TILE_JUMPS (FILL_JUMPS + 0x10)
+#define TEXREC_OFS (TILE_JUMPS + 0xC)
+#define FILLREC_MASK (TEXREC_OFS + 0x4)
+#define LDBLK_BITS (FILLREC_MASK + 0x4)
+#define MAX_OBJECT (LDBLK_BITS + 0x4)
 #define WRAP_BOUND (MAX_OBJECT + 0x2)
 #define PRIO_CHECKS (WRAP_BOUND + 0x2)
+#define WIN_BOUNDS (PRIO_CHECKS + 0x8)
 #define VEC_DATA 0xF70
 
 // Macros that convert addresses between cached and uncached
