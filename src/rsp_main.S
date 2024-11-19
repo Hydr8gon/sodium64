@@ -118,9 +118,10 @@ obj_sizes:
     .word 0x10104040, 0x20204040, 0x10202040, 0x10202020
 
 scrn_ofsv: .hword 0x0000, 0x0000, 0x0800, 0x1000 // Vertical screen address offsets
-fill_jumps: .word fill_sub, fill_win, fill_notwin, fill_main // Backdrop fill functions
+fill_jumps: .word fill_backdrop, fill_win, fill_notwin, fill_main // Backdrop fill functions
 tile_jumps: .word decode_tile4, decode_tile16, decode_tile256 // Tile decoding functions
 shared_jumps: .word shared_decode4, shared_decode16, shared_decode256 // Shared decoding functions
+cache_rets: .word get_offsets, check_object // Return addresses after clearing cache
 
 // 32-bit constants
 texrec_ofs: .word 0x22020020
@@ -331,9 +332,11 @@ next_section:
     b fill_backdrop
 
 not_blank:
-    // Check if color math is enabled for backdrop pixels
+    // Check if the sub screen color should be applied to backdrop pixels
+    lhu s0, SUB_COLOR
     lbu t0, CGADSUB
-    andi t0, t0, 0x20
+    beqz s0, fill_main
+    andi t0, t0, 0x20 // Backdrop math
     beqz t0, fill_main
 
     // Fill the backdrop based the math window, so effects like SMW transitions work
@@ -346,18 +349,17 @@ not_blank:
     lbu a0, WOBJSEL
 
 fill_main:
-    // Use the main color first, with or without windows
+    // Use the main color first, without windows
     b fill_backdrop
+
 fill_win:
+    // Use the main color first, with windows
     lhu s0, MAIN_COLOR
     b use_window
     lhu s1, SUB_COLOR
 
-fill_sub:
-    // Use the sub color first, with or without windows
-    b fill_backdrop
 fill_notwin:
-    lhu s0, SUB_COLOR
+    // Use the sub color first, with windows
     lhu s1, MAIN_COLOR
 
 use_window:
@@ -485,8 +487,8 @@ draw_bg:
     sh t0, CACHE_BASES(s2)
 
     // Reset the tile cache if something changed
-    jal clear_cache
-    b get_offsets
+    j clear_cache
+    lw ra, CACHE_RETS + 0
 
 load_cache:
     // Load the previous cache status if it's still valid
@@ -1209,8 +1211,8 @@ below_max:
     sh t0, CACHE_BASES + 8
 
     // Reset the tile cache if something changed
-    jal clear_cache
-    b check_object
+    j clear_cache
+    lw ra, CACHE_RETS + 4
 
 load_objcache:
     // Load the previous cache status if it's still valid
