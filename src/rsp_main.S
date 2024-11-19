@@ -60,6 +60,11 @@ rdp_fill:
     .dword 0x2700000000000000 // Sync Pipe
     .dword 0x3C080E10001C8241 // Set Combine (texture)
 
+rdp_window:
+    // RDP commands that run when changing window segments
+    .dword 0x2800000000000000 // Sync Tile
+    .dword 0x2D030020004303A0 // Set Scissor
+
 rdp_tile:
     // RDP commands that run when a regular tile is drawn
     .dword 0x3D50000300000000 // Set Texture Image (texture)
@@ -115,6 +120,7 @@ obj_sizes:
 scrn_ofsv: .hword 0x0000, 0x0000, 0x0800, 0x1000 // Vertical screen address offsets
 fill_jumps: .word fill_sub, fill_win, fill_notwin, fill_main // Backdrop fill functions
 tile_jumps: .word decode_tile4, decode_tile16, decode_tile256 // Tile decoding functions
+shared_jumps: .word shared_decode4, shared_decode16, shared_decode256 // Shared decoding functions
 
 // 32-bit constants
 texrec_ofs: .word 0x22020020
@@ -163,7 +169,7 @@ main:
 
 draw_frame:
     // Set initial values for copying VRAM
-    la a0, TILE_TABLE
+    li a0, TILE_TABLE
     li a2, 0x3FF
     lw t4, VRAM_ADDRS + 4
     lw t3, VRAM_ADDRS
@@ -227,11 +233,10 @@ table_loop:
 next_visible:
     // Move to the next object until all have been checked
     beqz t9, set_visible
-    nop
+    lw t1, OAM - 4(t9)
     addi t9, t9, -4
 
     // Read the 4 object bytes and additional 2 bits
-    lw t1, OAM(t9)
     srl t2, t9, 4
     lbu t2, OAM + 0x200(t2)
     srl t3, t9, 1
@@ -317,7 +322,7 @@ next_section:
     and t6, t6, t0
     li t7, 0 // Left bound
     li t8, 255 // Right bound
-    li t9, 0 // Bound index
+    li t9, 1 // Bound index
 
     // Clear the backdrop if force blank is enabled
     lbu t4, FORCE_BLANK
@@ -338,7 +343,7 @@ not_blank:
     andi t0, t0, 0xC
     lw t0, FILL_JUMPS(t0)
     jr t0
-    nop
+    lbu a0, WOBJSEL
 
 fill_main:
     // Use the main color first, with or without windows
@@ -357,14 +362,15 @@ fill_notwin:
 
 use_window:
     // Calculate window bounds and load the first one
-    lbu a0, WOBJSEL
     jal calc_windows
     srl a0, a0, 4
-    lbu t8, WIN_BOUNDS
+    lbu t8, WIN_BOUNDS + 1
 
 fill_backdrop:
     // Update the RDP fill bounds for a window segment
+    sltu t0, zero, t7
     addi t1, t7, 12
+    add t1, t1, t0
     sll t1, t1, 14
     or t0, t5, t1
     sw t0, RDP_FILL + 36
@@ -388,7 +394,7 @@ fill_backdrop:
     // Run the RDP to fill the segment
     li a0, RDP_FILL
     jal rdp_send
-    li a1, RDP_TILE
+    li a1, RDP_WINDOW
 
     // Swap the main and sub colors
     move t0, s0
@@ -428,7 +434,6 @@ next_layer:
     // Look up the next layer and check if it's BG or OBJ
     // Layers are drawn in an order that mimics priority without slow depth testing
     // This isn't fully accurate; OBJ priority effects like SMB3 pipes won't work
-    // TODO: implement windows for layers
     lbu t0, LAYER_CHART(s3)
     bge t0, 0x80, draw_obj
     addi s3, s3, 1
@@ -465,8 +470,7 @@ draw_bg:
     // Set parameters based on the BG type
     srl t2, t0, 2
     andi s4, t2, 0x3
-    sll t1, s4, 2
-    lw t9, TILE_JUMPS - 4(t1) // Code path
+    sll t9, s4, 2 // Jump index
     addi s4, s4, 3 // Character shift
 
     // Check if the BG type or character base changed
@@ -481,13 +485,7 @@ draw_bg:
     sh t0, CACHE_BASES(s2)
 
     // Reset the tile cache if something changed
-    li t0, TILE_TABLE
-    li t1, VRAM_TABLE
-clear_cache:
-    sqv $v31, 0, 0x00, t0
-    addi t0, t0, 0x20
-    bne t0, t1, clear_cache
-    sqv $v31, 0, -0x10, t0
+    jal clear_cache
     b get_offsets
 
 load_cache:
@@ -574,6 +572,62 @@ load_screen:
     // Load the draw command for X-coordinate adjustments
     li v0, RDP_TILE + 24
     ldv $v15, 0, 0x00, v0
+
+    // Check if windows are enabled for the layer
+    // TODO: do something better than combining masks?
+    lbu t0, TMW
+    lbu t1, TSW
+    srl t2, s2, 1
+    li t3, 1
+    or t0, t0, t1
+    sll t1, t3, t2
+    and t0, t0, t1
+    bnez t0, bg_windows
+    li t8, 0 // Bound index
+
+    // Draw the entire layer if windows are disabled
+    li t0, 255
+    b next_tile
+    sb t0, WIN_BOUNDS + 1
+
+bg_windows:
+    // Calculate window segments for the layer
+    lhu t0, WBGSEL
+    sll t1, s2, 1
+    srl t0, t0, t1
+    jal calc_windows
+    andi a0, t0, 0xF
+
+    // Skip the first segment if it's empty
+    lbu t0, WIN_BOUNDS + 1
+    beqz t0, finish_segment
+
+next_segment:
+    // Set some values for updating segment bounds
+    lw t0, FILLREC_MASK
+    lw t6, RDP_FILL + 8
+    lw t7, RDP_FILL + 12
+    and t6, t6, t0
+    and t7, t7, t0
+    lbu t2, WIN_BOUNDS + 0(t8)
+    lbu t3, WIN_BOUNDS + 1(t8)
+
+    // Update the RDP scissor bounds for a window segment
+    sltu t0, zero, t2
+    addi t2, t2, 12
+    add t2, t2, t0
+    sll t2, t2, 14
+    or t0, t6, t2
+    sw t0, RDP_WINDOW + 8
+    addi t3, t3, 13
+    sll t3, t3, 14
+    or t0, t7, t3
+    sw t0, RDP_WINDOW + 12
+
+    // Run the RDP to update the segment bounds
+    li a0, RDP_WINDOW
+    jal rdp_send
+    li a1, RDP_TILE
 
 next_tile:
     // Update the RDP draw command for the next tile in the row
@@ -668,122 +722,33 @@ check_cache:
     jal dma_read
     li a2, 0x3F
 
-    // Set initial values and jump to the tile decoder
-    li t7, 0x40 // Texture offset
-    vand $v10, $v10, $v31, 0 // Empty check
-    jr t9
-    li t8, CHAR_DATA + 0xE // Character offset
-
-decode_tile4:
-    // Set the 4-color palette offset
-    sll t0, t2, 5
-    mtc2 t0, $v05, 0 // Palette offset
-
-loop_tile4:
-    // Prepare 4-color tile data for decoding
-    lpv $v03, 0, 0x00, t8 // Upper/lower byte 1 to lane 0/1, bits 8-15
-
-    // Decode the palette indices
-    vand $v01, $v24, $v03, 9 // Mask out other lower bits
-    vand $v02, $v24, $v03, 8 // Mask out other upper bis
-    vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 0
-    vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 1
-    vor $v02, $v03, $v04, 0 // Combine bits to form indices
-    vmudn $v02, $v02, $v25, 0 // Shift to upper byte
-
-    // Add palette offset to non-zero indices and move to the next line
-    veq $v00, $v02, $v31, 0
-    addi t7, t7, -0x8
-    vmrg $v00, $v02, $v05, 8
-    addi t8, t8, -0x2
-    vadd $v02, $v02, $v00, 0
-
-    // Write the line to the texture buffer and loop until complete
-    vor $v10, $v10, $v02, 0
-    bnez t7, loop_tile4
-    spv $v02, 0, 0, t7
-    b cache_tile
-
-decode_tile16:
-    // Set the 16-color palette offset
-    sll t0, t2, 7
-    mtc2 t0, $v05, 0 // Palette offset
-
-loop_tile16:
-    // Prepare 16-color tile data for decoding
-    lpv $v03, 0, 0x00, t8 // Upper/lower byte 1 to lane 0/1, bits 8-15
-    lpv $v13, 0, 0x10, t8 // Upper/lower byte 2 to lane 0/1, bits 8-15
-
-    // Decode the palette indices
-    vand $v01, $v24, $v03, 9 // Mask out other lower bits
-    vand $v02, $v24, $v03, 8 // Mask out other upper bis
-    vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 0
-    vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 1
-    vor $v02, $v03, $v04, 0 // Combine bits to form partial indices
-    vand $v11, $v24, $v13, 9 // Mask out other lower bits
-    vand $v12, $v24, $v13, 8 // Mask out other upper bits
-    vmudl $v13, $v28, $v11, 0 // Shift lower bits to bit 2
-    vmudl $v14, $v29, $v12, 0 // Shift upper bits to bit 3
-    vor $v12, $v13, $v14, 0 // Combine bits to form partial indices
-    vor $v01, $v12, $v02, 0 // Combine partial indices
-    vmudn $v01, $v01, $v25, 0 // Shift to upper byte
-
-    // Add palette offset to non-zero indices and move to the next line
-    veq $v00, $v01, $v31, 0
-    addi t7, t7, -0x8
-    vmrg $v00, $v01, $v05, 8
-    addi t8, t8, -0x2
-    vadd $v02, $v01, $v00, 0
-
-    // Write the line to the texture buffer and loop until complete
-    vor $v10, $v10, $v02, 0
-    bnez t7, loop_tile16
-    spv $v02, 0, 0, t7
-    b cache_tile
+    // Look up function jumps for the tile type
+    lw t0, TILE_JUMPS - 4(t9)
+    jr t0
+    lw t4, SHARED_JUMPS - 4(t9)
 
 decode_tile256:
-    // Prepare 256-color tile data for decoding
-    lpv $v03, 0, 0x00, t8 // Upper/lower byte 1 to lane 0/1, bits 8-15
-    lpv $v13, 0, 0x10, t8 // Upper/lower byte 2 to lane 0/1, bits 8-15
-    lpv $v08, 0, 0x20, t8 // Upper/lower byte 3 to lane 0/1, bits 8-15
-    lpv $v18, 0, 0x30, t8 // Upper/lower byte 4 to lane 0/1, bits 8-15
+    // Clear the palette offset for 256-color tiles
+    b decode_tile
+    mtc2 zero, $v05, 0
 
-    // Decode the palette indices
-    vand $v01, $v24, $v03, 9 // Mask out other lower bits
-    vand $v02, $v24, $v03, 8 // Mask out other upper bis
-    vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 0
-    vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 1
-    vor $v02, $v03, $v04, 0 // Combine bits to form partial indices
-    vand $v11, $v24, $v13, 9 // Mask out other lower bits
-    vand $v12, $v24, $v13, 8 // Mask out other upper bits
-    vmudl $v13, $v28, $v11, 0 // Shift lower bits to bit 2
-    vmudl $v14, $v29, $v12, 0 // Shift upper bits to bit 3
-    vor $v12, $v13, $v14, 0 // Combine bits to form partial indices
-    vor $v06, $v12, $v02, 0 // Combine partial indices
-    vand $v01, $v24, $v08, 9 // Mask out other lower bits
-    vand $v02, $v24, $v08, 8 // Mask out other upper bis
-    vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 0
-    vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 1
-    vor $v02, $v03, $v04, 0 // Combine bits to form partial indices
-    vand $v11, $v24, $v18, 9 // Mask out other lower bits
-    vand $v12, $v24, $v18, 8 // Mask out other upper bits
-    vmudl $v13, $v28, $v11, 0 // Shift lower bits to bit 2
-    vmudl $v14, $v29, $v12, 0 // Shift upper bits to bit 3
-    vor $v12, $v13, $v14, 0 // Combine bits to form partial indices
-    vor $v07, $v12, $v02, 0 // Combine partial indices
-    vmudn $v07, $v07, $v30, 0 // Shift upper indices left
-    vor $v00, $v06, $v07, 0 // Combine indices
-    vmudn $v00, $v00, $v25, 0 // Shift to upper byte
+decode_tile16:
+    // Set the palette offset for 16-color tiles
+    sll t0, t2, 7
+    b decode_tile
+    mtc2 t0, $v05, 0
 
-    // Write the line to the texture buffer and loop until complete
-    vor $v10, $v10, $v00, 0
-    addi t7, t7, -0x8
-    spv $v00, 0, 0, t7
-    bnez t7, decode_tile256
-    addi t8, t8, -0x2
+decode_tile4:
+    // Set the palette offset for 4-color tiles
+    sll t0, t2, 5
+    mtc2 t0, $v05, 0
 
-cache_tile:
-    // Mark a tile as empty if it has no visible pixels
+decode_tile:
+    // Decode a tile using the shared function
+    jal shared_decode
+    nop
+
+    // Mark the tile as empty if it has no visible pixels
     li t0, 0xFF0
     sqv $v10, 0, 0, t0
     lw t1, 0x0(t0)
@@ -817,13 +782,30 @@ draw_tile:
     li a1, RDP_TILE7
 
 finish_tile:
-    // Move to the next tile of the row until finished
-    blt s0, 248, next_tile
+    // Move to the next tile until the end of the segment
+    lbu t0, WIN_BOUNDS + 1(t8)
+    addi t0, t0, -7
+    blt s0, t0, next_tile
     addi s0, s0, 8
+    beq t0, 248, finish_row
 
+finish_segment:
+    // Move to the next visible segment until finished
+    lbu t2, WIN_BOUNDS + 2(t8)
+    beq t2, 255, finish_row
+    addi t8, t8, 2
+    b next_segment
+    nop
+
+finish_row:
     // Move to the next row of the BG until finished
     addi s1, s1, 8
     blt s1, k1, draw_row
+
+    // Run the RDP to restore scissor bounds for other layers
+    li a0, RDP_FILL
+    jal rdp_send
+    li a1, RDP_FILL + 16
 
     // Update the BG's tile cache status when finished
     li a0, TILE_TABLE
@@ -833,12 +815,6 @@ finish_tile:
     jal dma_write
     li a2, 0x3FF
     b next_layer
-    nop
-
-skip_priority:
-    // Track that a tile was skipped due to priority
-    b finish_tile
-    sh t0, PRIO_CHECKS(s2)
 
 skip_decode:
     // Update the RDP texture address and draw a cached tile
@@ -850,6 +826,11 @@ skip_decode:
     b draw_tile
     sw a1, RDP_TILE + 4
 
+skip_priority:
+    // Track that a tile was skipped due to priority
+    b finish_tile
+    sh t0, PRIO_CHECKS(s2)
+
 skip_upload:
     // Run the RDP to draw a tile, skipping texture upload
     li a0, RDP_TILE + 24
@@ -860,6 +841,7 @@ skip_upload:
 
 draw_mode7:
     // Skip the layer if the BG is disabled
+    // TODO: implement windows for mode 7
     andi t1, s7, 0x1
     beqz t1, next_layer
 
@@ -920,13 +902,12 @@ draw_mode7:
     sll t0, s4, 13
     sh t0, RDP_TILE7 + 96 // S-gradient along Y (frac)
     sll t1, s6, 13
-    sh t1, RDP_TILE7 + 98 // T-gradient along Y (frac)
 
     // Determine mode 7 tile height from the lower section bound
     sub a3, k1, s1
     addi a3, a3, -1
     bltu a3, 7, calc_bounds
-    nop
+    sh t1, RDP_TILE7 + 98 // T-gradient along Y (frac)
     li a3, 7
 
 calc_bounds:
@@ -1197,6 +1178,7 @@ finish_tile7:
 
 draw_obj:
     // Skip the layer if objects are disabled
+    // TODO: implement windows for objects
     andi t1, s7, 0x10
     beqz t1, next_layer
     andi a3, t0, 0x3 // Priority
@@ -1205,37 +1187,29 @@ draw_obj:
     lhu t9, OAMADD
     andi v1, t9, 0x8000
     beqz v1, no_rotate
-    nop
+    lhu t0, MAX_OBJECT
     sll v1, t9, 1
 no_rotate:
     addi v1, v1, -4
     andi v1, v1, 0x1FC
 
     // Ensure the index is within visible object range
-    lhu t0, MAX_OBJECT
     blt v1, t0, below_max
-    nop
+    lbu t1, OBSEL
     move v1, t0
 below_max:
     move t9, v1
 
     // Check if the object character base changed
     // TODO: use the gap setting
-    lbu t0, OBSEL
     lhu t2, CACHE_BASES + 8
-    andi t0, t0, 0x3
+    andi t0, t1, 0x3
     sll t0, t0, 14
     beq t0, t2, load_objcache
     sh t0, CACHE_BASES + 8
 
     // Reset the tile cache if something changed
-    li t0, TILE_TABLE
-    li t2, VRAM_TABLE
-clear_objcache:
-    sqv $v31, 0, 0x00, t0
-    addi t0, t0, 0x20
-    bne t0, t2, clear_objcache
-    sqv $v31, 0, -0x10, t0
+    jal clear_cache
     b check_object
 
 load_objcache:
@@ -1385,40 +1359,9 @@ check_objcache:
     jal dma_read
     li a2, 0x1F
 
-    // Set initial values for drawing the tile
-    li t7, 0 // Texture offset
-    li t8, CHAR_DATA // Character offset
-
-decode_object:
-    // Prepare 16-color tile data for decoding
-    lpv $v03, 0, 0x00, t8 // Upper/lower byte 1 to lane 0/1, bits 8-15
-    lpv $v13, 0, 0x10, t8 // Upper/lower byte 2 to lane 0/1, bits 8-15
-
-    // Decode the palette indices
-    vand $v01, $v24, $v03, 9 // Mask out other lower bits
-    vand $v02, $v24, $v03, 8 // Mask out other upper bis
-    vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 0
-    vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 1
-    vor $v02, $v03, $v04, 0 // Combine bits to form partial indices
-    vand $v11, $v24, $v13, 9 // Mask out other lower bits
-    vand $v12, $v24, $v13, 8 // Mask out other upper bits
-    vmudl $v13, $v28, $v11, 0 // Shift lower bits to bit 2
-    vmudl $v14, $v29, $v12, 0 // Shift upper bits to bit 3
-    vor $v12, $v13, $v14, 0 // Combine bits to form partial indices
-    vor $v01, $v12, $v02, 0 // Combine partial indices
-    vmudn $v01, $v01, $v25, 0 // Shift to upper byte
-
-    // Add palette offset to non-zero indices and move to the next line
-    veq $v00, $v01, $v31, 0
-    addi t7, t7, 0x8
-    vmrg $v00, $v01, $v05, 8
-    addi t8, t8, 0x2
-    vadd $v02, $v01, $v00, 0
-
-    // Write the line to the texture buffer and loop until complete
-    andi t5, t8, 0xF
-    bnez t5, decode_object
-    spv $v02, 0, -0x8, t7
+    // Decode a tile using the shared 16-color path
+    jal shared_decode
+    lw t4, SHARED_JUMPS + 4
 
     // DMA the texture to the tile cache in RDRAM
     li a0, TEXTURE
@@ -1485,6 +1428,79 @@ next_frame:
     xori sp, sp, 4
 
 
+clear_cache:
+    // Clear the tile cache
+    li t0, TILE_TABLE
+    li t2, VRAM_TABLE
+cache_loop:
+    sqv $v31, 0, 0x00, t0
+    addi t0, t0, 0x20
+    bne t0, t2, cache_loop
+    sqv $v31, 0, -0x10, t0
+    jr ra
+
+
+shared_decode: // t4: decode jump
+    // Set initial values for decoding a tile
+    li t7, 0x40 // Texture offset
+    li t1, CHAR_DATA + 0xE // Character offset
+    vand $v10, $v10, $v31, 0 // Empty check
+    jr t4
+    vand $v20, $v20, $v31, 0
+
+shared_decode256:
+    // Decode the upper 4 bits of a 256-color tile line
+    lpv $v08, 0, 0x20, t1 // Upper/lower byte 3 to lane 0/1, bits 8-15
+    lpv $v18, 0, 0x30, t1 // Upper/lower byte 4 to lane 0/1, bits 8-15
+    vand $v01, $v24, $v08, 9 // Mask out other lower bits
+    vand $v02, $v24, $v08, 8 // Mask out other upper bis
+    vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 0
+    vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 1
+    vor $v02, $v03, $v04, 0 // Combine bits to form partial indices
+    vand $v11, $v24, $v18, 9 // Mask out other lower bits
+    vand $v12, $v24, $v18, 8 // Mask out other upper bits
+    vmudl $v13, $v28, $v11, 0 // Shift lower bits to bit 2
+    vmudl $v14, $v29, $v12, 0 // Shift upper bits to bit 3
+    vor $v12, $v13, $v14, 0 // Combine bits to form partial indices
+    vor $v07, $v12, $v02, 0 // Combine partial indices
+    vmudn $v20, $v07, $v30, 0 // Shift upper indices left
+
+shared_decode16:
+    // Decode the upper 2 bits of a 16-color tile line
+    lpv $v13, 0, 0x10, t1 // Upper/lower byte 2 to lane 0/1, bits 8-15
+    vand $v11, $v24, $v13, 9 // Mask out other lower bits
+    vand $v12, $v24, $v13, 8 // Mask out other upper bits
+    vmudl $v13, $v28, $v11, 0 // Shift lower bits to bit 2
+    vmudl $v14, $v29, $v12, 0 // Shift upper bits to bit 3
+    vor $v12, $v13, $v14, 0 // Combine bits to form partial indices
+    vor $v20, $v20, $v12, 0 // Combine partial indices
+
+shared_decode4:
+    // Decode the lower 2 bits of a 4-color tile line
+    lpv $v03, 0, 0x00, t1 // Upper/lower byte 1 to lane 0/1, bits 8-15
+    vand $v01, $v24, $v03, 9 // Mask out other lower bits
+    vand $v02, $v24, $v03, 8 // Mask out other upper bis
+    vmudl $v03, $v26, $v01, 0 // Shift lower bits to bit 0
+    vmudl $v04, $v27, $v02, 0 // Shift upper bits to bit 1
+    vor $v02, $v03, $v04, 0 // Combine bits to form partial indices
+    vor $v20, $v20, $v02, 0 // Combine partial indices
+    vmudn $v01, $v20, $v25, 0 // Shift to upper byte
+
+    // Add palette offset to non-zero indices and move to the next line
+    veq $v00, $v01, $v31, 0
+    addi t7, t7, -0x8
+    vmrg $v00, $v01, $v05, 8
+    addi t1, t1, -0x2
+    vadd $v02, $v01, $v00, 0
+
+    // Write the line to the texture buffer and loop until complete
+    vand $v20, $v20, $v31, 0
+    vor $v10, $v10, $v02, 0
+    beqz t7, max3
+    spv $v02, 0, 0, t7
+    jr t4
+
+
 calc_windows: // a0: mask settings
     // Load offsets where the window area changes
     lbu t0, WHX + 0
@@ -1502,29 +1518,29 @@ calc_windows: // a0: mask settings
 win_none:
     // Define the entire screen as non-window area
     jr ra
-    sb t2, WIN_BOUNDS + 0
+    sb t2, WIN_BOUNDS + 1
 
 win_in:
     // Define the space between bounds as window area
     bgt t0, t1, win_none
-    sb t0, WIN_BOUNDS + 0
-    sb t1, WIN_BOUNDS + 1
-    jr ra
-    sb t2, WIN_BOUNDS + 2
-
-win_all:
-    // Define the entire screen as window area
-    jr ra
-    sb t2, WIN_BOUNDS + 1
-
-win_out:
-    // Define the space between bounds as non-window area
-    bgt t0, t1, win_all
-    sb zero, WIN_BOUNDS + 0
     sb t0, WIN_BOUNDS + 1
     sb t1, WIN_BOUNDS + 2
     jr ra
     sb t2, WIN_BOUNDS + 3
+
+win_all:
+    // Define the entire screen as window area
+    jr ra
+    sb t2, WIN_BOUNDS + 2
+
+win_out:
+    // Define the space between bounds as non-window area
+    bgt t0, t1, win_all
+    sb zero, WIN_BOUNDS + 1
+    sb t0, WIN_BOUNDS + 2
+    sb t1, WIN_BOUNDS + 3
+    jr ra
+    sb t2, WIN_BOUNDS + 4
 
 
 multiply: // a0: multiplicand, a1: multiplier - v0: product
