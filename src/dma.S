@@ -17,7 +17,7 @@
     along with sodium64. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "memory.h"
+#include "macros.h"
 
 .globl reload_hdma
 .globl trigger_hdma

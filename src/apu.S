@@ -91,14 +91,13 @@ write_iomap:
     .word write_t2div, write_unk, write_unk, write_unk // 0xFC-0xFF
 
 .text
+.set noreorder
 
 .align 5
 apu_execute:
-    // Generate a DSP sample once enough cycles have passed
-    ble s3, a3, dsp_sample
-
     // Compile a new JIT block if one doesn't exist for the current PC
     lhu s0, apu_count
+    ble s3, a3, dsp_sample // Check if the DSP should run
     sll t0, s0, 2
     lw t0, jit_lookup(t0)
     beqz t0, compile_block
@@ -118,19 +117,21 @@ apu_execute:
     // Jump to a cached JIT block's code
     addi t0, t0, 12
     jr t0
+    nop
 
 .align 5
 apu_read8: // a0: address - v0: value
-    // Read a byte from memory and decrease the APU cycle count
+    // Read a byte from APU memory
     srl t0, a0, 6
     lbu t1, apu_map(t0)
-    addi s3, s3, -APU_CYCLE
+    andi t2, a0, 0xFFF0
     add t0, a0, t1
     lbu v0, apu_ram(t0)
 
-    // Check if the address is an I/O port
-    andi t0, a0, 0xFFF0
-    beq t0, 0xF0, io_read8
+    // Check if the address is an I/O port and decrease the cycle count
+    beq t2, 0xF0, io_read8
+    addi s3, s3, -APU_CYCLE
+read_unk: // Unknown I/O register read; do nothing
     jr ra
 
 io_read8:
@@ -139,16 +140,12 @@ io_read8:
     sll t0, t0, 2 // Word offset
     lw t0, read_iomap(t0)
     jr t0
-
-read_unk:
-    // Unknown I/O register read; do nothing
-    jr ra
+    nop
 
 .align 5
 apu_write8: // a0: address, a1: value
-    // Write a byte to memory and decrease the APU cycle count
+    // Write a byte to APU memory
     sb a1, apu_ram(a0)
-    addi s3, s3, -APU_CYCLE
 
     // Increment the memory block's tag to indicate change
     srl t0, a0, 6
@@ -157,9 +154,11 @@ apu_write8: // a0: address, a1: value
     addi t1, t1, 1
     sw t1, jit_tags(t0)
 
-    // Check if the address is an I/O port
-    andi t0, a0, 0xFFF0
-    beq t0, 0xF0, io_write8
+    // Check if the address is an I/O port and decrease the cycle count
+    andi t2, a0, 0xFFF0
+    beq t2, 0xF0, io_write8
+    addi s3, s3, -APU_CYCLE
+write_unk:// Unknown I/O register write; do nothing
     jr ra
 
 io_write8:
@@ -168,10 +167,7 @@ io_write8:
     sll t0, t0, 2 // Word offset
     lw t0, write_iomap(t0)
     jr t0
-
-write_unk:
-    // Unknown I/O register write; do nothing
-    jr ra
+    nop
 
 .align 5
 update_overflows:
@@ -182,6 +178,7 @@ update_overflows:
     li t1, INT_MIN
     sw t1, apu_ocycles + 0
     b overflow_timer1
+    nop
 
 stamp_timer0:
     // Update the overflow timestamp for timer 0
@@ -205,6 +202,7 @@ overflow_timer1:
     li t1, INT_MIN
     sw t1, apu_ocycles + 4
     b overflow_timer2
+    nop
 
 stamp_timer1:
     // Update the overflow timestamp for timer 1
@@ -228,6 +226,7 @@ overflow_timer2:
     li t1, INT_MIN
     sw t1, apu_ocycles + 8
     jr ra
+    nop
 
 stamp_timer2:
     // Update the overflow timestamp for timer 2
@@ -244,6 +243,7 @@ stamp_timer2:
     sub t1, t1, t2
     sw t1, apu_ocycles + 8
     jr ra
+    nop
 
 .align 5
 update_timers:
@@ -252,6 +252,7 @@ update_timers:
     sub t0, t1, s3 // Cycles since last update
     li t1, APU_TIMER2 // Cycles per timer tick
     blt t0, t1, early_exit
+    nop
     div t0, t1
     mflo t6 // Ticks passed
     mfhi t1 // Cycles since latest tick
@@ -268,6 +269,7 @@ loop_timer2:
     // Check if timer 2 will overflow
     lw t0, apu_ocycles + 8
     bgt s3, t0, inc_timer2
+    nop
 
     // Adjust the ticks left for after overflow
     lbu t1, apu_timers + 2
@@ -295,6 +297,7 @@ loop_timer2:
     sub t0, t0, t2
     sw t0, apu_ocycles + 8
     b loop_timer2
+    nop
 
 inc_timer2:
     // Increment timer 2 without overflow
@@ -308,6 +311,7 @@ update_timer0:
     sub t0, t1, s3 // Cycles since last update
     li t1, APU_TIMER1 // Cycles per timer tick
     blt t0, t1, early_exit
+    nop
     div t0, t1
     mflo t6 // Ticks passed
     mfhi t1 // Cycles since latest tick
@@ -323,6 +327,7 @@ loop_timer0:
     // Check if timer 0 will overflow
     lw t0, apu_ocycles + 0
     bgt s3, t0, inc_timer0
+    nop
 
     // Adjust the ticks left for after overflow
     lbu t1, apu_timers + 0
@@ -350,6 +355,7 @@ loop_timer0:
     sub t0, t0, t2
     sw t0, apu_ocycles + 0
     b loop_timer0
+    nop
 
 inc_timer0:
     // Increment timer 0 without overflow
@@ -367,6 +373,7 @@ loop_timer1:
     // Check if timer 1 will overflow
     lw t0, apu_ocycles + 4
     bgt s3, t0, inc_timer1
+    nop
 
     // Adjust the ticks left for after overflow
     lbu t1, apu_timers + 1
@@ -394,6 +401,7 @@ loop_timer1:
     sub t0, t0, t2
     sw t0, apu_ocycles + 4
     b loop_timer1
+    nop
 
 inc_timer1:
     // Increment timer 1 without overflow
@@ -402,6 +410,7 @@ inc_timer1:
     sb t0, apu_timers + 1
 early_exit:
     jr ra
+    nop
 
 .align 5
 offset_timers: // a0: cycles
@@ -436,30 +445,35 @@ offset2:
     sw t4, 8(t0)
 offset3:
     jr ra
+    nop
 
 .align 5
 read_cpuio0: // v0: value
     // Read APU input communication value 0
     lbu v0, apu_inputs + 0
     jr ra
+    nop
 
 .align 5
 read_cpuio1: // v0: value
     // Read APU input communication value 1
     lbu v0, apu_inputs + 1
     jr ra
+    nop
 
 .align 5
 read_cpuio2: // v0: value
     // Read APU input communication value 2
     lbu v0, apu_inputs + 2
     jr ra
+    nop
 
 .align 5
 read_cpuio3: // v0: value
     // Read APU input communication value 3
     lbu v0, apu_inputs + 3
     jr ra
+    nop
 
 .align 5
 read_t0out: // v0: value
@@ -468,6 +482,7 @@ read_t0out: // v0: value
     bgt s3, t0, end_t0out
     move gp, ra
     jal update_timers
+    nop
     move ra, gp
 
 end_t0out:
@@ -475,6 +490,7 @@ end_t0out:
     lbu v0, apu_tmouts + 0
     sb zero, apu_tmouts + 0
     jr ra
+    nop
 
 .align 5
 read_t1out: // v0: value
@@ -483,6 +499,7 @@ read_t1out: // v0: value
     bgt s3, t0, end_t1out
     move gp, ra
     jal update_timers
+    nop
     move ra, gp
 
 end_t1out:
@@ -490,6 +507,7 @@ end_t1out:
     lbu v0, apu_tmouts + 1
     sb zero, apu_tmouts + 1
     jr ra
+    nop
 
 .align 5
 read_t2out: // v0: value
@@ -505,12 +523,14 @@ end_t2out:
     lbu v0, apu_tmouts + 2
     sb zero, apu_tmouts + 2
     jr ra
+    nop
 
 .align 5
 write_control: // a1: value
     // Update timers and write to the APU control register
     move gp, ra
     jal update_timers
+    nop
     lbu t0, apu_control
     move ra, gp
     sb a1, apu_control
@@ -528,16 +548,19 @@ write_control: // a1: value
     and t1, t1, a1
     andi t0, t1, 0x1
     beqz t0, timer1
+    nop
     sb zero, apu_timers + 0
     sb zero, apu_tmouts + 0
 timer1:
     andi t0, t1, 0x2
     beqz t0, timer2
+    nop
     sb zero, apu_timers + 1
     sb zero, apu_tmouts + 1
 timer2:
     andi t0, t1, 0x4
     beqz t0, reset0
+    nop
     sb zero, apu_timers + 2
     sb zero, apu_tmouts + 2
 
@@ -545,10 +568,12 @@ reset0:
     // Clear the first/last 2 input latches if bit 4/5 is set
     andi t0, a1, 0x10
     beqz t0, reset1
+    nop
     sh zero, apu_inputs + 0
 reset1:
     andi t0, a1, 0x20
     beqz t0, reset2
+    nop
     sh zero, apu_inputs + 2
 reset2:
     j update_overflows
@@ -558,96 +583,111 @@ write_cpuio0: // a1: value
     // Write APU output communication value 0
     sb a1, apu_outputs + 0
     jr ra
+    nop
 
 .align 5
 write_cpuio1: // a1: value
     // Write APU output communication value 1
     sb a1, apu_outputs + 1
     jr ra
+    nop
 
 .align 5
 write_cpuio2: // a1: value
     // Write APU output communication value 2
     sb a1, apu_outputs + 2
     jr ra
+    nop
 
 .align 5
 write_cpuio3: // a1: value
     // Write APU output communication value 3
     sb a1, apu_outputs + 3
     jr ra
+    nop
 
 .align 5
 write_t0div: // a1: value
     // Update timers and write timer 0's divider value
     move gp, ra
     jal update_timers
+    nop
     sb a1, apu_tmdivs + 0
-    move ra, gp
     j update_overflows
+    move ra, gp
 
 .align 5
 write_t1div: // a1: value
     // Update timers and write timer 1's divider value
     move gp, ra
     jal update_timers
+    nop
     sb a1, apu_tmdivs + 1
-    move ra, gp
     j update_overflows
+    move ra, gp
 
 .align 5
 write_t2div: // a1: value
     // Update timers and write timer 2's divider value
     move gp, ra
     jal update_timers
+    nop
     sb a1, apu_tmdivs + 2
-    move ra, gp
     j update_overflows
+    move ra, gp
 
 .align 5
 read_apuio0: // v0: value
     // Read APU output communication value 0
     lbu v0, apu_outputs + 0
     jr ra
+    nop
 
 .align 5
 read_apuio1: // v0: value
     // Read APU output communication value 0
     lbu v0, apu_outputs + 1
     jr ra
+    nop
 
 .align 5
 read_apuio2: // v0: value
     // Read APU output communication value 0
     lbu v0, apu_outputs + 2
     jr ra
+    nop
 
 .align 5
 read_apuio3: // v0: value
     // Read APU output communication value 0
     lbu v0, apu_outputs + 3
     jr ra
+    nop
 
 .align 5
 write_apuio0: // a1: value
     // Write APU input communication value 0
     sb a1, apu_inputs + 0
     jr ra
+    nop
 
 .align 5
 write_apuio1: // a1: value
     // Write APU input communication value 1
     sb a1, apu_inputs + 1
     jr ra
+    nop
 
 .align 5
 write_apuio2: // a1: value
     // Write APU input communication value 2
     sb a1, apu_inputs + 2
     jr ra
+    nop
 
 .align 5
 write_apuio3: // a1: value
     // Write APU input communication value 3
     sb a1, apu_inputs + 3
     jr ra
+    nop

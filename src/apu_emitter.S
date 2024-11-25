@@ -17,7 +17,7 @@
     along with sodium64. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "defines.h"
+#include "macros.h"
 
 .globl jit_tags
 .globl jit_lookup
@@ -112,6 +112,7 @@ jit_opcodes: // Lookup table for addressing and operation functions
     .word apu_incy, 0,  apu_movya, 0,  apu_dbnzy, 0,  apu_unk, 0 // 0xFC-0xFF
 
 .text
+.set noreorder
 
 .align 5
 jit_read8: // a0: address - v0: value
@@ -121,8 +122,8 @@ jit_read8: // a0: address - v0: value
     addi s2, s2, -APU_CYCLE
     add t0, a0, t1
     lbu v0, apu_ram(t0)
-    addi a0, a0, 1
     jr ra
+    addi a0, a0, 1
 
 .align 5
 compile_block:
@@ -143,10 +144,10 @@ compile_block:
     // Check JIT bounds and invalidate data cache for the header
     li a2, ROM_BUFFER // Bounds
     bge a1, a2, reset_buffer
+    srl t1, a0, 6
     cache 0x11, CACHED(0)(t0)
 
     // Set the start memory block and tag in the JIT header
-    srl t1, a0, 6
     sll t1, t1, 2
     sh t1, 0(t0)
     lw t1, jit_tags(t1)
@@ -155,19 +156,23 @@ compile_block:
 next_opcode:
     // Read an opcode from memory and jump to its functions
     jal jit_read8
+    nop
     sll v1, v0, 3
     lw t1, jit_opcodes + 0(v1)
     lw gp, jit_opcodes + 4(v1)
     jr t1
+    nop
 
 .align 5
 finish_opcode:
     // Compile another opcode if the limit hasn't been reached
     blt a0, t9, next_opcode
+    nop
 
 finish_block:
     // Update NZ flags at the end of a block
     jal update_nz
+    nop
 
     // Emit code to store register X if enabled
     andi t0, s1, FLAG_SX
@@ -175,6 +180,7 @@ finish_block:
     li t3, SB(T9, 0, 0)
     la t4, apu_reg_x
     jal full_address
+    nop
 
 skip_sx:
     // Emit code to store register Y if enabled
@@ -183,6 +189,7 @@ skip_sx:
     li t3, SB(T8, 0, 0)
     la t4, apu_reg_y
     jal full_address
+    nop
 
 skip_sy:
     // Emit code to store the accumulator if enabled
@@ -191,6 +198,7 @@ skip_sy:
     li t3, SB(T7, 0, 0)
     la t4, apu_accum
     jal full_address
+    nop
 
 skip_sa:
     // Emit code to store the stack pointer if enabled
@@ -199,6 +207,7 @@ skip_sa:
     li t3, SB(S2, 0, 0)
     la t4, apu_stack
     jal full_address
+    nop
 
 skip_ss:
     // Emit code to store the flags if enabled
@@ -207,28 +216,29 @@ skip_ss:
     li t3, SB(S1, 0, 0)
     la t4, apu_flags
     jal full_address
+    nop
 
 skip_sf:
     // Emit code to load the program counter value unless disabled
     andi t0, s1, FLAG_PC
     bnez t0, skip_pc
     li t0, ORI(S0, ZERO, 0)
-    or t0, t0, a0
     jal emit_op
+    or t0, t0, a0
 
 skip_pc:
     // Emit code to store the program counter
-    li t3, SH(S0, 0, 0)
     la t4, apu_count
     jal full_address
+    li t3, SH(S0, 0, 0)
 
     // Emit code to adjust APU cycle count and return to the main loop
     la t0, cpu_execute
     jal emit_j
-    li t0, ADDI(S3, S3, 0)
     andi s2, s2, 0xFFFF
-    or t0, t0, s2
+    li t0, ADDI(S3, S3, 0)
     jal emit_op
+    or t0, t0, s2
 
     // Update the JIT pointer and use its old value for block lookup
     lw t0, jit_pointer
@@ -243,11 +253,11 @@ skip_pc:
     sll t1, t1, 2
     sh t1, 2(t0)
     lw t1, jit_tags(t1)
-    sw t1, 8(t0)
 
     // Jump to the finished JIT block's code
-    addi t0, t2, 12
-    jr t0
+    addi t2, t2, 12
+    jr t2
+    sw t1, 8(t0)
 
 .align 5
 reset_buffer:
@@ -255,14 +265,15 @@ reset_buffer:
     la t0, jit_lookup
     la t1, jit_pointer
 reset_loop:
-    sw zero, (t0)
     addi t0, t0, 4
     bne t0, t1, reset_loop
+    sw zero, -4(t0)
 
     // Reset the JIT pointer and restart compilation
     li t0, JIT_BUFFER
     sw t0, jit_pointer
     j compile_block
+    nop
 
 .align 5
 apu_unk:
@@ -271,9 +282,9 @@ apu_unk:
     li t0, ORI(S0, ZERO, 0)
     addi t2, a0, -1
     andi t2, t2, 0xFFFF
-    or t0, t0, t2
     la ra, finish_block
     j emit_op
+    or t0, t0, t2
 
 .align 5
 full_address: // t3: opcode, t4: address
@@ -286,85 +297,90 @@ full_address: // t3: opcode, t4: address
     move t6, ra
     li t0, LUI(AT_, 0)
     srl t1, t4, 16
-    or t0, t0, t1
     jal emit_op
+    or t0, t0, t1
     move t0, t3
     li t1, AT_ << 21
     andi t2, t4, 0xFFFF
     or t0, t1, t2
-    or t0, t0, t3
     move ra, t6
     j emit_op
+    or t0, t0, t3
 
 .align 5
 load_reg_x:
     // Check if register X has already been loaded
     andi t0, s1, FLAG_LX
     beqz t0, do_lx
+    ori s1, s1, FLAG_LX
     jr ra
 
 do_lx:
     // Emit code to load register X if needed
-    ori s1, s1, FLAG_LX
     li t3, LBU(T9, 0, 0)
     la t4, apu_reg_x
     j full_address
+    nop
 
 .align 5
 load_reg_y:
     // Check if register Y has already been loaded
     andi t0, s1, FLAG_LY
     beqz t0, do_ly
+    ori s1, s1, FLAG_LY
     jr ra
 
 do_ly:
     // Emit code to load register Y if needed
-    ori s1, s1, FLAG_LY
     li t3, LBU(T8, 0, 0)
     la t4, apu_reg_y
     j full_address
+    nop
 
 .align 5
 load_accum:
     // Check if the accumulator has already been loaded
     andi t0, s1, FLAG_LA
     beqz t0, do_la
+    ori s1, s1, FLAG_LA
     jr ra
 
 do_la:
     // Emit code to load the accumulator if needed
-    ori s1, s1, FLAG_LA
     li t3, LBU(T7, 0, 0)
     la t4, apu_accum
     j full_address
+    nop
 
 .align 5
 load_stack:
     // Check if the stack pointer has already been loaded
     andi t0, s1, FLAG_LS
     beqz t0, do_ls
+    ori s1, s1, FLAG_LS
     jr ra
 
 do_ls:
     // Emit code to load the stack pointer if needed
-    ori s1, s1, FLAG_LS
     li t3, LBU(S2, 0, 0)
     la t4, apu_stack
     j full_address
+    nop
 
 .align 5
 load_flags:
     // Check if the flags have already been loaded
     andi t0, s1, FLAG_LF
     beqz t0, do_lf
+    ori s1, s1, FLAG_LF
     jr ra
 
 do_lf:
     // Emit code to load the flags if needed
-    ori s1, s1, FLAG_LF
     li t3, LBU(S1, 0, 0)
     la t4, apu_flags
     j full_address
+    nop
 
 .align 5
 queue_nz: // t1: value
@@ -372,37 +388,32 @@ queue_nz: // t1: value
     ori s1, s1, FLAG_NZ
     li t0, ANDI(A2, 0, 0xFF)
     sll t1, t1, 21
-    or t0, t0, t1
     j emit_op
+    or t0, t0, t1
 
 .align 5
 update_nz:
     // Check if a value is queued for setting NZ flags
     andi t0, s1, FLAG_NZ
     bnez t0, do_nz
+    move t7, ra
     jr ra
+    nop
 
 do_nz:
     // Emit code to update NZ flags if needed
     xori s1, s1, FLAG_NZ
-    ori s1, s1, FLAG_SF
-    move t7, ra
     jal load_flags
-    li t0, ANDI(S1, S1, 0x7D)
-    jal emit_op
-    li t0, SLT(T6, ZERO, A2)
-    jal emit_op
-    li t0, XORI(T6, T6, 0x1)
-    jal emit_op
-    li t0, SLL(T6, T6, 1)
-    jal emit_op
+    ori s1, s1, FLAG_SF
+    EMIT_OP ANDI(S1, S1, 0x7D)
+    EMIT_OP SLT(T6, ZERO, A2)
+    EMIT_OP XORI(T6, T6, 0x1)
+    EMIT_OP SLL(T6, T6, 1)
+    EMIT_OP OR(S1, S1, T6)
+    EMIT_OP ANDI(T6, A2, 0x80)
     li t0, OR(S1, S1, T6)
-    jal emit_op
-    li t0, ANDI(T6, A2, 0x80)
-    jal emit_op
-    li t0, OR(S1, S1, T6)
-    move ra, t7
     j emit_op
+    move ra, t7
 
 .align 5
 emit_op: // t0: opcode
@@ -412,7 +423,9 @@ emit_op: // t0: opcode
     cache 0x11, CACHED(0)(a1)
     addi a1, a1, 4
     beq a1, a2, reset_buffer
+    nop
     jr ra
+    nop
 
 .align 5
 emit_j: // t0: target
@@ -421,8 +434,8 @@ emit_j: // t0: target
     li t1, 0x3FFFFFF
     and t0, t0, t1
     lui t1, 0x0800
-    or t0, t0, t1
     j emit_op
+    or t0, t0, t1
 
 .align 5
 emit_jal: // t0: target
@@ -431,5 +444,5 @@ emit_jal: // t0: target
     li t1, 0x3FFFFFF
     and t0, t0, t1
     lui t1, 0x0C00
-    or t0, t0, t1
     j emit_op
+    or t0, t0, t1

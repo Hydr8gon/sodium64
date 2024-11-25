@@ -50,3 +50,10 @@
     sb a1, 1 + \addr
     move a1, a2
 .endm
+
+.macro EMIT_OP opcode
+    // Emit a static JIT opcode, optimized for delay slots
+    lui t0, (\opcode) >> 16
+    jal emit_op
+    ori t0, t0, (\opcode) & 0xFFFF
+.endm
