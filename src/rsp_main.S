@@ -121,7 +121,8 @@ scrn_ofsv: .hword 0x0000, 0x0000, 0x0800, 0x1000 // Vertical screen address offs
 fill_jumps: .word fill_backdrop, fill_win, fill_notwin, fill_main // Backdrop fill functions
 tile_jumps: .word decode_tile4, decode_tile16, decode_tile256 // Tile decoding functions
 shared_jumps: .word shared_decode4, shared_decode16, shared_decode256 // Shared decoding functions
-cache_rets: .word get_offsets, check_object // Return addresses after clearing cache
+cache_rets: .word get_offsets, start_objects // Return addresses after clearing cache
+cache_ptrs: .word TILE_CACHE_BG, TILE_CACHE_OBJ, TILE_STATS_BG, TILE_STATS_OBJ, OBJECT_CACHE // RDRAM cache pointers
 
 // 32-bit constants
 texrec_ofs: .word 0x22020020
@@ -129,7 +130,7 @@ fillrec_mask: .word 0xFF000FFF
 ldblk_bits: .word 0x01000200
 
 // Gap to ensure vector data is aligned
-.byte 0:(VEC_DATA - MAX_OBJECT)
+.byte 0:(VEC_DATA - PRIO_CHECKS)
 
 vec_data:
     // Constants that are always kept in vector registers
@@ -224,20 +225,35 @@ table_loop:
     jal rdp_send
     li a1, RDP_FILL
 
-    // Initialize values for finding the first visible object
-    li t9, 0x200 // Index
+    // Get the index of the last object in rotation
+    lhu t1, OAMADD
+    andi v1, t1, 0x8000
+    beqz v1, init_cache
     lw t0, FB_OFFSET(sp)
+    andi v1, t1, 0xFE
+    sll v1, v1, 1
+
+init_cache:
+    // Initialize values for building the object cache
     li t8, 239 + 16
     sll t0, t0, 1
     sub t8, t8, t0 // Y-bound
+    move t7, zero // Priority
 
-next_visible:
-    // Move to the next object until all have been checked
-    beqz t9, set_visible
-    lw t1, OAM - 4(t9)
-    addi t9, t9, -4
+next_priority:
+    // Reset indices for the next object priority
+    li t6, TILE_TABLE + 0x200 // Cache index
+    b start_cache
+    move t9, v1 // OAM index
 
-    // Read the 4 object bytes and additional 2 bits
+cache_object:
+    // Read object data and skip if it doesn't match the current priority
+    lw t1, OAM(t9)
+    srl t0, t1, 12
+    andi t0, t0, 0x3
+    bne t0, t7, cache_next
+
+    // Read the 2 additional object bits
     srl t2, t9, 4
     lbu t2, OAM + 0x200(t2)
     srl t3, t9, 1
@@ -249,8 +265,8 @@ next_visible:
     andi t3, t2, 0x2 // Large
     andi t4, t4, 0xE0
     srl t4, t4, 3
-    or t3, t3, t4
-    lhu s0, OBJ_SIZES(t3)
+    or v0, t3, t4
+    lhu s0, OBJ_SIZES(v0)
     andi s1, s0, 0xFF // Y-size
     srl s0, s0, 8 // X-size
 
@@ -264,25 +280,55 @@ next_visible:
     // Skip the object if it doesn't occupy any visible scanlines
     add t4, s8, s1
     sle t5, t4, zero
-    bnez t5, next_visible
+    bnez t5, cache_next
 
     // Get the object's X-coordinate, wrapped past pixel 256
     srl t5, t1, 16
     andi t5, t5, 0xFF
-    sll t6, t2, 31 // Upper X
-    sra t6, t6, 23
-    or s2, t5, t6
+    sll t0, t2, 31 // Upper X
+    sra t0, t0, 23
+    or s2, t5, t0
 
     // Skip the object if it doesn't occupy any visible pixels
-    add t6, s2, s0
-    and t7, t6, s2
-    sra t7, t7, 8
-    bnez t7, next_visible
+    add t0, s2, s0
+    and t0, t0, s2
+    sra t0, t0, 8
+    bnez t0, cache_next
 
-set_visible:
-    // Save the first visible object index so objects past it can be skipped
-    sh t9, MAX_OBJECT
-    sh t8, WRAP_BOUND
+    // Build and write a 32-bit cache value for the object
+    sll t0, s8, 7 // Y-coordinate
+    srl t3, t9, 2
+    or t0, t0, t3 // OAM index
+    sh t0, 0(t6)
+    sll t0, s2, 7 // X-coordinate
+    or t0, t0, v0 // Size index
+    sh t0, 2(t6)
+    addi t6, t6, 4
+
+cache_next:
+    // Move to the next object until finished
+    beq t9, v1, finish_cache
+start_cache:
+    addi t9, t9, -4
+    b cache_object
+    andi t9, t9, 0x1FC
+
+finish_cache:
+    // Mark the end of the cache list
+    addi t0, zero, -1
+    sw t0, (t6)
+
+    // DMA the current priority's cache list to RDRAM
+    li a0, TILE_TABLE + 0x200
+    lw a1, CACHE_PTRS + 16
+    sll t0, t7, 9
+    add a1, a1, t0
+    jal dma_write
+    li a2, 0x1FF
+
+    // Move to the next priority until finished
+    bne t7, 3, next_priority
+    addi t7, t7, 1
 
     // Set the initial section bound
     li k1, 0
@@ -493,7 +539,7 @@ draw_bg:
 load_cache:
     // Load the previous cache status if it's still valid
     li a0, TILE_TABLE
-    li a1, TILE_STATS_BG1
+    lw a1, CACHE_PTRS + 8
     sll t0, s2, 9
     add a1, a1, t0
     jal dma_read
@@ -768,7 +814,7 @@ decode_tile:
 not_empty:
     // DMA the texture to the tile cache in RDRAM
     li a0, TEXTURE
-    li a1, TILE_CACHE_BG1
+    lw a1, CACHE_PTRS + 0
     sll t0, s2, 15
     add a1, a1, t0
     sll t0, s8, 6
@@ -811,7 +857,7 @@ finish_row:
 
     // Update the BG's tile cache status when finished
     li a0, TILE_TABLE
-    li a1, TILE_STATS_BG1
+    lw a1, CACHE_PTRS + 8
     sll t0, s2, 9
     add a1, a1, t0
     jal dma_write
@@ -820,7 +866,7 @@ finish_row:
 
 skip_decode:
     // Update the RDP texture address and draw a cached tile
-    li a1, TILE_CACHE_BG1
+    lw a1, CACHE_PTRS + 0
     sll t0, s2, 15
     add a1, a1, t0
     sll t0, s8, 6
@@ -1185,25 +1231,9 @@ draw_obj:
     beqz t1, next_layer
     andi a3, t0, 0x3 // Priority
 
-    // Get the index of the first object in rotation
-    lhu t9, OAMADD
-    andi v1, t9, 0x8000
-    beqz v1, no_rotate
-    lhu t0, MAX_OBJECT
-    sll v1, t9, 1
-no_rotate:
-    addi v1, v1, -4
-    andi v1, v1, 0x1FC
-
-    // Ensure the index is within visible object range
-    blt v1, t0, below_max
-    lbu t1, OBSEL
-    move v1, t0
-below_max:
-    move t9, v1
-
     // Check if the object character base changed
     // TODO: use the gap setting
+    lbu t1, OBSEL
     lhu t2, CACHE_BASES + 8
     andi t0, t1, 0x3
     sll t0, t0, 14
@@ -1217,62 +1247,41 @@ below_max:
 load_objcache:
     // Load the previous cache status if it's still valid
     li a0, TILE_TABLE
-    li a1, TILE_STATS_OBJ
+    lw a1, CACHE_PTRS + 12
     jal dma_read
     li a2, 0x1FF
 
+start_objects:
+    // DMA the current priority's object cache list from RDRAM
+    li a0, TILE_TABLE + 0x200
+    lw a1, CACHE_PTRS + 16
+    sll t0, a3, 9
+    add a1, a1, t0
+    jal dma_read
+    li a2, 0x1FF
+    b next_object
+    li a3, TILE_TABLE + 0x200 // Cache index
+
 check_object:
-    // Read the 4 object bytes and additional 2 bits
-    lw t1, OAM(t9)
-    srl t2, t9, 4
-    lbu t2, OAM + 0x200(t2)
-    srl t3, t9, 1
-    andi t3, t3, 0x6
-    srl t2, t2, t3
-
-    // Skip the object if its priority doesn't match the layer
-    srl t0, t1, 12
-    andi t0, t0, 0x3
-    xor t0, t0, a3
-    bnez t0, next_object
-
-    // Get the object's size based on the large bit
-    lbu t4, OBSEL
-    andi t3, t2, 0x2 // Large
-    andi t4, t4, 0xE0
-    srl t4, t4, 3
-    or t3, t3, t4
+    // Get the object's coordinates and size
+    sra s8, t0, 7 // Y-coordinate
+    sra s2, t1, 7 // X-coordinate
+    andi t3, t1, 0x1E
     lhu s0, OBJ_SIZES(t3)
     andi s1, s0, 0xFF // Y-size
     srl s0, s0, 8 // X-size
 
-    // Get the object's Y-coordinate, wrapped past screen bounds
-    srl t3, t1, 24
-    lhu t4, WRAP_BOUND
-    slt t4, t4, t3
-    sll t4, t4, 31
-    sra t4, t4, 23
-    or s8, t3, t4
-
-    // Skip the object if it doesn't occupy any visible scanlines
+    // Skip the object if it doesn't intersect with the current section
     add t4, s8, s1
     slt t5, t4, k0
     sgt t6, s8, k1
     or t5, t5, t6
     bnez t5, next_object
 
-    // Get the object's X-coordinate, wrapped past pixel 256
-    srl t5, t1, 16
-    andi t5, t5, 0xFF
-    sll t6, t2, 31 // Upper X
-    sra t6, t6, 23
-    or s2, t5, t6
-
-    // Skip the object if it doesn't occupy any visible pixels
-    add t6, s2, s0
-    and t7, t6, s2
-    sra t7, t7, 8
-    bnez t7, next_object
+    // Get the OAM index and read object data
+    sll t9, t0, 2
+    andi t9, t9, 0x1FC
+    lw t1, OAM(t9)
 
     // Update the RDP texture parameters based on mirroring
     srl t5, t1, 11
@@ -1367,7 +1376,7 @@ check_objcache:
 
     // DMA the texture to the tile cache in RDRAM
     li a0, TEXTURE
-    li a1, TILE_CACHE_OBJ
+    lw a1, CACHE_PTRS + 4
     sll t0, s5, 6
     add a1, a1, t0
     sw a1, RDP_TILE + 4
@@ -1399,24 +1408,24 @@ draw_objtile:
     add s8, s8, gp
 
 next_object:
-    // Move to the next object until all have been drawn
-    bnez t9, skip_wrap
-    addi t9, t9, -4
-    lhu t9, MAX_OBJECT
-skip_wrap:
-    bne t9, v1, check_object
+    // Move to the next object until the end of the list
+    lh t0, 0(a3)
+    lh t1, 2(a3)
+    addi t2, zero, -1
+    bne t1, t2, check_object
+    addi a3, a3, 4
 
     // Update the object tile cache status when finished
     li a0, TILE_TABLE
-    li a1, TILE_STATS_OBJ
+    lw a1, CACHE_PTRS + 12
     jal dma_write
     li a2, 0x1FF
     b next_layer
 
 skip_objdecode:
     // Update the RDP texture address and draw a cached tile
+    lw a1, CACHE_PTRS + 4
     sll t0, s5, 6
-    li a1, TILE_CACHE_OBJ
     add a1, a1, t0
     b draw_objtile
     sw a1, RDP_TILE + 4
