@@ -35,14 +35,17 @@ fps_display: .byte 0
 frame_count: .byte 0
 
 .section .boot
+.set noreorder
 
 _start:
     // Jump to the main function (entry point)
     j main
+    nop
 
 exception_vector:
     // Jump to the exception handler (copied to exception vectors)
     j exception_handler
+    nop
 
 .text
 
@@ -55,11 +58,11 @@ main:
 
     // Clear framebuffers and other hardcoded data
     li t0, FRAMEBUFFER1
-    li t1, JIT_BUFFER
+    li t1, JIT_BUFFER - 8
 clear_vram:
     sd zero, (t0)
-    addi t0, t0, 8
     bne t0, t1, clear_vram
+    addi t0, t0, 8
 
     // Initialize the VI to display a 16-bit 256x224 framebuffer
     lui t0, 0xA440 // VI register upper address
@@ -127,30 +130,34 @@ pi_wait1:
     lw t1, 0x0010(t0) // PI_STATUS
     andi t1, t1, 0x1 // DMA busy
     bnez t1, pi_wait1
+    nop
 
     // Initialize the emulator
     jal reset_tlb
+    nop
     jal input_init
+    nop
     jal memory_init
+    nop
     jal section_init
+    nop
     jal cpu_init
+    nop
 
     // Upload the RSP code and data
-    li a0, 0x1000 // IMEM address
     la a1, rsp_main_text_start
     jal rsp_upload
-    li a0, 0x0000 // DMEM address
+    li a0, 0x1000 // IMEM address
     la a1, rsp_main_data_start
     jal rsp_upload
+    li a0, 0x0000 // DMEM address
 
-    // Enable VI interrupts and nothing else
+    // Enable VI interrupts and start execution
     li t0, 0x00000595 // Set VI mask
     sw t0, 0xA430000C // MI_MASK
     li t0, 0x00000401 // Enable interrupts
-    mtc0 t0, $12 // Status
-
-    // Start execution
     j cpu_execute
+    mtc0 t0, $12 // Status
 
 .align 5
 rsp_upload: // a0: RSP address, a1: DRAM address
@@ -165,7 +172,9 @@ dma_wait:
     // Wait for the DMA to complete
     lw t1, 0x0018(t0) // SP_DMA_BUSY
     bnez t1, dma_wait
+    nop
     jr ra
+    nop
 
 .align 5
 reset_tlb:
@@ -177,10 +186,10 @@ reset_tlb:
 next_tlb:
     addi t0, t0, -1
     mtc0 t0, $0 // Index
-    nop
-    tlbwi
     bnez t0, next_tlb
+    tlbwi
     jr ra
+    nop
 
 .align 5
 exception_handler:
@@ -200,7 +209,9 @@ exception_handler:
     bnez k1, reset_interrupt
     andi k1, k0, 0x400
     bnez k1, vi_interrupt
+    nop
     eret
+    nop
 
 .align 5
 vi_interrupt:
@@ -214,8 +225,8 @@ vi_interrupt:
     addi k1, k1, -59
     beqz k1, update_fps
     addi k1, k1, 60
-    sb k1, (k0)
     b check_frame
+    sb k1, (k0)
 
 update_fps:
     // Update the display FPS and reset the counters
@@ -247,6 +258,7 @@ pi_wait2:
     lw k1, 0x0010(k0) // PI_STATUS
     andi k1, k1, 0x1 // DMA busy
     bnez k1, pi_wait2
+    nop
 
 check_frame:
     // Continue if the next frame is ready; otherwise just update input
@@ -265,6 +277,7 @@ check_frame:
     add k0, k0, k1
     li k1, MODE7_TEXTURE
     bne k0, k1, set_buffer
+    nop
     li k0, FRAMEBUFFER1
 
 set_buffer:
@@ -272,8 +285,8 @@ set_buffer:
     lui k1, 0xA440
     sw k0, 0x0004(k1) // VI_ORIGIN
     la k1, framebuffer
-    sw k0, (k1)
     j input_update
+    sw k0, (k1)
 
 .align 5
 reset_interrupt:
@@ -286,3 +299,4 @@ reset_interrupt:
 loop:
     // Wait until the system resets
     b loop
+    nop

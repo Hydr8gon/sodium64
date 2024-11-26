@@ -134,6 +134,7 @@ char_9:
     .hword 00, 00, -1, -1, -1, -1, 00, 00
 
 .text
+.set noreorder
 
 .macro DRAW line
     // Copy a line of character pixels to the framebuffer
@@ -167,4 +168,6 @@ draw_value: // a0: value, a1: top-right offset
     // Move to the next digit if there is one
     mflo a0 // Quotient
     bnez a0, draw_value
+    nop
     jr ra
+    nop

@@ -181,6 +181,7 @@ write_iomap:
     .word write_unk, write_unk, write_unk, write_unusedx // 0x437C-0x437F
 
 .text
+.set noreorder
 
 .align 5
 memory_init:
@@ -196,6 +197,7 @@ check_header:
     xor t0, t0, t1
     xori t0, t0, 0xFFFF
     beqz t0, map_hirom
+    nop
 
     // Detect LoROM headers with a rudimentary checksum check
     lw t0, 0xA0007FDC(t8)
@@ -204,11 +206,13 @@ check_header:
     xor t0, t0, t1
     xori t0, t0, 0xFFFF
     beqz t0, map_lorom
+    nop
 
     // Move to the next ROM offset if no header was found
     beq t8, t9, map_lorom // Fallback
     move t8, t9
     b check_header
+    nop
 
 .align 5
 map_lorom:
@@ -249,6 +253,7 @@ build_lomap:
     blt t0, t3, losys_area // 0x80-0xBF: System, WS2 LoROM
     li t3, 0xF00000
     blt t0, t3, lorom_area // 0xC0-0xEF: WS2 LoROM
+    nop
     b losram_area // 0xF0-0xFF: 8KB SRAM, WS2 LoROM
 
 losys_area:
@@ -256,17 +261,19 @@ losys_area:
     andi t3, t0, 0xFFFF
     li t4, 0x1FFF // WRAM mask
     blt t3, t4, lowram_area // 0x0000-0x1FFF: 8KB WRAM mirror
-    li t4, 0x8000
-    bge t3, t4, lorom_area // 0x8000-0xFFFF: WS1/WS2 LoROM
+    li t5, 0x8000
+    bge t3, t5, lorom_area // 0x8000-0xFFFF: WS1/WS2 LoROM
+    nop
     b loio_area // 0x2000-0x7FFF: I/O registers
+    nop
 
 lowram_area:
     // Get a pointer to a WRAM block, with bit 0 set to indicate writability
     la t3, wram
     and t4, t4, t0 // Apply mask
     add t3, t3, t4
-    ori t3, t3, 1 // Write bit
     b map_loblock
+    ori t3, t3, 1 // Write bit
 
 lorom_area:
     // Special case LoROM; the exception handler will dynamically load blocks
@@ -275,24 +282,26 @@ lorom_area:
     add t3, t8, t4
     li t4, 0x7FFF
     and t4, t4, t0 // Offset within 32KB
-    add t3, t3, t4
     b map_lonone
+    add t3, t3, t4
 
 losram_area:
     // Check if this is a ROM or SRAM area
     andi t4, t0, 0xFFFF
     li t5, 0x8000
     bge t4, t5, lorom_area // 0x8000-0xFFFF: WS1/WS2 LoROM
+    nop
 
     // Special case SRAM so writes can be tracked
     beqz t9, loempty_area
     sll t3, t9, 2 // Valid not set
     b map_lonone
+    nop
 
 loio_area:
     // Set no pointer; this will fall back to I/O registers
-    li t3, 0
     b map_lonone
+    li t3, 0
 
 loempty_area:
     // Get a pointer to the empty placeholder block
@@ -320,7 +329,9 @@ map_lonone:
     // Move to the next address until the map is complete
     add t0, t0, t2
     ble t0, t1, build_lomap
+    nop
     jr ra
+    nop
 
 .align 5
 map_hirom:
@@ -357,6 +368,7 @@ build_himap:
     blt t0, t3, hiwram_area // 0x7E-0x7F: 128KB WRAM
     li t3, 0xC00000
     blt t0, t3, hisys_area // 0x80-0xBF: System, WS2 HiROM
+    nop
     b hirom_area // 0xC0-0xFF: WS2 HiROM
 
 hisys_area:
@@ -364,36 +376,39 @@ hisys_area:
     andi t3, t0, 0xFFFF
     li t4, 0x1FFF // WRAM mask
     blt t3, t4, hiwram_area // 0x0000-0x1FFF: 8KB WRAM mirror
-    li t4, 0x8000
-    bge t3, t4, hirom_area // 0x8000-0xFFFF: WS1/WS2 HiROM
-    li t4, 0x6000
-    bge t3, t4, hisram_area // 0x6000-0x7FFF: 2KB-32KB SRAM
+    li t5, 0x8000
+    bge t3, t5, hirom_area // 0x8000-0xFFFF: WS1/WS2 HiROM
+    li t5, 0x6000
+    bge t3, t5, hisram_area // 0x6000-0x7FFF: 2KB-32KB SRAM
+    nop
     b hiio_area // 0x2000-0x5FFF: I/O registers
+    nop
 
 hiwram_area:
     // Get a pointer to a WRAM block, with bit 0 set to indicate writability
     la t3, wram
     and t4, t4, t0 // Apply mask
     add t3, t3, t4
-    ori t3, t3, 1 // Write bit
     b map_hiblock
+    ori t3, t3, 1 // Write bit
 
 hirom_area:
     // Special case HiROM; the exception handler will dynamically load blocks
     and t4, t7, t0
-    add t3, t8, t4
     b map_hinone
+    add t3, t8, t4
 
 hisram_area:
     // Special case SRAM so writes can be tracked
     beqz t9, hiempty_area
-    sll t3, t9, 2 // Valid not set
+    nop
     b map_hinone
+    sll t3, t9, 2 // Valid not set
 
 hiio_area:
     // Set no pointer; this will fall back to I/O registers
-    li t3, 0
     b map_hinone
+    li t3, 0
 
 hiempty_area:
     // Get a pointer to the empty placeholder block
@@ -421,7 +436,9 @@ map_hinone:
     // Move to the next address until the map is complete
     add t0, t0, t2
     ble t0, t1, build_himap
+    nop
     jr ra
+    nop
 
 .align 5
 tlbl_exception:
@@ -438,6 +455,7 @@ tlbl_exception:
     blez k0, tlbl_rom
     andi k0, k1, 0x2
     beqz k0, tlbl_sram
+    nop
 
 tlbl_set:
     // Overwrite the oldest TLB entry
@@ -478,6 +496,7 @@ tlbl_rom:
     sll k0, k0, 2 // Word offset
     lw t0, rom_entries(k0)
     beqz t0, set_entry
+    nop
     lw t1, rom_addrs(k0)
     sw t0, memory_map(t1)
 
@@ -521,7 +540,9 @@ pi_wait:
     lw k0, 0xA4600010 // PI_STATUS
     andi k0, k0, 0x1 // DMA busy
     bnez k0, pi_wait
+    nop
     b tlbl_set
+    nop
 
 .align 5
 tlbl_io:
@@ -576,6 +597,7 @@ tlbs_exception:
     blez k0, tlbm_exception // Ignore unmapped ROM
     andi k0, k1, 0x2
     beqz k0, tlbs_sram
+    nop
 
     // Overwrite the oldest TLB entry
     mtc0 k1, $2 // EntryLo0
@@ -644,8 +666,8 @@ tlbm_exception:
 .align 5
 read_unk:
     // Unknown I/O register read; use upper address byte to approximate open bus
-    srl v0, a0, 8
     jr ra
+    srl v0, a0, 8
 
 .align 5
 read_wmdata: // v0: value
@@ -659,13 +681,14 @@ read_wmdata: // v0: value
     // Read a byte from WRAM
     li a0, 0x7E0000
     add a0, a0, t0
-    lbu v0, (a0)
     jr ra
+    lbu v0, (a0)
 
 .align 5
 write_unk:
     // Unknown I/O register write; do nothing
     jr ra
+    nop
 
 .align 5
 write_wmdata: // a1: value
@@ -679,20 +702,22 @@ write_wmdata: // a1: value
     // Write a byte to WRAM
     li a0, 0x7E0000
     add a0, a0, t0
-    sb a1, (a0)
     jr ra
+    sb a1, (a0)
 
 .align 5
 write_wmaddl: // a1: value
     // Set the low byte of the WRAM address
     sb a1, wmadd + 3
     jr ra
+    nop
 
 .align 5
 write_wmaddm: // a1: value
     // Set the middle byte of the WRAM address
     sb a1, wmadd + 2
     jr ra
+    nop
 
 .align 5
 write_wmaddh: // a1: value
@@ -700,3 +725,4 @@ write_wmaddh: // a1: value
     andi t0, a1, 0x1
     sb t0, wmadd + 1
     jr ra
+    nop

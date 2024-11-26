@@ -81,6 +81,7 @@ unit_lengths: .byte 1, 2, 2, 4, 4, 4, 2, 4 // Transfer mode unit lengths
 address_steps: .byte 1, 0, -1, 0 // CPU address steps
 
 .text
+.set noreorder
 
 .align 5
 reload_hdma:
@@ -105,23 +106,25 @@ reload_start:
 reload_end:
     // Move to the next channel until no more are enabled
     srl t0, t0, 1
-    addi t1, t1, 1
     bnez t0, reload_start
+    addi t1, t1, 1
     jr ra
+    nop
 
 .align 5
 trigger_hdma:
     // Set initial HDMA values and check if any channels are enabled
     lbu s0, hdma_mask // Mask
     move s1, zero // Index
-    move gp, ra
     bnez s0, hdma_start
+    move gp, ra
     jr gp
 
 hdma_start:
     // Check if the current HDMA channel is enabled
     andi t0, s0, 0x1
     beqz t0, hdma_end
+    nop
     lbu t0, dmapx(s1)
 
     // Get the channel's I/O transfer mode (t8) and unit length (t9)
@@ -139,6 +142,7 @@ hdma_start:
     sb v1, ntrlx(s1)
     andi t1, v1, 0x7F
     bnez t1, same_entry
+    nop
 
     // Reload the line counter for the next table entry
     MEM_READ8 0(s2)
@@ -147,12 +151,14 @@ hdma_start:
     sll t1, s1, 2
     sw s2, a2abx(t1)
     beqz v0, hdma_disable
+    nop
     ori v1, v1, 0x80 // Do transfer
 
 same_entry:
     // Check if a transfer should occur (repeat or first)
     andi t1, v1, 0x80
     beqz t1, hdma_end
+    nop
 
     // Check for indirect mode
     lbu t0, dmapx(s1)
@@ -169,6 +175,7 @@ hdma_indir:
     // Check if the indirect address should be reloaded
     andi t1, v1, 0x7F
     bnez t1, indir_ready
+    nop
 
     // Read the value and increment the direct address
     MEM_READ16 0(s2)
@@ -194,6 +201,7 @@ hdma_ready:
     lbu t0, dmapx(s1)
     andi t0, t0, 0x80
     bnez t0, hio_cpu
+    nop
 
 hcpu_io:
     // Copy a value from memory to an I/O register
@@ -203,15 +211,16 @@ hcpu_io:
     add a0, a0, t0
     sll t0, a0, 2
     lw t0, write_iomap(t0)
-    move a1, v0
     jalr t0
+    move a1, v0
 
     // Move to the next byte until a unit has been transferred
     addi s2, s2, 1
-    addi t8, t8, 1
     addi t9, t9, -1
     bnez t9, hcpu_io
+    addi t8, t8, 1
     b hdma_end
+    nop
 
 hio_cpu:
     // Copy a value from an I/O register to memory
@@ -221,15 +230,17 @@ hio_cpu:
     sll t0, a0, 2
     lw t0, read_iomap(t0)
     jalr t0
+    nop
     move a1, v0
     MEM_WRITE8 0(s2)
 
     // Move to the next byte until a unit has been transferred
     addi s2, s2, 1
-    addi t8, t8, 1
     addi t9, t9, -1
     bnez t9, hio_cpu
+    addi t8, t8, 1
     b hdma_end
+    nop
 
 hdma_disable:
     // Disable an HDMA channel for the rest of the frame
@@ -246,9 +257,10 @@ hdma_disable:
 hdma_end:
     // Move to the next channel until no more are enabled
     srl s0, s0, 1
-    addi s1, s1, 1
     bnez s0, hdma_start
+    addi s1, s1, 1
     jr gp
+    nop
 
 .align 5
 write_mdmaen: // a1: value
@@ -262,6 +274,7 @@ dma_start:
     // Check if the current DMA channel is enabled
     andi t0, t8, 0x1
     beqz t0, dma_end
+    nop
     lbu t0, dmapx(t9)
 
     // Get the channel's CPU address step (s2)
@@ -294,8 +307,8 @@ cpu_io:
     add a0, a0, t0
     sll t0, a0, 2
     lw t0, write_iomap(t0)
-    move a1, v0
     jalr t0
+    move a1, v0
 
     // Move to the next I/O offset in the transfer mode
     andi t0, sp, 0x3
@@ -310,7 +323,9 @@ cpu_io:
     addi t1, t1, -1
     sh t1, dastbx + 2(t0)
     bnez t1, cpu_io
+    nop
     b dma_end
+    nop
 
 io_cpu:
     // Read a value from the I/O address
@@ -320,6 +335,7 @@ io_cpu:
     sll t0, a0, 2
     lw t0, read_iomap(t0)
     jalr t0
+    nop
 
     // Move to the next I/O offset in the transfer mode
     andi t0, sp, 0x3
@@ -343,14 +359,16 @@ io_cpu:
     addi t1, t1, -1
     sh t1, dastbx + 2(t0)
     bnez t1, io_cpu
+    nop
 
 dma_end:
     // Move to the next channel until no more are enabled
     srl t8, t8, 1
-    addi t9, t9, 1
     bnez t8, dma_start
+    addi t9, t9, 1
     lhu a1, dma_stack
     jr gp
+    nop
 
 .align 5
 write_hdmaen: // a1: value
@@ -363,6 +381,7 @@ write_hdmaen: // a1: value
     and t0, t0, t1
     sb t0, hdma_mask
     jr ra
+    nop
 
 .align 5
 read_dmapx: // a0: address - v0: value
@@ -371,6 +390,7 @@ read_dmapx: // a0: address - v0: value
     andi t0, t0, 0x7
     lbu v0, dmapx(t0)
     jr ra
+    nop
 
 .align 5
 read_bbadx: // a0: address - v0: value
@@ -379,6 +399,7 @@ read_bbadx: // a0: address - v0: value
     andi t0, t0, 0x7
     lbu v0, bbadx(t0)
     jr ra
+    nop
 
 .align 5
 read_a1txl: // a0: address - v0: value
@@ -387,6 +408,7 @@ read_a1txl: // a0: address - v0: value
     andi t0, t0, 0x1C
     lbu v0, a1tbx + 3(t0)
     jr ra
+    nop
 
 .align 5
 read_a1txh: // a0: address - v0: value
@@ -395,6 +417,7 @@ read_a1txh: // a0: address - v0: value
     andi t0, t0, 0x1C
     lbu v0, a1tbx + 2(t0)
     jr ra
+    nop
 
 .align 5
 read_a1bx: // a0: address - v0: value
@@ -403,6 +426,7 @@ read_a1bx: // a0: address - v0: value
     andi t0, t0, 0x1C
     lbu v0, a1tbx + 1(t0)
     jr ra
+    nop
 
 .align 5
 read_dasxl: // a0: address - v0: value
@@ -411,6 +435,7 @@ read_dasxl: // a0: address - v0: value
     andi t0, t0, 0x1C
     lbu v0, dastbx + 3(t0)
     jr ra
+    nop
 
 .align 5
 read_dasxh: // a0: address - v0: value
@@ -419,6 +444,7 @@ read_dasxh: // a0: address - v0: value
     andi t0, t0, 0x1C
     lbu v0, dastbx + 2(t0)
     jr ra
+    nop
 
 .align 5
 read_dasbx: // a0: address - v0: value
@@ -427,6 +453,7 @@ read_dasbx: // a0: address - v0: value
     andi t0, t0, 0x1C
     lbu v0, dastbx + 1(t0)
     jr ra
+    nop
 
 .align 5
 read_a2axl: // a0: address - v0: value
@@ -435,6 +462,7 @@ read_a2axl: // a0: address - v0: value
     andi t0, t0, 0x1C
     lbu v0, a2abx + 3(t0)
     jr ra
+    nop
 
 .align 5
 read_a2axh: // a0: address - v0: value
@@ -443,6 +471,7 @@ read_a2axh: // a0: address - v0: value
     andi t0, t0, 0x1C
     lbu v0, a2abx + 2(t0)
     jr ra
+    nop
 
 .align 5
 read_ntrlx: // a0: address - v0: value
@@ -451,6 +480,7 @@ read_ntrlx: // a0: address - v0: value
     andi t0, t0, 0x7
     lbu v0, ntrlx(t0)
     jr ra
+    nop
 
 .align 5
 read_unusedx: // a0: address - v0: value
@@ -459,6 +489,7 @@ read_unusedx: // a0: address - v0: value
     andi t0, t0, 0x7
     lbu v0, unusedx(t0)
     jr ra
+    nop
 
 .align 5
 write_dmapx: // a0: address, a1: value
@@ -467,6 +498,7 @@ write_dmapx: // a0: address, a1: value
     andi t0, t0, 0x7
     sb a1, dmapx(t0)
     jr ra
+    nop
 
 .align 5
 write_bbadx: // a0: address, a1: value
@@ -475,6 +507,7 @@ write_bbadx: // a0: address, a1: value
     andi t0, t0, 0x7
     sb a1, bbadx(t0)
     jr ra
+    nop
 
 .align 5
 write_a1txl: // a0: address, a1: value
@@ -483,6 +516,7 @@ write_a1txl: // a0: address, a1: value
     andi t0, t0, 0x1C
     sb a1, a1tbx + 3(t0)
     jr ra
+    nop
 
 .align 5
 write_a1txh: // a0: address, a1: value
@@ -491,6 +525,7 @@ write_a1txh: // a0: address, a1: value
     andi t0, t0, 0x1C
     sb a1, a1tbx + 2(t0)
     jr ra
+    nop
 
 .align 5
 write_a1bx: // a0: address, a1: value
@@ -500,6 +535,7 @@ write_a1bx: // a0: address, a1: value
     sb a1, a1tbx + 1(t0)
     sb a1, a2abx + 1(t0)
     jr ra
+    nop
 
 .align 5
 write_dasxl: // a0: address, a1: value
@@ -508,6 +544,7 @@ write_dasxl: // a0: address, a1: value
     andi t0, t0, 0x1C
     sb a1, dastbx + 3(t0)
     jr ra
+    nop
 
 .align 5
 write_dasxh: // a0: address, a1: value
@@ -516,6 +553,7 @@ write_dasxh: // a0: address, a1: value
     andi t0, t0, 0x1C
     sb a1, dastbx + 2(t0)
     jr ra
+    nop
 
 .align 5
 write_dasbx: // a0: address, a1: value
@@ -524,6 +562,7 @@ write_dasbx: // a0: address, a1: value
     andi t0, t0, 0x1C
     sb a1, dastbx + 1(t0)
     jr ra
+    nop
 
 .align 5
 write_a2axl: // a0: address, a1: value
@@ -532,6 +571,7 @@ write_a2axl: // a0: address, a1: value
     andi t0, t0, 0x1C
     sb a1, a2abx + 3(t0)
     jr ra
+    nop
 
 .align 5
 write_a2axh: // a0: address, a1: value
@@ -540,6 +580,7 @@ write_a2axh: // a0: address, a1: value
     andi t0, t0, 0x1C
     sb a1, a2abx + 2(t0)
     jr ra
+    nop
 
 .align 5
 write_ntrlx: // a0: address, a1: value
@@ -548,6 +589,7 @@ write_ntrlx: // a0: address, a1: value
     andi t0, t0, 0x7
     sb a1, ntrlx(t0)
     jr ra
+    nop
 
 .align 5
 write_unusedx: // a0: address, a1: value
@@ -556,3 +598,4 @@ write_unusedx: // a0: address, a1: value
     andi t0, t0, 0x7
     sb a1, unusedx(t0)
     jr ra
+    nop

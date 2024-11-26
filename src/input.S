@@ -45,6 +45,7 @@ joybus_cmd: // Reads controller status when copied to PIF RAM
     .dword 0x0000000000000001 // Run command
 
 .text
+.set noreorder
 
 .align 5
 input_init:
@@ -53,8 +54,8 @@ input_init:
     la t1, joybus_cmd // Input buffer
     sw t1, 0x0000(t0) // SI_DRAM_ADDR
     li t1, 0x000007C0 // PIF RAM
-    sw t1, 0x0010(t0) // SI_PIF_AD_WR64B
     jr ra
+    sw t1, 0x0010(t0) // SI_PIF_AD_WR64B
 
 .align 5
 input_update:
@@ -63,6 +64,7 @@ input_update:
     lbu k1, 0(k0)
     andi k1, k1, 0xC0 // Error bits
     bnez k1, joybus_dma
+    nop
 
     // Get the newly-pressed state for button toggles
     lbu k1, 2(k0)
@@ -98,8 +100,8 @@ joybus_dma:
 read_joyx: // a0: address
     // Stub to fix input in games like Donkey Kong Country
     // TODO: actually implement manual controller ports
-    li v0, 0x1
     jr ra
+    li v0, 0x1
 
 .align 5
 read_joyxl: // a0: address
@@ -111,6 +113,7 @@ read_joyxl: // a0: address
     beqz t0, joyxl_conn
     li v0, 0
     jr ra
+    nop
 
 joyxl_conn:
     // Read button data for the controller
@@ -127,8 +130,8 @@ joyxl_conn:
     // Map N64 C-right to SNES A
     andi t1, t0, 0x1
     sll t1, t1, 7
-    or v0, v0, t1
     jr ra
+    or v0, v0, t1
 
 .align 5
 read_joyxh: // a0: address
@@ -140,6 +143,7 @@ read_joyxh: // a0: address
     beqz t0, joyxh_conn
     li v0, 0
     jr ra
+    nop
 
 joyxh_conn:
     // Read button data for the controller
@@ -162,5 +166,5 @@ joyxh_conn:
     // Map N64 C-left and C-down to SNES Y and B
     andi t1, t0, 0x6
     sll t1, t1, 5
-    or v0, v0, t1
     jr ra
+    or v0, v0, t1

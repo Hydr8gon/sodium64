@@ -180,6 +180,7 @@ vram_funcs: .word 0, vram_trans8, vram_trans9, vram_trans10 // VRAM address tran
 vram_incrs: .byte 1, 32, 128, 128 // VRAM access address increments
 
 .text
+.set noreorder
 
 .align 5
 ppu_event:
@@ -190,22 +191,26 @@ ppu_event:
 
     // Check if a V-blank start or end event should occur
     lbu t0, vblank_line
+    beq s0, t0, vblank_start
     addi t1, t0, -1
     beq s0, t1, pre_vblank
-    beq s0, t0, vblank_start
-    beq s0, 262, vblank_end
+    li t0, 262
+    beq s0, t0, vblank_end
+    nop
 
 vcount_check:
     // Check if a V-count IRQ event should occur
     lhu t0, vtime
     lhu s0, cur_line
     beq s0, t0, vcount_irq
+    nop
 
 run_line:
     // Skip sections and HDMA if currently in V-blank
     lbu t0, hvbjoy
     andi t0, t0, 0x80
     bnez t0, next_line
+    nop
 
     // Decrement the section cooldown if non-zero
     lhu t0, sect_status
@@ -215,8 +220,10 @@ run_line:
 
     // Make a new section if dirty and increase the cooldown
     bne t0, 0x100, skip_section
+    nop
     lhu a0, cur_line
     jal make_section
+    nop
     lbu t0, cooldown
     addi t1, t0, SECTION_INC
     sb t1, cooldown
@@ -226,20 +233,23 @@ skip_section:
     // Update the section status and trigger HDMA
     sh t0, sect_status
     jal trigger_hdma
+    nop
 
 next_line:
     // Offset all cycle counts for the next event
     li a0, 341 * 4
     add s5, s5, a0 // CPU
     add s3, s3, a0 // APU
-    add a3, a3, a0 // DSP
     jal offset_timers
+    add a3, a3, a0 // DSP
 
     // Don't let the CPU run if it's halted
     andi t0, s4, 0x200 // Halted
     beqz t0, cpu_execute
+    nop
     li s5, 0
     j cpu_execute
+    nop
 
 .align 5
 pre_vblank:
@@ -248,6 +258,7 @@ pre_vblank:
     li t0, 0x80
     sb t0, rdnmi
     b vcount_check
+    nop
 
 .align 5
 vblank_start:
@@ -259,7 +270,9 @@ vblank_start:
     // Skip handling the frame if it was already done
     lbu t0, frame_done
     bnez t0, skip_frame
+    nop
     jal rsp_frame
+    nop
 skip_frame:
     sb zero, frame_done
 
@@ -273,10 +286,11 @@ skip_frame:
     lbu t0, nmitimen
     andi t0, t0, 0x80 // NMI enable
     beqz t0, vcount_check
-    andi s4, s4, 0xFDFF // Unhalt CPU
     li a1, 0
+    andi s4, s4, 0xFDFF // Unhalt CPU
     la ra, vcount_check
     j trigger_nmi
+    nop
 
 .align 5
 vblank_end:
@@ -292,8 +306,10 @@ vblank_end:
     sh zero, sect_status
     sh zero, cur_line
     jal reload_hdma
+    nop
     la ra, vcount_check
     j section_init
+    nop
 
 .align 5
 vcount_irq:
@@ -302,15 +318,16 @@ vcount_irq:
     andi t0, t0, 0x30 // H/V-IRQ enable
     beqz t0, run_line
     andi t1, s4, 0x4 // IRQ disable
-    andi s4, s4, 0xFDFF // Unhalt CPU
     bnez t1, run_line
-    li a1, 4
+    andi s4, s4, 0xFDFF // Unhalt CPU
     jal trigger_nmi
+    li a1, 4
 
     // Set the V-count IRQ flag
     li t0, 0x80
     sb t0, timeup
     j run_line
+    nop
 
 .align 5
 make_section: // a0: line
@@ -329,10 +346,11 @@ section_loop:
     ld t3, (t0)
     addi t0, t0, 8
     sd t3, (t1)
-    addi t1, t1, 8
     bne t0, t2, section_loop
+    addi t1, t1, 8
     sw t1, section_ptr
     jr ra
+    nop
 
 .align 5
 update_frame:
@@ -340,6 +358,7 @@ update_frame:
     li t0, 0x1
     sb t0, sect_status
     jr ra
+    nop
 
 .align 5
 update_fill:
@@ -375,18 +394,20 @@ set_fill:
     // Set the fill color and update the frame if changed
     lhu t1, (t4)
     beq t1, t2, next_fill
-    sh t2, (t4)
     li t1, 0x1
+    sh t2, (t4)
     sb t1, sect_status
 
 next_fill:
     // Move to the next color until both are done
     beq t4, t5, end_fill
-    lhu t1, cgram
     move t4, t5
+    lhu t1, cgram
     b set_fill
+    nop
 end_fill:
     jr ra
+    nop
 
 .align 5
 rsp_frame:
@@ -432,8 +453,8 @@ update_dpal:
     sw t2, 0(t4)
     sw t2, 4(t4)
     addi t6, t6, -2
-    addi t4, t4, -8
     bnez t6, update_dpal
+    addi t4, t4, -8
 
     // Copy OAM to the queue for the next frame
     la t0, oam
@@ -444,8 +465,8 @@ oam_loop:
     ld t3, (t0)
     addi t0, t0, 8
     sd t3, (t1)
-    addi t1, t1, 8
     bnez t2, oam_loop
+    addi t1, t1, 8
 
     // Reset and copy the VRAM dirty table to the queue for the next frame
     la t0, vram_table
@@ -457,17 +478,17 @@ dirty_loop:
     sd zero, (t0)
     addi t0, t0, 8
     sd t3, (t1)
-    addi t1, t1, 8
     bnez t2, dirty_loop
+    addi t1, t1, 8
 
     // Ensure cached VRAM is written back to memory
     la t0, vram
-    add t1, t0, 0x10000
+    add t1, t0, 0xFFE0
 vram_loop:
     cache 0x19, 0x00(t0)
     cache 0x19, 0x10(t0)
-    addi t0, t0, 0x20
     bne t0, t1, vram_loop
+    addi t0, t0, 0x20
 
     // Make a final frame section and reset the pointer
     lhu a0, cur_line
@@ -482,15 +503,17 @@ rsp_wait:
     lw t0, 0xA4040010 // SP_STATUS
     andi t0, t0, 0x1 // Halt
     beqz t0, rsp_wait
+    nop
 
     // Draw an FPS counter on the current frame if toggled
     lbu t0, btn_toggle
     andi t0, t0, 0x10
     beqz t0, count_frame
+    nop
     lbu a0, fps_display
     lw t0, DMEM(FRAMEBUFFER)(t6)
-    addi a1, t0, 24 * 560 + 44 * 2
     jal draw_value
+    addi a1, t0, 24 * 560 + 44 * 2
 
 count_frame:
     // Increment the frame counters with VI interrupts disabled
@@ -524,6 +547,7 @@ count_frame:
     add t0, t0, t1
     li t1, MODE7_TEXTURE
     bne t0, t1, set_buffer
+    nop
     li t0, FRAMEBUFFER1
 set_buffer:
     sw t0, DMEM(FRAMEBUFFER)(t5)
@@ -540,8 +564,9 @@ frame_wait:
 
     // Unhalt the RSP so it can render the next frame
     li t0, 0x1 // Clear halt
-    sw t0, 0xA4040010 // SP_STATUS
+    lui t1, 0xA404
     jr t4
+    sw t0, 0x0010(t1) // SP_STATUS
 
 .align 5
 vram_trans8: // t0: address, t6: return - t1: output
@@ -553,8 +578,8 @@ vram_trans8: // t0: address, t6: return - t1: output
     srl t3, t0, 5
     andi t3, t3, 0x7
     or t1, t2, t3
-    sll t1, t1, 1
     jr t6
+    sll t1, t1, 1
 
 .align 5
 vram_trans9: // t0: address, t6: return - t1: output
@@ -566,8 +591,8 @@ vram_trans9: // t0: address, t6: return - t1: output
     srl t3, t0, 6
     andi t3, t3, 0x7
     or t1, t2, t3
-    sll t1, t1, 1
     jr t6
+    sll t1, t1, 1
 
 .align 5
 vram_trans10: // t0: address, t6: return - t1: output
@@ -579,26 +604,29 @@ vram_trans10: // t0: address, t6: return - t1: output
     srl t3, t0, 7
     andi t3, t3, 0x7
     or t1, t2, t3
-    sll t1, t1, 1
     jr t6
+    sll t1, t1, 1
 
 .align 5
 read_mpyl: // v0: value
     // Read the low byte of the signed multiply result
     lbu v0, mpy + 3
     jr ra
+    nop
 
 .align 5
 read_mpym: // v0: value
     // Read the middle byte of the signed multiply result
     lbu v0, mpy + 2
     jr ra
+    nop
 
 .align 5
 read_mpyh: // v0: value
     // Read the high byte of the signed multiply result
     lbu v0, mpy + 1
     jr ra
+    nop
 
 .align 5
 read_slhv: // a0: address - v0: value
@@ -616,8 +644,8 @@ read_slhv: // a0: address - v0: value
     lbu t0, stat78
     ori t0, t0, 0x40
     sb t0, stat78
-    srl v0, a0, 8
     jr ra
+    srl v0, a0, 8
 
 .align 5
 read_rdvraml: // v0: value
@@ -625,12 +653,14 @@ read_rdvraml: // v0: value
     lbu v0, vram_fetch + 1
     lbu t2, vram_incl
     beqz t2, vraml_end
+    nop
 
     // Prefetch a new 16-bit value before increment
     lhu t0, vmadd
     lw t3, vram_trans
     sll t1, t0, 1
     bnez t3, vraml_trans
+    nop
 vraml_ret:
     lhu t1, vram(t1)
     sh t1, vram_fetch
@@ -641,11 +671,13 @@ vraml_ret:
     sh t0, vmadd
 vraml_end:
     jr ra
+    nop
 
 vraml_trans:
     // Call the VRAM address translation function if it's set
     la t6, vraml_ret
     jr t3
+    nop
 
 .align 5
 read_rdvramh: // v0: value
@@ -653,12 +685,13 @@ read_rdvramh: // v0: value
     lbu v0, vram_fetch
     lbu t2, vram_inch
     beqz t2, vramh_end
+    nop
 
     // Prefetch a new 16-bit value before increment
     lhu t0, vmadd
     lw t3, vram_trans
-    sll t1, t0, 1
     bnez t3, vramh_trans
+    sll t1, t0, 1
 vramh_ret:
     lhu t1, vram(t1)
     sh t1, vram_fetch
@@ -669,11 +702,13 @@ vramh_ret:
     sh t0, vmadd
 vramh_end:
     jr ra
+    nop
 
 vramh_trans:
     // Call the VRAM address translation function if it's set
     la t6, vramh_ret
     jr t3
+    nop
 
 .align 5
 read_ophct: // v0: value
@@ -681,14 +716,15 @@ read_ophct: // v0: value
     lhu v0, ophct
     lbu t0, oph_low
     beqz t0, oph_toggle
+    nop
     srl v0, v0, 8
 
 oph_toggle:
     // Toggle which byte to read next
-    andi v0, v0, 0xFF
     xori t0, t0, 0x1
     sb t0, oph_low
     jr ra
+    andi v0, v0, 0xFF
 
 .align 5
 read_opvct: // v0: value
@@ -696,14 +732,15 @@ read_opvct: // v0: value
     lhu v0, opvct
     lbu t0, opv_low
     beqz t0, opv_toggle
+    nop
     srl v0, v0, 8
 
 opv_toggle:
     // Toggle which byte to read next
-    andi v0, v0, 0xFF
     xori t0, t0, 0x1
     sb t0, opv_low
     jr ra
+    andi v0, v0, 0xFF
 
 .align 5
 read_stat78: // v0: value
@@ -716,6 +753,7 @@ read_stat78: // v0: value
     sb zero, oph_low
     sb zero, opv_low
     jr ra
+    nop
 
 .align 5
 read_rdnmi: // v0: value
@@ -723,6 +761,7 @@ read_rdnmi: // v0: value
     lbu v0, rdnmi
     sb zero, rdnmi
     jr ra
+    nop
 
 .align 5
 read_timeup: // v0: value
@@ -730,6 +769,7 @@ read_timeup: // v0: value
     lbu v0, timeup
     sb zero, timeup
     jr ra
+    nop
 
 .align 5
 read_hvbjoy: // v0: value
@@ -737,8 +777,8 @@ read_hvbjoy: // v0: value
     lbu v0, hvbjoy
     slti t0, s5, (341 - 274) * 4
     sll t0, t0, 6
-    or v0, v0, t0
     jr ra
+    or v0, v0, t0
 
 .align 5
 write_inidisp: // a1: value
@@ -746,20 +786,24 @@ write_inidisp: // a1: value
     lbu t1, force_blank
     andi t0, a1, 0x80
     beq t1, t0, set_bright
-    sb t0, force_blank
     li t1, 0x1
+    sb t0, force_blank
     sb t1, sect_status
 
     // Some games use mid-frame events to achieve a longer V-blank period
     // If force blank is set after a certain line, handle the frame now
     beqz t0, set_bright
+    nop
     lbu t1, hvbjoy
     andi t1, t1, 0x80
     bnez t1, set_bright
+    li t2, 210
     lhu t1, cur_line
-    ble t1, 210, set_bright
+    ble t1, t2, set_bright
+    nop
     lbu t1, frame_done
     bnez t1, set_bright
+    nop
     sb t0, frame_done
     b rsp_frame
 
@@ -770,14 +814,17 @@ set_bright:
     add t0, t0, t1
     sb t0, brightness
     j update_fill
+    nop
 
 .align 5
 write_obsel: // a1: value
     // Write to the OBSEL register and update the frame if changed
-    lbu t0, obsel
-    sb a1, obsel
+    la t1, obsel
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_oamaddl: // a1: value
@@ -793,7 +840,9 @@ write_oamaddl: // a1: value
     andi t0, t0, 0x3FE
     sh t0, oam_addr
     bne t2, t1, update_frame
+    nop
     jr ra
+    nop
 
 .align 5
 write_oamaddh: // a1: value
@@ -810,13 +859,16 @@ write_oamaddh: // a1: value
     andi t0, t0, 0x3FE
     sh t0, oam_addr
     bne t2, t1, update_frame
+    nop
     jr ra
+    nop
 
 .align 5
 write_oamdata: // a1: value
     // Increment the OAM address, wrapping around on overflow
     lhu t0, oam_addr
     blt t0, 0x220, no_wrap
+    nop
     addi t0, t0, -0x220
 no_wrap:
     addi t1, t0, 1
@@ -825,12 +877,14 @@ no_wrap:
     // Check if writing to the last 32 bytes, otherwise check for first/second access
     andi t1, t0, 0x200
     bnez t1, oam_end
-    andi t1, t0, 1
+    andi t1, t0, 0x1
     bnez t1, oam_high
+    nop
 
     // Save the low byte on first access
     sb a1, oam_lsb
     jr ra
+    nop
 
 oam_high:
     // Form a 16-bit value with the low byte and store it in OAM
@@ -840,11 +894,13 @@ oam_high:
     or t3, t1, t2
     sh t3, oam(t0)
     jr ra
+    nop
 
 oam_end:
     // Store an 8-bit value in the last 32 bytes of OAM
     sb a1, oam(t0)
     jr ra
+    nop
 
 .align 5
 write_bgmode: // a1: value
@@ -858,61 +914,74 @@ set_mode:
     // Update the frame if changed
     sb t0, bg_mode
     bne t1, t0, update_frame
+    nop
     jr ra
 
 high_prio:
     // Set a special mode when mode 1 is set with the BG3 priority bit
     andi t0, a1, 0xF0
-    ori t0, t0, 8
     b set_mode
+    ori t0, t0, 8
 
 .align 5
 write_bg1sc: // a1: value
     // Write to the BG1SC register and update the frame if changed
-    lbu t0, bgxsc + 0
-    sb a1, bgxsc + 0
+    la t1, bgxsc + 0
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_bg2sc: // a1: value
     // Write to the BG2SC register and update the frame if changed
-    lbu t0, bgxsc + 1
-    sb a1, bgxsc + 1
+    la t1, bgxsc + 1
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_bg3sc: // a1: value
     // Write to the BG3SC register and update the frame if changed
-    lbu t0, bgxsc + 2
-    sb a1, bgxsc + 2
+    la t1, bgxsc + 2
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_bg4sc: // a1: value
     // Write to the BG4SC register and update the frame if changed
-    lbu t0, bgxsc + 3
-    sb a1, bgxsc + 3
+    la t1, bgxsc + 3
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_bg12nba: // a1: value
     // Set the low byte of the combined BGNBA register and update the frame if changed
-    lbu t0, bgnba + 1
-    sb a1, bgnba + 1
+    la t1, bgnba + 1
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_bg34nba: // a1: value
     // Set the high byte of the combined BGNBA register and update the frame if changed
-    lbu t0, bgnba + 0
-    sb a1, bgnba + 0
+    la t1, bgnba + 0
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_bg1hofs: // a1: value
@@ -933,6 +1002,7 @@ write_bg1hofs: // a1: value
     sra t0, t0, 18
     sh t0, m7hofs
     j update_frame
+    nop
 
 .align 5
 write_bg1vofs: // a1: value
@@ -953,6 +1023,7 @@ write_bg1vofs: // a1: value
     sra t0, t0, 18
     sh t0, m7vofs
     j update_frame
+    nop
 
 .align 5
 write_bg2hofs: // a1: value
@@ -964,6 +1035,7 @@ write_bg2hofs: // a1: value
     sb a1, bg_old
     sh t0, bghofs + 2
     j update_frame
+    nop
 
 .align 5
 write_bg2vofs: // a1: value
@@ -975,6 +1047,7 @@ write_bg2vofs: // a1: value
     sb a1, bg_old
     sh t0, bgvofs + 2
     j update_frame
+    nop
 
 .align 5
 write_bg3hofs: // a1: value
@@ -986,6 +1059,7 @@ write_bg3hofs: // a1: value
     sb a1, bg_old
     sh t0, bghofs + 4
     j update_frame
+    nop
 
 .align 5
 write_bg3vofs: // a1: value
@@ -997,6 +1071,7 @@ write_bg3vofs: // a1: value
     sb a1, bg_old
     sh t0, bgvofs + 4
     j update_frame
+    nop
 
 .align 5
 write_bg4hofs: // a1: value
@@ -1008,6 +1083,7 @@ write_bg4hofs: // a1: value
     sb a1, bg_old
     sh t0, bghofs + 6
     j update_frame
+    nop
 
 .align 5
 write_bg4vofs: // a1: value
@@ -1019,6 +1095,7 @@ write_bg4vofs: // a1: value
     sb a1, bg_old
     sh t0, bgvofs + 6
     j update_frame
+    nop
 
 .align 5
 write_vmain: // a1: value
@@ -1032,23 +1109,27 @@ write_vmain: // a1: value
     lbu t0, vram_incrs(t0)
     andi t1, a1, 0x80
     bnez t1, vmain_high
+    nop
 
     // Set the VRAM increment for low access
     sb t0, vram_incl
     sb zero, vram_inch
     jr ra
+    nop
 
 vmain_high:
     // Set the VRAM increment for high access
     sb zero, vram_incl
     sb t0, vram_inch
     jr ra
+    nop
 
 .align 5
 write_vmaddl: // a1: value
     // Set the low byte of the VRAM address
     sb a1, vmadd + 1
     b vmadd_prefetch
+    nop
 
 write_vmaddh: // a1: value
     // Set the high byte of the VRAM address
@@ -1059,30 +1140,34 @@ vmadd_prefetch:
     // Prefetch a 16-bit value for reading
     lhu t0, vmadd
     lw t3, vram_trans
-    sll t1, t0, 1
     bnez t3, vmadd_trans
+    sll t1, t0, 1
 vmadd_ret:
     lhu t0, vram(t1)
     sh t0, vram_fetch
     jr ra
+    nop
 
 vmadd_trans:
     // Call the VRAM address translation function if it's set
     la t6, vmadd_ret
     jr t3
+    nop
 
 .align 5
 write_vmdatal: // a1: value
     // Wait for the RSP semaphore to ensure VRAM copying is done
-    lw t0, 0xA404001C
+    lui t1, 0xA404
+    lw t0, 0x001C(t1)
     bnez t0, write_vmdatal
-    sw zero, 0xA404001C
+    nop
+    sw zero, 0x001C(t1)
 
     // Write to the low VRAM byte at the current address
     lhu t0, vmadd
     lw t3, vram_trans
-    sll t1, t0, 1
     bnez t3, datal_trans
+    sll t1, t0, 1
 datal_ret:
     sb a1, vram + 1(t1)
 
@@ -1097,24 +1182,28 @@ datal_ret:
     andi t0, t0, 0x7FFF
     sh t0, vmadd
     jr ra
+    nop
 
 datal_trans:
     // Call the VRAM address translation function if it's set
     la t6, datal_ret
     jr t3
+    nop
 
 .align 5
 write_vmdatah: // a1: value
     // Wait for the RSP semaphore to ensure VRAM copying is done
-    lw t0, 0xA404001C
+    lui t1, 0xA404
+    lw t0, 0x001C(t1)
     bnez t0, write_vmdatah
-    sw zero, 0xA404001C
+    nop
+    sw zero, 0x001C(t1)
 
     // Write to the high VRAM byte at the current address
     lhu t0, vmadd
     lw t3, vram_trans
-    sll t1, t0, 1
     bnez t3, datah_trans
+    sll t1, t0, 1
 datah_ret:
     sb a1, vram(t1)
 
@@ -1129,19 +1218,23 @@ datah_ret:
     andi t0, t0, 0x7FFF
     sh t0, vmadd
     jr ra
+    nop
 
 datah_trans:
     // Call the VRAM address translation function if it's set
     la t6, datah_ret
     jr t3
+    nop
 
 .align 5
 write_m7sel: // a1: value
     // Write to the M7SEL register and update the frame if changed
-    lbu t0, m7sel
-    sb a1, m7sel
+    la t1, m7sel
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_m7a: // a1: value
@@ -1159,6 +1252,7 @@ write_m7a: // a1: value
     mflo t0
     sw t0, mpy
     j update_frame
+    nop
 
 .align 5
 write_m7b: // a1: value
@@ -1176,6 +1270,7 @@ write_m7b: // a1: value
     mflo t0
     sw t0, mpy
     j update_frame
+    nop
 
 .align 5
 write_m7c: // a1: value
@@ -1186,6 +1281,7 @@ write_m7c: // a1: value
     sb a1, m7_old
     sh t0, m7c
     j update_frame
+    nop
 
 .align 5
 write_m7d: // a1: value
@@ -1196,6 +1292,7 @@ write_m7d: // a1: value
     sb a1, m7_old
     sh t0, m7d
     j update_frame
+    nop
 
 .align 5
 write_m7x: // a1: value
@@ -1208,6 +1305,7 @@ write_m7x: // a1: value
     sra t0, t0, 18
     sh t0, m7x
     j update_frame
+    nop
 
 .align 5
 write_m7y: // a1: value
@@ -1220,6 +1318,7 @@ write_m7y: // a1: value
     sra t0, t0, 18
     sh t0, m7y
     j update_frame
+    nop
 
 .align 5
 write_cgadd: // a1: value
@@ -1227,6 +1326,7 @@ write_cgadd: // a1: value
     sll t0, a1, 1
     sh t0, cgadd
     jr ra
+    nop
 
 .align 5
 write_cgdata: // a1: value
@@ -1234,12 +1334,14 @@ write_cgdata: // a1: value
     lhu t0, cgadd
     addi t1, t0, 1
     sh t1, cgadd
-    andi t1, t0, 1
+    andi t1, t0, 0x1
     bnez t1, cg_high
+    nop
 
     // Save the low byte on first access
     sb a1, cg_lsb
     jr ra
+    nop
 
 cg_high:
     // Form a 16-bit value with the low byte and write it to CGRAM
@@ -1249,127 +1351,159 @@ cg_high:
     or t1, t1, t2
     sh t1, cgram(t0)
     beqz t0, update_fill
+    nop
     jr ra
+    nop
 
 .align 5
 write_w12sel: // a1: value
     // Set the low byte of the combined WBGSEL register and update the frame if changed
-    lbu t0, wbgsel + 1
-    sb a1, wbgsel + 1
+    la t1, wbgsel + 1
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_w34sel: // a1: value
     // Set the high byte of the combined WBGSEL register and update the frame if changed
-    lbu t0, wbgsel + 0
-    sb a1, wbgsel + 0
+    la t1, wbgsel + 0
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_wobjsel: // a1: value
     // Write to the WOBJSEL register and update the frame if changed
-    lbu t0, wobjsel
-    sb a1, wobjsel
+    la t1, wobjsel
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_wh0: // a1: value
     // Write to the WH0 register and update the frame if changed
-    lbu t0, whx + 0
-    sb a1, whx + 0
+    la t1, whx + 0
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_wh1: // a1: value
     // Write to the WH1 register and update the frame if changed
-    lbu t0, whx + 1
-    sb a1, whx + 1
+    la t1, whx + 1
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_wh2: // a1: value
     // Write to the WH2 register and update the frame if changed
-    lbu t0, whx + 2
-    sb a1, whx + 2
+    la t1, whx + 2
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_wh3: // a1: value
     // Write to the WH3 register and update the frame if changed
-    lbu t0, whx + 3
-    sb a1, whx + 3
+    la t1, whx + 3
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_wbglog: // a1: value
     // Write to the WBGLOG register and update the frame if changed
-    lbu t0, wbglog
-    sb a1, wbglog
+    la t1, wbglog
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_wobjlog: // a1: value
     // Write to the WOBJLOG register and update the frame if changed
-    lbu t0, wobjlog
-    sb a1, wobjlog
+    la t1, wobjlog
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_tm: // a1: value
     // Write to the TM register and update the frame if changed
-    lbu t0, tm
-    sb a1, tm
+    la t1, tm
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_ts: // a1: value
     // Write to the TS register and update the frame if changed
-    lbu t0, ts
-    sb a1, ts
+    la t1, ts
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_tmw: // a1: value
     // Write to the TMW register and update the frame if changed
-    lbu t0, tmw
-    sb a1, tmw
+    la t1, tmw
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_tsw: // a1: value
     // Write to the TSW register and update the frame if changed
-    lbu t0, tsw
-    sb a1, tsw
+    la t1, tsw
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_cgwsel: // a1: value
     // Write to the CGWSEL register and update the frame if changed
-    lbu t0, cgwsel
-    sb a1, cgwsel
+    la t1, cgwsel
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_cgadsub: // a1: value
     // Write to the CGADSUB register and update the frame if changed
-    lbu t0, cgadsub
-    sb a1, cgadsub
+    la t1, cgadsub
+    lbu t0, (t1)
     bne t0, a1, update_frame
+    sb a1, (t1)
     jr ra
+    nop
 
 .align 5
 write_coldata: // a1: value
@@ -1391,11 +1525,12 @@ next_channel:
 skip_channel:
     // Move to the next of the RGB channels
     sll t1, t1, 5
-    sll t2, t2, 5
     addi t3, t3, -1
     bnez t3, next_channel
+    sll t2, t2, 5
     sh t0, coldata
     j update_fill
+    nop
 
 .align 5
 write_setini: // a1: value
@@ -1409,22 +1544,26 @@ write_setini: // a1: value
     // Set the line to trigger V-blank on based on border
     li t1, 240
     beqz t0, no_border
+    nop
     addi t1, t1, -15
 no_border:
     sb t1, vblank_line
     jr ra
+    nop
 
 .align 5
 write_nmitimen: // a1: value
     // Write to the NMITIMEN register
     sb a1, nmitimen
     jr ra
+    nop
 
 .align 5
 write_vtimel: // a1: value
     // Write the low byte of the V-count timer value
     sb a1, vtime + 1
     jr ra
+    nop
 
 .align 5
 write_vtimeh: // a1: value
@@ -1432,3 +1571,4 @@ write_vtimeh: // a1: value
     andi t0, a1, 0x1
     sb t0, vtime
     jr ra
+    nop
