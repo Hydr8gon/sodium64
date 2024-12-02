@@ -117,12 +117,13 @@ obj_sizes:
     .word 0x08081010, 0x08082020, 0x08084040, 0x10102020
     .word 0x10104040, 0x20204040, 0x10202040, 0x10202020
 
-scrn_ofsv: .hword 0x0000, 0x0000, 0x0800, 0x1000 // Vertical screen address offsets
 fill_jumps: .word fill_backdrop, fill_win, fill_notwin, fill_main // Backdrop fill functions
 tile_jumps: .word decode_tile4, decode_tile16, decode_tile256 // Tile decoding functions
 shared_jumps: .word shared_decode4, shared_decode16, shared_decode256 // Shared decoding functions
 cache_rets: .word get_offsets, start_objects // Return addresses after clearing cache
 cache_ptrs: .word TILE_CACHE_BG, TILE_CACHE_OBJ, TILE_STATS_BG, TILE_STATS_OBJ, OBJECT_CACHE // RDRAM cache pointers
+scrn_ofsv: .hword 0x0000, 0x0000, 0x0800, 0x1000 // Vertical screen address offsets
+shift_table: .byte 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 // Lookup table for (1 << i)
 
 // 32-bit constants
 texrec_ofs: .word 0x22020020
@@ -458,10 +459,9 @@ fill_backdrop:
     // Don't draw any layers if force blank was set
     bnez t4, next_section
 
-    // Set the initial layer lookup offset
-    lbu s3, BG_MODE
-    andi s3, s3, 0xF
-    sll s3, s3, 4
+    // Reset the background priority status
+    sw zero, PRIO_CHECKS + 0
+    sw zero, PRIO_CHECKS + 4
 
     // Create a layer mask based on main and sub masks, with shared layers on top
     // As a workaround for lack of blending, the order of the screens can be swapped
@@ -472,11 +472,8 @@ fill_backdrop:
     and t1, t0, s7 // Shared
     sub s7, s7, t1
     sll t0, t0, 8
+    b first_layer
     or s7, s7, t0
-
-    // Reset the background priority status
-    sw zero, PRIO_CHECKS + 0
-    sw zero, PRIO_CHECKS + 4
 
 next_layer:
     // Look up the next layer and check if it's BG or OBJ
@@ -490,9 +487,12 @@ next_layer:
     bnez t0, draw_bg
     nop
 
-    // Move to the next set of layers if any exist, or finish the section
+    // Move to the next screen's layers until the section is finished
     srl s7, s7, 8
     beqz s7, next_section
+
+first_layer:
+    // Set the initial layer lookup offset
     lbu s3, BG_MODE
     andi s3, s3, 0xF
     b next_layer
@@ -501,9 +501,8 @@ next_layer:
 
 draw_bg:
     // Skip the layer if the BG is disabled
-    li t2, 1
     andi t3, t0, 0x3 // Index
-    sll a3, t2, t3 // Mask
+    lbu a3, SHIFT_TABLE(t3) // Mask
     and t1, s7, a3
     beqz t1, next_layer
 
@@ -626,10 +625,9 @@ load_screen:
     lbu t0, TMW
     lbu t1, TSW
     srl t2, s2, 1
-    li t3, 1
+    lbu t2, SHIFT_TABLE(t2)
     or t0, t0, t1
-    sll t1, t3, t2
-    and t0, t0, t1
+    and t0, t0, t2
     bnez t0, bg_windows
     li t8, 0 // Bound index
 
@@ -950,12 +948,20 @@ draw_mode7:
     sll t0, s4, 13
     sh t0, RDP_TILE7 + 96 // S-gradient along Y (frac)
     sll t1, s6, 13
+    sh t1, RDP_TILE7 + 98 // T-gradient along Y (frac)
+
+    // Draw 8-pixel or 16-pixel mode 7 tiles based on horizontal scaling
+    addi t0, s2, 0x100
+    sltiu t0, t0, 0x200
+    addi t1, s5, 0x100
+    sltiu t1, t1, 0x200
+    and t0, t0, t1
 
     // Determine mode 7 tile height from the lower section bound
     sub a3, k1, s1
     addi a3, a3, -1
     bltu a3, 7, calc_bounds
-    sh t1, RDP_TILE7 + 98 // T-gradient along Y (frac)
+    addi t7, t0, 3 // Width shift
     li a3, 7
 
 calc_bounds:
@@ -964,7 +970,7 @@ calc_bounds:
     jal multiply
     move a1, s4
     move a0, v0
-    sll a1, s2, 3
+    sll a1, s2, t7
     sub a1, a1, s2
     jal min_max
     add a2, a0, a1
@@ -976,7 +982,7 @@ calc_bounds:
     jal multiply
     move a1, s6
     move a0, v0
-    sll a1, s5, 3
+    sll a1, s5, t7
     sub a1, a1, s5
     jal min_max
     add a2, a0, a1
@@ -1005,7 +1011,9 @@ bounds_skip:
 
 next_tile7:
     // Update the RDP draw command with the tile's X-coordinate
-    addi t0, s0, 20
+    lbu t0, SHIFT_TABLE(t7)
+    add t0, t0, s0
+    addi t0, t0, 12
     sh t0, RDP_TILE7 + 32 // x1
     addi t1, s0, 12
     sh t1, RDP_TILE7 + 40 // x3
@@ -1189,7 +1197,7 @@ next_subtile:
     // DMA the texture to alternating RDRAM locations
     li a0, TEXTURE
     li a1, MODE7_TEXTURE
-    andi t0, s0, 0x8
+    andi t0, s0, 0x18
     sll t0, t0, 8
     add a1, a1, t0
     sw a1, RDP_TILE7 + 4
@@ -1203,10 +1211,11 @@ next_subtile:
 
 finish_tile7:
     // Move to the next tile, adjusting the VRAM coordinates
-    addi s0, s0, 8
-    sll t0, s2, 3
-    add t8, t8, t0
-    sll t0, s5, 3
+    lbu t0, SHIFT_TABLE(t7)
+    sll t1, s2, t7
+    add s0, s0, t0
+    add t8, t8, t1
+    sll t0, s5, t7
     blt s0, 256, next_tile7
     add t9, t9, t0
 
