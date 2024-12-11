@@ -22,6 +22,8 @@
 .globl framebuffer
 .globl fps_emulate
 .globl fps_display
+.globl skip_native
+.globl skip_emulate
 .globl frame_count
 
 .globl _start
@@ -33,6 +35,8 @@ framebuffer: .word FRAMEBUFFER1
 fps_native: .byte 0
 fps_emulate: .byte 0
 fps_display: .byte 0
+skip_native: .byte 0
+skip_emulate: .byte 0
 frame_count: .byte 0
 
 .section .boot
@@ -262,6 +266,21 @@ pi_wait2:
     nop
 
 check_frame:
+    // Ignore V-blanks to match the frames being skipped
+    la k1, skipped_set
+    lbu k0, (k1)
+    srl k0, k0, 2
+    la k1, skip_native
+    lbu k1, (k1)
+    sub k0, k0, k1
+    blez k0, skip_reset
+    li k0, 0
+    addi k0, k1, 1
+skip_reset:
+    la k1, skip_native
+    bnez k0, input_update
+    sb k0, (k1)
+
     // Continue if the next frame is ready; otherwise just update input
     la k0, frame_count
     lbu k1, (k0)

@@ -420,15 +420,34 @@ end_fill:
 
 .align 5
 rsp_frame:
-    // Alternate indices for queued frame values each frame
+    // Make a final frame section and get alternating queue indices
     lbu t5, queue_id // Next
+    lhu a0, cur_line
+    move t4, ra
+    jal make_section
     xori t6, t5, 4 // Current
+
+    // Skip rendering frames based on the setting
+    lbu t0, skipped_set
+    srl t0, t0, 2
+    lbu t1, skip_emulate
+    bge t1, t0, skip_reset
+    li t0, 0
+    addi t0, t1, 1
+
+skip_reset:
+    // Update the skip counter and the section pointer if not skipped
+    la t1, skip_emulate
+    bnez t0, ignore_frame
+    sb t0, (t1)
     sb t6, queue_id
+    lw t0, sect_queues(t6)
+    sw t0, section_ptr
 
     // Set initial values for palette conversion
     lbu t0, brightness
-    lw t4, pal_queues(t5)
-    addi t4, t4, 0x7F8
+    lw v1, pal_queues(t5)
+    addi v1, v1, 0x7F8
     li t6, 0x1FE
 
 update_dpal:
@@ -459,11 +478,11 @@ update_dpal:
     // Set a color in the palette queue and loop until finished
     sll t3, t2, 16
     or t2, t2, t3
-    sw t2, 0(t4)
-    sw t2, 4(t4)
+    sw t2, 0(v1)
+    sw t2, 4(v1)
     addi t6, t6, -2
     bnez t6, update_dpal
-    addi t4, t4, -8
+    addi v1, v1, -8
 
     // Copy OAM to the queue for the next frame
     la t0, oam
@@ -499,20 +518,12 @@ vram_loop:
     bne t0, t1, vram_loop
     addi t0, t0, 0x20
 
-    // Make a final frame section and reset the pointer
-    lhu a0, cur_line
-    move t4, ra
-    jal make_section
-    xori t6, t5, 4
-    lw t0, sect_queues(t6)
-    sw t0, section_ptr
-
 rsp_wait:
     // Wait until the RSP is finished rendering
     lw t0, 0xA4040010 // SP_STATUS
     andi t0, t0, 0x1 // Halt
     beqz t0, rsp_wait
-    nop
+    xori t6, t5, 0x4
 
     // Update the software-rendered UI
     lw a0, DMEM(FRAMEBUFFER)(t6)
@@ -527,7 +538,10 @@ menu_return:
     lbu t1, fps_emulate
     addi t0, t0, 1
     sb t0, frame_count
+    lbu t2, skipped_set
     addi t1, t1, 1
+    srl t2, t2, 2
+    add t1, t1, t2
     sb t1, fps_emulate
     li t0, 0x80 // Set VI mask
     sw t0, 0xA430000C // MI_MASK
@@ -571,6 +585,13 @@ frame_wait:
     lui t1, 0xA404
     jr t4
     sw t0, 0x0010(t1) // SP_STATUS
+
+ignore_frame:
+    // Reset the section pointer and reuse it for the next frame
+    lw t0, sect_queues(t5)
+    sw t0, section_ptr
+    jr t4
+    nop
 
 .align 5
 vram_trans8: // t0: address, t6: return - t1: output

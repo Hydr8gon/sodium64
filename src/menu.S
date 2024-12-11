@@ -21,6 +21,7 @@
 
 .globl layer_set
 .globl precision_set
+.globl skipped_set
 .globl audio_set
 
 .globl update_menu
@@ -31,6 +32,7 @@
 counter_set: .byte 0 << 2
 layer_set: .byte 0 << 2
 precision_set: .byte 2 << 2
+skipped_set: .byte 0 << 2
 audio_set: .byte 1 << 2
 left_str: .string "<"
 right_str: .string ">"
@@ -40,6 +42,7 @@ title_str: .string "SODIUM64 SETTINGS"
 counter_str: .string "FPS COUNTER"
 layer_str: .string "SUB LAYER ORDER"
 precision_str: .string "FRAME PRECISION"
+skipped_str: .string "FRAMES SKIPPED"
 audio_str: .string "AUDIO OUTPUT"
 
 .align 4
@@ -53,16 +56,21 @@ medium_str: .string " MEDIUM "
 high_str: .string "   HIGH "
 higher_str: .string " HIGHER "
 max_str: .string "    MAX "
+zero_str: .string "      0 "
+one_str: .string "      1 "
+two_str: .string "      2 "
+three_str: .string "      3 "
 
 .align 4
-menu_items: .word counter_str, layer_str, precision_str, audio_str, 0
-menu_opts: .word toggle_opts, layer_opts, precision_opts, toggle_opts
-menu_sets: .word counter_set, layer_set, precision_set, audio_set
+menu_items: .word counter_str, layer_str, precision_str, skipped_str, audio_str, 0
+menu_opts: .word toggle_opts, layer_opts, precision_opts, skipped_opts, toggle_opts
+menu_sets: .word counter_set, layer_set, precision_set, skipped_set, audio_set
 
 .align 4
 toggle_opts: .word off_str, on_str, 0
 layer_opts: .word back_str, front_str, 0
 precision_opts: .word lower_str, low_str, medium_str, high_str, higher_str, max_str, 0
+skipped_opts: .word zero_str, one_str, two_str, three_str, 0
 
 .text
 .set noreorder
