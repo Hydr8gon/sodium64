@@ -20,14 +20,13 @@ Alternatively, some flashcarts support loading ROMs directly with a supplied emu
 `.smc` format to work this way; `rom-converter.py` can optionally convert input ROMs for this.
 
 ### Controls
-|  **N64**  |       **SNES**        |
-|:---------:|:---------------------:|
-| C-Buttons |         ABXY          |
-|   D-Pad   |         D-Pad         |
-|    L/R    |          L/R          |
-|    A/B    |     Start/Select      |
-|   Start   |  Toggle FPS Counter   |
-|     Z     | Toggle Layer Priority |
+|  **N64**  |   **SNES**   |
+|:---------:|:------------:|
+| C-Buttons |     ABXY     |
+|   D-Pad   |    D-Pad     |
+|    L/R    |     L/R      |
+|    A/B    | Start/Select |
+|   Start   |   Settings   |
 
 ### Contributing
 This is a personal project, and I've decided to not review or accept pull requests for it. If you want to help, you can

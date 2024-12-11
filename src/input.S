@@ -19,10 +19,9 @@
 
 #include "defines.h"
 
-.globl btn_toggle
-
 .globl input_init
 .globl input_update
+.globl get_pressed
 .globl read_joyx
 .globl read_joyxl
 .globl read_joyxh
@@ -30,8 +29,7 @@
 .data
 
 .align 4
-btn_state: .byte 0x30
-btn_toggle: .byte 0
+btn_state: .byte 0xFF
 
 .align 4
 joybus_cmd: // Reads controller status when copied to PIF RAM
@@ -59,35 +57,6 @@ input_init:
 
 .align 5
 input_update:
-    // Check if controller 1 is connected
-    la k0, UNCACHED(joybus_cmd + 2)
-    lbu k1, 0(k0)
-    andi k1, k1, 0xC0 // Error bits
-    bnez k1, joybus_dma
-    nop
-
-    // Get the newly-pressed state for button toggles
-    lbu k1, 2(k0)
-    la k0, btn_state
-    lbu k0, (k0)
-    xori k0, k0, 0x30
-    and k0, k0, k1
-
-    // Toggle bits whose buttons were newly pressed
-    la k1, btn_toggle
-    lbu k1, (k1)
-    xor k0, k0, k1
-    la k1, btn_toggle
-    sb k0, (k1)
-
-    // Save the current pressed state for next frame
-    la k0, UNCACHED(joybus_cmd + 2)
-    lbu k1, 2(k0)
-    la k0, btn_state
-    andi k1, k1, 0x30
-    sb k1, (k0)
-
-joybus_dma:
     // Read the output of the joybus command via DMA
     lui k0, 0xA480 // SI register upper address
     la k1, joybus_cmd // Output buffer
@@ -95,6 +64,24 @@ joybus_dma:
     li k1, 0x000007C0 // PIF RAM
     sw k1, 0x0004(k0) // SI_PIF_AD_RD64B
     eret
+
+.align 5
+get_pressed: // v0: button mask
+    // Check if controller 1 is connected
+    lbu t1, UNCACHED(joybus_cmd + 2)
+    andi t1, t1, 0xC0 // Error bits
+    bnez t1, end_pressed
+    li v0, 0
+
+    // Get the newly-pressed state of certain buttons
+    lbu t0, btn_state
+    lbu t1, UNCACHED(joybus_cmd + 4)
+    xori t0, t0, 0xFF
+    and v0, t0, t1
+    sb t1, btn_state
+end_pressed:
+    jr ra
+    nop
 
 .align 5
 read_joyx: // a0: address

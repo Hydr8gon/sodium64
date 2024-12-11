@@ -21,6 +21,7 @@
 
 .globl ppu_event
 .globl section_init
+.globl menu_return
 .globl read_mpyl
 .globl read_mpym
 .globl read_mpyh
@@ -176,6 +177,10 @@ dirty_queues: .word DIRTY_QUEUE1, DIRTY_QUEUE2
 sect_queues: .word SECTION_QUEUE1, SECTION_QUEUE2
 
 .align 4
+// Values that control the cooldown between frame sections (shift, minimum, increment)
+section_vals: .word 0x000401, 0x010801, 0x021001, 0x000400, 0x000200, 0x000100
+
+.align 4
 vram_funcs: .word 0, vram_trans8, vram_trans9, vram_trans10 // VRAM address translation functions
 vram_incrs: .byte 1, 32, 128, 128 // VRAM access address increments
 
@@ -224,10 +229,13 @@ run_line:
     lhu a0, cur_line
     jal make_section
     nop
+    lbu t2, precision_set
     lbu t0, cooldown
-    addi t1, t0, SECTION_INC
+    lbu t1, section_vals + 3(t2) // Increment
+    lbu t2, section_vals + 1(t2) // Shift
+    add t1, t1, t0
     sb t1, cooldown
-    srl t0, t0, SECTION_SHIFT
+    srl t0, t0, t2
 
 skip_section:
     // Update the section status and trigger HDMA
@@ -301,7 +309,8 @@ vblank_end:
     sb zero, rdnmi
 
     // Reset the frame status and start the first section
-    li t0, SECTION_MIN
+    lbu t0, precision_set
+    lbu t0, section_vals + 2(t0) // Minimum
     sb t0, cooldown
     sh zero, sect_status
     sh zero, cur_line
@@ -505,17 +514,12 @@ rsp_wait:
     beqz t0, rsp_wait
     nop
 
-    // Draw an FPS counter on the current frame if toggled
-    lbu t0, btn_toggle
-    andi t0, t0, 0x10
-    beqz t0, count_frame
+    // Update the software-rendered UI
+    lw a0, DMEM(FRAMEBUFFER)(t6)
+    j update_menu
     nop
-    lbu a0, fps_display
-    lw t0, DMEM(FRAMEBUFFER)(t6)
-    jal draw_value
-    addi a1, t0, 24 * 560 + 44 * 2
 
-count_frame:
+menu_return:
     // Increment the frame counters with VI interrupts disabled
     li t0, 0x40 // Clear VI mask
     sw t0, 0xA430000C // MI_MASK
@@ -529,11 +533,11 @@ count_frame:
     sw t0, 0xA430000C // MI_MASK
 
     // Update/reset values for the next frame
-    lbu t0, btn_toggle
+    lbu t0, layer_set
     lbu t1, fb_border
     lhu t2, cur_line
     lw t3, sect_queues(t5)
-    srl t0, t0, 5 // Z toggle
+    srl t0, t0, 2
     addi t1, t1, 8
     addi t2, t2, -1
     sw t0, DMEM(MASK_SEL)(t5)

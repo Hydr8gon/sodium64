@@ -19,6 +19,7 @@
 
 #include "defines.h"
 
+.globl framebuffer
 .globl fps_emulate
 .globl fps_display
 .globl frame_count
@@ -265,10 +266,7 @@ check_frame:
     la k0, frame_count
     lbu k1, (k0)
     beqz k1, input_update
-
-    // Decrement the frame counter
-    addi k1, k1, -1
-    sb k1, (k0)
+    nop
 
     // Get the address of the next of three framebuffers
     la k0, framebuffer
@@ -281,12 +279,18 @@ check_frame:
     li k0, FRAMEBUFFER1
 
 set_buffer:
-    // Set the framebuffer address and update input
+    // Set the framebuffer address
     lui k1, 0xA440
     sw k0, 0x0004(k1) // VI_ORIGIN
     la k1, framebuffer
-    j input_update
     sw k0, (k1)
+
+    // Decrement the frame counter and update input
+    la k0, frame_count
+    lbu k1, (k0)
+    addi k1, k1, -1
+    j input_update
+    sb k1, (k0)
 
 .align 5
 reset_interrupt:

@@ -34,11 +34,6 @@
 // Maximum opcode bytes that can be compiled in an APU JIT block
 #define BLOCK_SIZE 16
 
-// Values that control the cooldown between frame sections
-#define SECTION_SHIFT 1
-#define SECTION_MIN 8
-#define SECTION_INC 1
-
 // The frame section data structure's size in bytes
 #define SECTION_SIZE 0x40
 

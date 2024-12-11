@@ -104,6 +104,11 @@ timer_rates: // Lookup table for timer rates and offsets
 
 .align 5
 dsp_sample:
+    // Check if audio is enabled and schedule the next sample
+    lbu t0, audio_set
+    beqz t0, apu_execute
+    addi a3, a3, -DSP_SAMPLE
+
     // Decrement the global timer once per sample
     lhu t0, dsp_timer
     bnez t0, not_zero
@@ -217,12 +222,9 @@ write_sample: // t4: left, t5: right
     andi t0, a0, 0x1FFF
     sh t0, dsp_pointer
 
-    // Schedule the next sample and check if a buffer is ready
+    // Submit a buffer to the AI when one is ready
     andi t0, a0, 0xFFF
     bnez t0, apu_execute
-    addi a3, a3, -DSP_SAMPLE
-
-    // Submit a buffer to the AI when one is ready
     lui t0, 0xA450 // AI register upper address
     la t1, dsp_buffer - 0x1000
     add t1, t1, a0 // Buffer address
