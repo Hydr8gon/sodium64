@@ -35,14 +35,20 @@
 sram: .byte 0:0x8000
 wram: .byte 0:0x20000
 empty: .byte 0:0x2000
-wmadd: .word 0
 
 .align 4
 memory_map: .word 0:0x800
 rom_addrs: .word 0:0x100
 rom_entries: .word 0:0x100
+
+.align 4
+wmadd: .word 0
 rom_pointer: .byte 0
 sram_dirty: .byte 0
+
+.align 4
+dsp1_reads: .word read_dsp1dr, read_dsp1sr
+dsp1_writes: .word write_dsp1dr, write_unk
 
 .align 4
 read_iomap:
@@ -222,13 +228,19 @@ map_lorom:
     li t2, 0x2000 // Block size (8KB)
 
     // Set the ROM mask using the header size
-    lw t4, 0xA0007FD4(t8)
+    lw t5, 0xA0007FD4(t8)
     li t7, 0x7F0000
     li t3, 0x800
-    andi t4, t4, 0xFF
+    andi t4, t5, 0xFF
     sll t4, t3, t4
     addi t4, t4, -1
     and t7, t7, t4
+
+    // Check if the DSP-1 coprocessor should be mapped
+    srl t5, t5, 8
+    andi t5, t5, 0xFF
+    addi t5, t5, -0x03
+    sltiu t6, t5, 0x04
 
     // Set the SRAM mask using the header size
     lw t9, 0xA0007FD8(t8)
@@ -276,6 +288,14 @@ lowram_area:
     ori t3, t3, 1 // Write bit
 
 lorom_area:
+    // Map I/O registers to banks 0x30-0x3F if DSP-1 is enabled
+    srl t3, t0, 16
+    sub t3, t3, 0x30
+    sltiu t3, t3, 0x10
+    and t3, t3, t6
+    bnez t3, loio_area
+    nop
+
     // Special case LoROM; the exception handler will dynamically load blocks
     and t4, t7, t0 // Mirrored bank
     srl t4, t4, 1 // 32KB every 64KB bank
@@ -341,13 +361,19 @@ map_hirom:
     li t2, 0x2000 // Block size (8KB)
 
     // Set the ROM mask using the header size
-    lw t4, 0xA000FFD4(t8)
+    lw t5, 0xA000FFD4(t8)
     li t7, 0x3FFFFF
     li t3, 0x400
-    andi t4, t4, 0xFF
+    andi t4, t5, 0xFF
     sll t4, t3, t4
     addi t4, t4, -1
     and t7, t7, t4
+
+    // Check if the DSP-1 coprocessor should be mapped
+    srl t5, t5, 8
+    andi t5, t5, 0xFF
+    addi t5, t5, -0x03
+    sltiu t6, t5, 0x04
 
     // Set the SRAM mask using the header size
     lw t9, 0xA000FFD8(t8)
@@ -399,6 +425,13 @@ hirom_area:
     add t3, t8, t4
 
 hisram_area:
+    // Map I/O registers to banks 0x00-0x0F if DSP-1 is enabled
+    srl t3, t0, 16
+    sltiu t3, t3, 0x10
+    and t3, t3, t6
+    bnez t3, hiio_area
+    nop
+
     // Special case SRAM so writes can be tracked
     beqz t9, hiempty_area
     nop
@@ -550,24 +583,33 @@ tlbl_io:
     mfc0 k0, $14 // EPC
     addi ra, k0, 4
 
-    // Look up and return to an I/O read function if no memory is mapped
+    // Look up an I/O read function if no memory is mapped
     andi a0, a0, 0xFFFF
     addi t0, a0, -0x2100
     bgeu t0, 0x4380 - 0x2100, tlbl_unk
     sll t0, t0, 2
     lw k0, read_iomap(t0)
+
+tlbl_ret:
+    // Return to a function and adjust cycle count for an I/O read
     mtc0 k0, $14 // EPC
     addi s5, s5, RAM_CYCLE - IO_CYCLE
     nop
     eret
 
 tlbl_unk:
-    // Return to the unknown I/O read function if no register is mapped
+    // Use a DSP-1 read function if enabled, or fall back to an unknown I/O read
     la k0, read_unk
-    mtc0 k0, $14 // EPC
-    addi s5, s5, RAM_CYCLE - IO_CYCLE
+    addi t0, a0, -0x6000
+    bgeu t0, 0xA000, tlbl_ret
+    sltiu t1, t0, 0x2000 // HiROM
+    sll t1, t1, 1
+    sll t0, t0, t1
+    srl t0, t0, 12
+    andi t0, t0, 0x4
+    lw k0, dsp1_reads(t0)
+    b tlbl_ret
     nop
-    eret
 
 .align 5
 tlbl_sram:
@@ -619,24 +661,33 @@ tlbs_io:
     mfc0 k0, $14 // EPC
     addi ra, k0, 4
 
-    // Look up and return to an I/O write function if no memory is mapped
+    // Look up an I/O write function if no memory is mapped
     andi a0, a0, 0xFFFF
     addi t0, a0, -0x2100
     bgeu t0, 0x4380 - 0x2100, tlbs_unk
     sll t0, t0, 2
     lw k0, write_iomap(t0)
+
+tlbs_ret:
+    // Return to a function and adjust cycle count for an I/O write
     mtc0 k0, $14 // EPC
     addi s5, s5, RAM_CYCLE - IO_CYCLE
     nop
     eret
 
 tlbs_unk:
-    // Return to the unknown I/O write function if no register is mapped
+    // Use a DSP-1 write function if enabled, or fall back to an unknown I/O write
     la k0, write_unk
-    mtc0 k0, $14 // EPC
-    addi s5, s5, RAM_CYCLE - IO_CYCLE
+    addi t0, a0, -0x6000
+    bgeu t0, 0xA000, tlbs_ret
+    sltiu t1, t0, 0x2000 // HiROM
+    sll t1, t1, 1
+    sll t0, t0, t1
+    srl t0, t0, 12
+    andi t0, t0, 0x4
+    lw k0, dsp1_writes(t0)
+    b tlbs_ret
     nop
-    eret
 
 .align 5
 tlbs_sram:

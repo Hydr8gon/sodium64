@@ -42,6 +42,7 @@ its build system. With that set up, run `make` in the project root directory to 
 * [Fullsnes](https://problemkaputt.de/fullsnes.htm) - The main source of information on SNES hardware
 * [Anomie Docs](https://www.romhacking.net/community/548) - More detailed documentation for certain components
 * [6502 Tutorials](http://6502.org/tutorials/) - Has articles thoroughly covering the CPU and its quirks
+* [bsnes](https://github.com/bsnes-emu/bsnes) - Reference for the HLE DSP-1 coprocessor commands
 
 ### Other Links
 * [Hydra's Lair](https://hydr8gon.github.io) - Blog where I may or may not write about things
