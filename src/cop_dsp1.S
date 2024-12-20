@@ -75,22 +75,22 @@ azsc_bounds:
 
 .align 4
 dsp1_cmds: // Lookup table for DSP1 command functions and parameter counts
-    .word dsp1_unimp, 0x20001,  dsp1_unimp, 0x40000,  dsp1_params, 0x70004,  dsp1_unimp, 0x30003 // 0x00-0x03
-    .word dsp1_unimp, 0x20002,  dsp1_unimp, 0x40000,  dsp1_unimp, 0x30003,  dsp1_unimp, 0x10001 // 0x04-0x07
-    .word dsp1_unimp, 0x30002,  dsp1_unimp, 0x30003,  dsp1_raster, 0x10004,  dsp1_unimp, 0x30001 // 0x08-0x0B
-    .word dsp1_unimp, 0x30002,  dsp1_unimp, 0x30003,  dsp1_unimp, 0x20002,  dsp1_unimp, 0x10001 // 0x0C-0x0F
-    .word dsp1_unimp, 0x20002,  dsp1_unimp, 0x40000,  dsp1_params, 0x70004,  dsp1_unimp, 0x30003 // 0x10-0x13
-    .word dsp1_unimp, 0x60003,  dsp1_unimp, 0x40000,  dsp1_unimp, 0x30003,  dsp1_unimp, 0x10400 // 0x14-0x17
-    .word dsp1_unimp, 0x40001,  dsp1_unimp, 0x30003,  dsp1_unimp, 0x00000,  dsp1_unimp, 0x30001 // 0x18-0x1B
-    .word dsp1_unimp, 0x60003,  dsp1_unimp, 0x30003,  dsp1_unimp, 0x20002,  dsp1_unimp, 0x10400 // 0x1C-0x1F
-    .word dsp1_unimp, 0x20001,  dsp1_unimp, 0x40000,  dsp1_params, 0x70004,  dsp1_unimp, 0x30003 // 0x20-0x23
-    .word dsp1_unimp, 0x20002,  dsp1_unimp, 0x40000,  dsp1_unimp, 0x30003,  dsp1_unimp, 0x10001 // 0x24-0x27
-    .word dsp1_unimp, 0x30001,  dsp1_unimp, 0x30003,  dsp1_unimp, 0x00000,  dsp1_unimp, 0x30001 // 0x28-0x2B
-    .word dsp1_unimp, 0x30002,  dsp1_unimp, 0x30003,  dsp1_unimp, 0x20002,  dsp1_unimp, 0x10001 // 0x2C-0x2F
-    .word dsp1_unimp, 0x20002,  dsp1_unimp, 0x40000,  dsp1_params, 0x70004,  dsp1_unimp, 0x30003 // 0x30-0x33
-    .word dsp1_unimp, 0x60003,  dsp1_unimp, 0x40000,  dsp1_unimp, 0x30003,  dsp1_unimp, 0x10400 // 0x34-0x37
-    .word dsp1_unimp, 0x40001,  dsp1_unimp, 0x30003,  dsp1_unimp, 0x00000,  dsp1_unimp, 0x30001 // 0x38-0x3B
-    .word dsp1_unimp, 0x60003,  dsp1_unimp, 0x30003,  dsp1_unimp, 0x20002,  dsp1_unimp, 0x10400 // 0x3C-0x3F
+    .word dsp1_multip, 0x20001,  dsp1_unimpl, 0x40000,  dsp1_params, 0x70004,  dsp1_unimpl, 0x30003 // 0x00-0x03
+    .word dsp1_triang, 0x20002,  dsp1_unimpl, 0x40000,  dsp1_projec, 0x30003,  dsp1_unimpl, 0x10001 // 0x04-0x07
+    .word dsp1_radius, 0x30002,  dsp1_unimpl, 0x30003,  dsp1_raster, 0x10004,  dsp1_unimpl, 0x30001 // 0x08-0x0B
+    .word dsp1_rotate, 0x30002,  dsp1_unimpl, 0x30003,  dsp1_unimpl, 0x20002,  dsp1_unimpl, 0x10001 // 0x0C-0x0F
+    .word dsp1_unimpl, 0x20002,  dsp1_unimpl, 0x40000,  dsp1_params, 0x70004,  dsp1_unimpl, 0x30003 // 0x10-0x13
+    .word dsp1_unimpl, 0x60003,  dsp1_unimpl, 0x40000,  dsp1_projec, 0x30003,  dsp1_unimpl, 0x10400 // 0x14-0x17
+    .word dsp1_unimpl, 0x40001,  dsp1_unimpl, 0x30003,  dsp1_unimpl, 0x00000,  dsp1_unimpl, 0x30001 // 0x18-0x1B
+    .word dsp1_unimpl, 0x60003,  dsp1_unimpl, 0x30003,  dsp1_unimpl, 0x20002,  dsp1_unimpl, 0x10400 // 0x1C-0x1F
+    .word dsp1_unimpl, 0x20001,  dsp1_unimpl, 0x40000,  dsp1_params, 0x70004,  dsp1_unimpl, 0x30003 // 0x20-0x23
+    .word dsp1_triang, 0x20002,  dsp1_unimpl, 0x40000,  dsp1_projec, 0x30003,  dsp1_unimpl, 0x10001 // 0x24-0x27
+    .word dsp1_distan, 0x30001,  dsp1_unimpl, 0x30003,  dsp1_unimpl, 0x00000,  dsp1_unimpl, 0x30001 // 0x28-0x2B
+    .word dsp1_rotate, 0x30002,  dsp1_unimpl, 0x30003,  dsp1_unimpl, 0x20002,  dsp1_unimpl, 0x10001 // 0x2C-0x2F
+    .word dsp1_unimpl, 0x20002,  dsp1_unimpl, 0x40000,  dsp1_params, 0x70004,  dsp1_unimpl, 0x30003 // 0x30-0x33
+    .word dsp1_unimpl, 0x60003,  dsp1_unimpl, 0x40000,  dsp1_projec, 0x30003,  dsp1_unimpl, 0x10400 // 0x34-0x37
+    .word dsp1_unimpl, 0x40001,  dsp1_unimpl, 0x30003,  dsp1_unimpl, 0x00000,  dsp1_unimpl, 0x30001 // 0x38-0x3B
+    .word dsp1_unimpl, 0x60003,  dsp1_unimpl, 0x30003,  dsp1_unimpl, 0x20002,  dsp1_unimpl, 0x10400 // 0x3C-0x3F
 
 .align 4
 data_rom: // Data ROM from bsnes containing lookup tables and constants
@@ -389,21 +389,90 @@ normal_loop:
     bnez t3, normal_coeff
     srl t1, t1, 1
     beqz t1, normal_coeff
-    nop
-    b normal_loop
     addi t0, t0, 1
+    b normal_loop
+    nop
 
 normal_coeff:
     // Use a lookup table to calculate the coefficient and adjust its exponent
     beqz t0, normal_same
     sll t1, t0, 1
     lh t1, data_rom + 0x42(t1)
-    sll t1, t1, 1
     mult a0, t1
     mflo a0
+    sll a0, a0, 1
 normal_same:
     jr ra
     sub a1, a1, t0
+
+.align 5
+calc_norm32: // a0: number - a0: coefficient, a1: exponent
+    // Set initial values for normalizing a 32-bit number with range -1 to 1
+    li a1, 0
+    li t1, 0x4000
+    sra t2, a0, 31
+    andi t3, a0, 0x7FFF
+    sra a0, a0, 15
+    xor t4, t2, a0 // Absolute
+    xor t2, t2, t3 // Absolute
+
+norm32_loop:
+    // Count leading zeros in the absolute upper value of the number
+    and t0, t4, t1
+    bnez t0, norm32_coeff
+    srl t1, t1, 1
+    beqz t1, norm32_coeff
+    addi a1, a1, 1
+    b norm32_loop
+    nop
+
+norm32_coeff:
+    // Use a lookup table to calculate the upper coefficient
+    beqz a1, norm32_done
+    sll t1, a1, 1
+    lh t1, data_rom + 0x42(t1)
+    sll t1, t1, 1
+    mult a0, t1
+    mflo a0
+
+    // Adjust the coefficient for the lower value if upper isn't empty
+    bge a1, 15, norm16_count
+    sll t0, a1, 1
+    sub t0, zero, t0
+    lh t0, data_rom + 0x80(t0)
+    mult t0, t3
+    mflo t0
+    sra t0, t0, 15
+    b norm32_done
+    add a0, a0, t0
+
+norm16_count:
+    // Count leading zeros in the absolute lower value of the number
+    li t1, 0x4000
+norm16_loop:
+    and t0, t2, t1
+    bnez t0, norm16_coeff
+    srl t1, t1, 1
+    beqz t1, norm16_coeff
+    addi a1, a1, 1
+    b norm16_loop
+    nop
+
+norm16_coeff:
+    // Adjust the coefficient for the lower value if upper is empty
+    ble a1, 15, norm32_done
+    add a0, a0, t3
+    sll t0, a1, 1
+    lh t0, data_rom + 0x24(t0)
+    mult t0, t3
+    mflo a0
+    sll a0, a0, 1
+
+norm32_done:
+    // Ensure the 16-bit result is properly sign-extended
+    sll a0, a0, 16
+    jr ra
+    sra a0, a0, 16
 
 .align 5
 calc_denorm: // a0: coefficient, a1: exponent - a0: result
@@ -493,6 +562,138 @@ inverse_exp:
     sub a1, zero, a1
     jr ra
     addi a1, a1, 1
+
+.align 5
+dsp1_multip:
+    // Multiply two 16-bit values
+    lh t0, input_buf + 2
+    lh t1, input_buf + 0
+    mult t0, t1
+    mflo t0
+    sra t0, t0, 15
+    sh t0, output_buf + 0
+    j check_output
+    nop
+
+.align 5
+dsp1_triang:
+    // Calculate the X component of a 2D vector using angle and radius
+    lh t9, input_buf + 2
+    lh t8, input_buf + 0
+    jal calc_cos
+    move a0, t9
+    mult a0, t8
+    mflo t0
+    sra t0, t0, 15
+    sh t0, output_buf + 0
+
+    // Calculate the Y component of a 2D vector using angle and radius
+    jal calc_sin
+    move a0, t9
+    mult a0, t8
+    mflo t0
+    sra t0, t0, 15
+    sh t0, output_buf + 2
+    j check_output
+    nop
+
+.align 5
+dsp1_rotate:
+    // Get the sine and cosine of the input angle
+    lh a0, input_buf + 4
+    jal calc_sin
+    move t9, a0
+    move t8, a0
+    jal calc_cos
+    move a0, t9
+
+    // Calculate the rotated X-coordinate from the input coordinates
+    lh t0, input_buf + 0
+    mult t0, t8
+    lh t1, input_buf + 2
+    mflo t2
+    mult t1, a0
+    sra t2, t2, 15
+    mflo t3
+    sra t3, t3, 15
+    add t2, t2, t3
+    sh t2, output_buf + 2
+
+    // Calculate the rotated Y-coordinate from the input coordinates
+    mult t0, a0
+    mflo t2
+    mult t1, t8
+    sra t2, t2, 15
+    mflo t3
+    sra t3, t3, 15
+    sub t2, t2, t3
+    sh t2, output_buf + 0
+    j check_output
+    nop
+
+.align 5
+dsp1_radius:
+    // Calculate the 32-bit squared normal of a 3D vector
+    lh t0, input_buf + 4
+    mult t0, t0
+    lh t1, input_buf + 2
+    mflo t0
+    mult t1, t1
+    lh t2, input_buf + 0
+    mflo t1
+    mult t2, t2
+    add t0, t0, t1
+    mflo t2
+    add t0, t0, t2
+    sll t0, t0, 1
+
+    // Output the result as two 16-bit halves
+    sh t0, output_buf + 2
+    sra t0, t0, 16
+    sh t0, output_buf + 0
+    j check_output
+    nop
+
+.align 5
+dsp1_distan:
+    // Calculate the 32-bit squared normal of a 3D vector
+    lh t0, input_buf + 4
+    mult t0, t0
+    lh t1, input_buf + 2
+    mflo t0
+    mult t1, t1
+    lh t2, input_buf + 0
+    mflo t1
+    mult t2, t2
+    add t0, t0, t1
+    mflo t2
+    add a0, t0, t2
+    beqz a0, distan_set
+    nop
+
+    // Normalize and look up points for square root interpolation
+    jal calc_norm32
+    nop
+    andi t0, a1, 0x1
+    sra a0, a0, t0
+    sra t0, a0, 9
+    sll t0, t0, 1
+    lh t1, data_rom + 0x1AC(t0)
+    lh t0, data_rom + 0x1AA(t0)
+
+    // Calculate the square root to get the length of the vector
+    sub t2, t1, t0
+    andi a0, a0, 0x1FF
+    mult t2, a0
+    mflo t2
+    sra t2, t2, 9
+    add a0, t2, t0
+    sra t0, a1, 1
+    sra a0, a0, t0
+distan_set:
+    sh a0, output_buf + 0
+    j check_output
+    nop
 
 .align 5
 dsp1_params:
@@ -789,7 +990,158 @@ dsp1_raster:
     nop
 
 .align 5
-dsp1_unimp:
+dsp1_projec:
+    // Normalize the offset of a 3D point from the screen center
+    lh t0, input_buf + 4
+    lh t1, global_x
+    jal calc_norm32
+    sub a0, t0, t1
+    addi t9, a1, -1
+    sra t8, a0, 1
+    lh t0, input_buf + 2
+    lh t1, global_y
+    jal calc_norm32
+    sub a0, t0, t1
+    addi t7, a1, -1
+    sra t6, a0, 1
+    lh t0, input_buf + 0
+    lh t1, global_z
+    jal calc_norm32
+    sub a0, t0, t1
+    addi t5, a1, -1
+    sra t4, a0, 1
+
+    // Find the lowest common exponent between the components
+    blt t7, t9, low_exp1
+    move t0, t7
+    move t0, t9
+low_exp1:
+    blt t0, t5, low_exp2
+    nop
+    move t0, t5
+low_exp2:
+    sub t9, t9, t0
+    sub t7, t7, t0
+    sub t5, t5, t0
+
+    // Adjust the coefficients so they all use the same exponent
+    sll t9, t9, 1
+    lh t9, data_rom + 0x62(t9)
+    mult t8, t9
+    sll t7, t7, 1
+    lh t7, data_rom + 0x62(t7)
+    mflo t8
+    sra t8, t8, 15
+    mult t6, t7
+    sll t5, t5, 1
+    lh t5, data_rom + 0x62(t5)
+    mflo t6
+    mult t4, t5
+    sra t6, t6, 15
+    mflo t4
+    sra sp, t4, 15
+
+    // Calculate the dot product of the point and the normal vector
+    lh t9, normal_x
+    mult t9, t8
+    lh t7, normal_y
+    mflo t9
+    sra t9, t9, 15
+    mult t7, t6
+    lh t5, normal_z
+    mflo t7
+    sra t7, t7, 15
+    mult t5, sp
+    sub t1, zero, t9
+    sub t1, t1, t7
+    mflo t5
+    sra t5, t5, 15
+    sub t1, t1, t5
+
+    // Denormalize the product to a 32-bit value
+    li t9, 16
+    sub t9, t9, t0
+    bgez t9, shift_pos
+    sub t0, zero, t9
+    b shift_neg
+    sra t1, t1, t0
+shift_pos:
+    sll t1, t1, t9
+shift_neg:
+    addi t1, t1, 1
+    sltu t0, zero, t1
+    sub t1, t1, t0
+    sra t1, t1, 1
+
+    // Calculate the scale factor and denormalize it
+    lhu t0, les
+    lh t7, les_e
+    jal calc_norm32
+    add a0, t0, t1
+    addi t7, t7, -15
+    add t7, t7, a1
+    jal calc_inverse
+    li a1, 0
+    lh t0, les_c
+    mult t0, a0
+    mflo t5
+    sra t5, t5, 15
+    jal calc_normal
+    move a0, t5
+    add a1, a1, t7
+    jal calc_denorm
+    addi a1, a1, -7
+    sh a0, output_buf + 0
+
+    // Calculate the vertical projection and denormalize it
+    lh t0, vert_x
+    mult t0, t8
+    lh t1, vert_y
+    mflo t0
+    sra t0, t0, 15
+    mult t1, t6
+    lh t2, vert_z
+    mflo t1
+    mult t2, sp
+    sra t1, t1, 15
+    add t0, t0, t1
+    mflo t2
+    sra t2, t2, 15
+    add t0, t0, t2
+    mult t0, t5
+    mflo a0
+    sra a0, a0, 15
+    jal calc_normal
+    li a1, 0
+    add a1, a1, t7
+    jal calc_denorm
+    add a1, a1, t9
+    sh a0, output_buf + 2
+
+    // Calculate the horizontal projection and denormalize it
+    lh t0, hori_x
+    mult t0, t8
+    lh t1, hori_y
+    mflo t0
+    mult t1, t6
+    sra t0, t0, 15
+    mflo t1
+    sra t1, t1, 15
+    add t0, t0, t1
+    mult t0, t5
+    mflo a0
+    sra a0, a0, 15
+    jal calc_normal
+    li a1, 0
+    add a1, a1, t7
+    jal calc_denorm
+    add a1, a1, t9
+    sh a0, output_buf + 4
+    j check_output
+    nop
+
+.align 5
+dsp1_unimpl:
     // Do nothing for unimplemented DSP1 commands
     la t0, output_buf
     sd zero, 0(t0)

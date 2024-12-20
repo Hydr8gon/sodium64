@@ -425,9 +425,11 @@ hirom_area:
     add t3, t8, t4
 
 hisram_area:
-    // Map I/O registers to banks 0x00-0x0F if DSP-1 is enabled
+    // Map I/O registers to banks 0x00-0x0F and 0x20-0x2F if DSP-1 is enabled
     srl t3, t0, 16
+    addi t3, t3, -0x10
     sltiu t3, t3, 0x10
+    xori t3, t3, 0x1
     and t3, t3, t6
     bnez t3, hiio_area
     nop
