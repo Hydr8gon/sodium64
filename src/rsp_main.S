@@ -189,12 +189,6 @@ vram_loop:
     addi t1, t1, 0x400
     mtc0 zero, COP0_SEMAPHORE
 
-    // Load OAM for the current frame
-    li a0, OAM
-    lw a1, OAM_PTR(sp)
-    jal dma_read
-    li a2, 0x21F
-
     // Load the VRAM dirty table for the current frame
     li a0, TILE_TABLE
     lw a1, DIRTY_PTR(sp)
@@ -225,6 +219,39 @@ table_loop:
     li a0, RDP_FRAME
     jal rdp_send
     li a1, RDP_FILL
+
+    // Set the initial section bound
+    li k1, 0
+
+next_section:
+    // Finish the frame after the last section is done
+    lw t0, FRAME_END(sp)
+    beq k1, t0, next_frame
+
+    // Load values for the next section
+    li a0, BGHOFS
+    lw a1, SECTION_PTR(sp)
+    jal dma_read
+    li a2, SECTION_SIZE - 1
+    addi a1, a1, SECTION_SIZE
+    sw a1, SECTION_PTR(sp)
+
+    // Set the section bounds
+    move k0, k1
+    lbu k1, SPLIT_LINE
+
+    // Check if this section has an OAM update
+    lbu t0, STAT_FLAGS
+    andi t0, t0, 0x40
+    beqz t0, oam_skip
+
+    // Update OAM for the following sections
+    li a0, OAM
+    lw a1, OAM_PTR(sp)
+    addi t0, a1, 0x220
+    sw t0, OAM_PTR(sp)
+    jal dma_read
+    li a2, 0x21F
 
     // Get the index of the last object in rotation
     lhu t1, OAMADD
@@ -331,26 +358,7 @@ finish_cache:
     bne t7, 3, next_priority
     addi t7, t7, 1
 
-    // Set the initial section bound
-    li k1, 0
-
-next_section:
-    // Finish the frame after the last section is done
-    lw t0, FRAME_END(sp)
-    beq k1, t0, next_frame
-
-    // Load values for the next section
-    li a0, BGHOFS
-    lw a1, SECTION_PTR(sp)
-    jal dma_read
-    li a2, SECTION_SIZE - 1
-    addi a1, a1, SECTION_SIZE
-    sw a1, SECTION_PTR(sp)
-
-    // Set the section bounds
-    move k0, k1
-    lbu k1, SPLIT_LINE
-
+oam_skip:
     // Update the RDP scissor and fill bounds for the section
     lw t0, FB_OFFSET(sp)
     add t1, t0, k0
@@ -373,7 +381,8 @@ next_section:
     li t9, 1 // Bound index
 
     // Clear the backdrop if force blank is enabled
-    lbu t4, FORCE_BLANK
+    lbu t4, STAT_FLAGS
+    andi t4, t4, 0x80
     beqz t4, not_blank
     li s0, 0
     b fill_backdrop
@@ -718,16 +727,11 @@ skip_small:
     xor t0, t0, gp
     bnez t0, skip_priority
 
-    // Update the RDP texture parameters based on mirroring
-    srl t1, t6, 11
-    andi t1, t1, 0x18
-    lw t3, TILE_PARAMS + 0(t1)
-    lw t4, TILE_PARAMS + 4(t1)
-    sw t3, RDP_TILE + 32 // S/T coordinates
-    sw t4, RDP_TILE + 36 // Gradients along X/Y
+    // Update mirroring using the shared function
+    andi s8, t6, 0x3FF // Character number
+    jal shared_mirror
 
     // Check if the tile's VRAM is dirty for the current BG
-    andi s8, t6, 0x3FF // Character number
     lhu t0, CACHE_BASES(s2)
     sll t1, s8, s4
     add t3, t0, t1
@@ -790,24 +794,19 @@ decode_tile4:
     mtc2 t0, $v05, 0
 
 decode_tile:
-    // Decode a tile using the shared function
+    // Decode a tile and mark it as empty if it has no visible pixels
     jal shared_decode
-    nop
-
-    // Mark the tile as empty if it has no visible pixels
     li t0, 0xFF0
     sqv $v10, 0, 0, t0
-    lw t1, 0x0(t0)
-    lw t2, 0x4(t0)
-    lw t3, 0x8(t0)
-    lw t4, 0xC(t0)
-    or t0, t1, t2
-    or t0, t0, t3
-    or t0, t0, t4
-    bnez t0, not_empty
-    li t0, 0xFF
+    li t1, 0x1000
+empty_loop:
+    lw t2, (t0)
+    bnez t2, not_empty
+    addi t0, t0, 4
+    bne t0, t1, empty_loop
+    li t2, 0xFF
     b finish_tile
-    sb t0, TILE_TABLE(s8)
+    sb t2, TILE_TABLE(s8)
 
 not_empty:
     // DMA the texture to the tile cache in RDRAM
@@ -1292,13 +1291,9 @@ check_object:
     andi t9, t9, 0x1FC
     lw t1, OAM(t9)
 
-    // Update the RDP texture parameters based on mirroring
-    srl t5, t1, 11
-    andi t5, t5, 0x18
-    lw t3, TILE_PARAMS + 0(t5)
-    lw t4, TILE_PARAMS + 4(t5)
-    sw t3, RDP_TILE + 32 // S/T coordinates
-    sw t4, RDP_TILE + 36 // Gradients along X/Y
+    // Update mirroring using the shared function
+    jal shared_mirror
+    move t6, t1
 
     // Set initial values for drawing the object
     sll t3, t1, 3
@@ -1460,6 +1455,17 @@ cache_loop:
     jr ra
 
 
+shared_mirror: // t6: parameter
+    // Update the RDP texture parameters based on mirroring
+    srl t2, t6, 11
+    andi t2, t2, 0x18
+    lw t3, TILE_PARAMS + 0(t2)
+    lw t4, TILE_PARAMS + 4(t2)
+    sw t3, RDP_TILE + 32 // S/T coordinates
+    jr ra
+    sw t4, RDP_TILE + 36 // Gradients along X/Y
+
+
 shared_decode: // t4: decode jump
     // Set initial values for decoding a tile
     li t7, 0x40 // Texture offset
@@ -1523,9 +1529,9 @@ shared_decode4:
 
 calc_windows: // a0: mask settings
     // Load offsets where the window area changes
-    lbu t0, WHX + 0
-    lbu t1, WHX + 1
     li t2, 255
+    lbu t1, WHX + 1
+    lbu t0, WHX + 0
 
     // Determine window areas based on the mask settings
     // TODO: support window 2 and combine logic

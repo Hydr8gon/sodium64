@@ -99,14 +99,16 @@ vram_table: .byte 0:0x400
 
 .align 4
 section_ptr: .word SECTION_QUEUE1
+oam_ptr: .word OAM_QUEUE1
 sect_status: .hword 0
 cur_line: .hword 0
 vblank_line: .byte 0xE1
 cooldown: .byte 0
-queue_id: .byte 0
-frame_done: .byte 0
 fb_border: .byte 0
 brightness: .byte 0
+queue_id: .byte 0
+frame_done: .byte 0
+oam_count: .byte 0
 
 .align 4
 vram_trans: .word 0
@@ -166,7 +168,7 @@ tm: .byte 0
 tsw: .byte 0
 tmw: .byte 0
 bg_mode: .byte 0
-force_blank: .byte 0
+stat_flags: .byte 0
 split_line: .byte 0
 
 .align 4
@@ -314,9 +316,14 @@ vblank_end:
     sb t0, cooldown
     sh zero, sect_status
     sh zero, cur_line
+    la t0, stat_flags
+    lbu t1, (t0)
+    ori t1, t1, 0x40 // OAM dirty
     jal reload_hdma
-    nop
+    sb t1, (t0)
     la ra, vcount_check
+    li t0, 16 // Max OAM updates
+    sb t0, oam_count
     j section_init
     nop
 
@@ -347,6 +354,36 @@ make_section: // a0: line
     sb a0, (t1)
 
 section_init:
+    // Check if OAM should be updated
+    lbu t0, stat_flags
+    andi t1, t0, 0x40
+    beqz t1, oam_skip
+    nop
+    lbu t1, oam_count
+    beqz t1, oam_full
+    addi t1, t1, -1
+    sb t1, oam_count
+
+    // Make a new copy of OAM, so it can be updated mid-frame
+    li t2, 0x220
+    lw t1, oam_ptr
+    la t0, oam
+oam_loop:
+    addi t2, t2, -8
+    ld t3, (t0)
+    addi t0, t0, 8
+    sd t3, (t1)
+    bnez t2, oam_loop
+    addi t1, t1, 8
+    sw t1, oam_ptr
+    b oam_skip
+
+oam_full:
+    // Clear the OAM dirty flag if no more updates can fit
+    andi t0, t0, 0xBF
+    sb t0, stat_flags
+
+oam_skip:
     // Copy values for the next frame section
     la t0, bghofs
     lw t1, section_ptr
@@ -358,8 +395,13 @@ section_loop:
     bne t0, t2, section_loop
     addi t1, t1, 8
     sw t1, section_ptr
+
+    // Clear the OAM dirty flag for the next section
+    la t1, stat_flags
+    lbu t0, (t1)
+    andi t0, t0, 0xBF
     jr ra
-    nop
+    sb t0, (t1)
 
 .align 5
 update_frame:
@@ -436,13 +478,15 @@ rsp_frame:
     addi t0, t1, 1
 
 skip_reset:
-    // Update the skip counter and the section pointer if not skipped
+    // Update the skip counter and the section pointers if not skipped
     la t1, skip_emulate
     bnez t0, ignore_frame
     sb t0, (t1)
     sb t6, queue_id
     lw t0, sect_queues(t6)
+    lw t1, oam_queues(t6)
     sw t0, section_ptr
+    sw t1, oam_ptr
 
     // Set initial values for palette conversion
     lbu t0, brightness
@@ -483,18 +527,6 @@ update_dpal:
     addi t6, t6, -2
     bnez t6, update_dpal
     addi v1, v1, -8
-
-    // Copy OAM to the queue for the next frame
-    la t0, oam
-    lw t1, oam_queues(t5)
-    li t2, 0x220
-oam_loop:
-    addi t2, t2, -8
-    ld t3, (t0)
-    addi t0, t0, 8
-    sd t3, (t1)
-    bnez t2, oam_loop
-    addi t1, t1, 8
 
     // Reset and copy the VRAM dirty table to the queue for the next frame
     la t0, vram_table
@@ -551,6 +583,7 @@ menu_return:
     lbu t1, fb_border
     lhu t2, cur_line
     lw t3, sect_queues(t5)
+    lw t7, oam_queues(t5)
     srl t0, t0, 2
     addi t1, t1, 8
     addi t2, t2, -1
@@ -558,6 +591,7 @@ menu_return:
     sw t1, DMEM(FB_OFFSET)(t5)
     sw t2, DMEM(FRAME_END)(t5)
     sw t3, DMEM(SECTION_PTR)(t5)
+    sw t7, DMEM(OAM_PTR)(t5)
 
     // Get the address of the next of three framebuffers
     lw t0, DMEM(FRAMEBUFFER)(t6)
@@ -587,9 +621,11 @@ frame_wait:
     sw t0, 0x0010(t1) // SP_STATUS
 
 ignore_frame:
-    // Reset the section pointer and reuse it for the next frame
+    // Reset the section pointers and reuse them for the next frame
     lw t0, sect_queues(t5)
+    lw t1, oam_queues(t5)
     sw t0, section_ptr
+    sw t1, oam_ptr
     jr t4
     nop
 
@@ -808,11 +844,13 @@ read_hvbjoy: // v0: value
 .align 5
 write_inidisp: // a1: value
     // Set the force blank bit and update the frame if changed
-    lbu t1, force_blank
+    lbu t1, stat_flags
     andi t0, a1, 0x80
-    beq t1, t0, set_bright
+    andi t2, t1, 0x80
+    beq t2, t0, set_bright
+    xori t1, t1, 0x80
+    sb t1, stat_flags
     li t1, 0x1
-    sb t0, force_blank
     sb t1, sect_status
 
     // Some games use mid-frame events to achieve a longer V-blank period
@@ -890,6 +928,11 @@ write_oamaddh: // a1: value
 
 .align 5
 write_oamdata: // a1: value
+    // Mark OAM as dirty
+    lbu t0, stat_flags
+    ori t0, t0, 0x40
+    sb t0, stat_flags
+
     // Increment the OAM address, wrapping around on overflow
     lhu t0, oam_addr
     blt t0, 0x220, no_wrap
