@@ -384,12 +384,12 @@ oam_skip:
     lbu t4, STAT_FLAGS
     andi t4, t4, 0x80
     beqz t4, not_blank
-    li s0, 0
+    lhu s0, SUB_COLOR
     b fill_backdrop
+    li s0, 0
 
 not_blank:
     // Check if the sub screen color should be applied to backdrop pixels
-    lhu s0, SUB_COLOR
     lbu t0, CGADSUB
     beqz s0, fill_main
     andi t0, t0, 0x20 // Backdrop math

@@ -156,6 +156,7 @@ pi_wait1:
     la a1, rsp_main_data_start
     jal rsp_upload
     li a0, 0x0000 // DMEM address
+    sw zero, 0xA4080000 // SP_PC
 
     // Enable VI interrupts and start execution
     li t0, 0x00000595 // Set VI mask

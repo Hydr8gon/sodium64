@@ -45,7 +45,7 @@ N64_ASFLAGS = -mtune=vr4300 -march=vr4300 -Wa,--fatal-warnings
 N64_RSPASFLAGS = -march=mips1 -mabi=32 -Wa,--fatal-warnings
 N64_LDFLAGS = -L$(N64_LIBDIR) -Tn64.ld --gc-sections
 N64_TOOLFLAGS = --title $(N64_ROM_TITLE)
-N64_ED64ROMCONFIGFLAGS = --savetype $(N64_ROM_SAVETYPE)
+N64_ED64ROMCONFIGFLAGS = --savetype $(N64_ROM_SAVETYPE) --regionfree
 
 COMMA := ,
 
