@@ -38,7 +38,8 @@ if convert == 1:
     print("To be compatible with this, ROMs must be converted to headerless .smc files.")
     print("Would you like to convert the input ROMs to this format? (y/N)")
 
-    if input() == "y":
+    if raw_input() == "y":
+        import os
         for filename in os.listdir("."):
             ext = filename[-4:].lower()
             if (ext == ".sfc" or ext == ".smc") and os.path.isfile(filename):
