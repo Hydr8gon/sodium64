@@ -708,11 +708,10 @@ next_tile:
 
     // Adjust the tile number based on Y-coordinate within the tile
     add t1, s5, s1
-    andi t1, t1, 0x8
-    sll t1, t1, 1
-    andi t0, t6, 0x8000 // Y-flip
-    srl t0, t0, 11
-    xor t1, t1, t0
+    sll t1, t1, 12
+    xor t1, t1, t6 // Y-flip
+    srl t1, t1, 11
+    andi t1, t1, 0x10
     b skip_small
     add t6, t6, t1
 
@@ -816,12 +815,12 @@ not_empty:
     add a1, a1, t0
     sll t0, s8, 6
     add a1, a1, t0
-    sw a1, RDP_TILE + 4
     jal dma_write
     li a2, 0x3F
 
 draw_tile:
-    // Run the RDP to draw a tile
+    // Update texture address and run the RDP to draw a tile
+    sw a1, RDP_TILE + 4
     li a0, RDP_TILE
     jal rdp_send
     li a1, RDP_TILE7
@@ -867,9 +866,8 @@ skip_decode:
     sll t0, s2, 15
     add a1, a1, t0
     sll t0, s8, 6
-    add a1, a1, t0
     b draw_tile
-    sw a1, RDP_TILE + 4
+    add a1, a1, t0
 
 skip_priority:
     // Track that a tile was skipped due to priority
@@ -970,9 +968,8 @@ calc_bounds:
     move a1, s4
     move a0, v0
     sll a1, s2, t7
-    sub a1, a1, s2
     jal min_max
-    add a2, a0, a1
+    sub a1, a1, s2
     sw v0, MODE7_BOUNDS + 0
     sw v1, MODE7_BOUNDS + 4
 
@@ -982,9 +979,8 @@ calc_bounds:
     move a1, s6
     move a0, v0
     sll a1, s5, t7
-    sub a1, a1, s5
     jal min_max
-    add a2, a0, a1
+    sub a1, a1, s5
     sw v0, MODE7_BOUNDS + 8
     b bounds_skip
     sw v1, MODE7_BOUNDS + 12
@@ -1239,12 +1235,13 @@ draw_obj:
     beqz t1, next_layer
     andi a3, t0, 0x3 // Priority
 
-    // Check if the object character base changed
-    // TODO: use the gap setting
+    // Check if the object character base or gap changed
     lbu t1, OBSEL
     lhu t2, CACHE_BASES + 8
-    andi t0, t1, 0x3
+    andi t0, t1, 0x3 // Base
     sll t0, t0, 14
+    andi t3, t1, 0x18 // Gap
+    or t0, t0, t3
     beq t0, t2, load_objcache
     sh t0, CACHE_BASES + 8
 
@@ -1344,8 +1341,13 @@ next_objx:
 
     // Check if the tile's VRAM is dirty for objects
     lhu t0, CACHE_BASES + 8
+    blt s5, 0x100, no_gap
     sll t4, s5, 5
+    sll t2, t0, 10
+    add t0, t0, t2
+no_gap:
     add t5, t0, t4
+    andi t5, t5, 0xFFE0
     srl t0, t5, 6
     lbu t2, VRAM_TABLE(t0)
     andi t4, t2, 0x10
@@ -1383,12 +1385,12 @@ check_objcache:
     lw a1, CACHE_PTRS + 4
     sll t0, s5, 6
     add a1, a1, t0
-    sw a1, RDP_TILE + 4
     jal dma_write
     li a2, 0x3F
 
 draw_objtile:
-    // Run the RDP to draw an object tile
+    // Update texture address and run the RDP to draw an object tile
+    sw a1, RDP_TILE + 4
     li a0, RDP_TILE
     jal rdp_send
     li a1, RDP_TILE7
@@ -1430,9 +1432,8 @@ skip_objdecode:
     // Update the RDP texture address and draw a cached tile
     lw a1, CACHE_PTRS + 4
     sll t0, s5, 6
-    add a1, a1, t0
     b draw_objtile
-    sw a1, RDP_TILE + 4
+    add a1, a1, t0
 
 
 next_frame:
@@ -1522,7 +1523,7 @@ shared_decode4:
     // Write the line to the texture buffer and loop until complete
     vand $v20, $v20, $v31, 0
     vor $v10, $v10, $v02, 0
-    beqz t7, max3
+    beqz t7, ret_jump
     spv $v02, 0, 0, t7
     jr t4
 
@@ -1584,35 +1585,35 @@ multiply: // a0: multiplicand, a1: multiplier - v0: product
     or v0, v0, v1
 
 
-min_max: // a0-a2: values - v0: min, v1: max
-    // Find the minimum out of 4 values, including zero
-    bgtz a0, min1
-    move v0, zero
-    move v0, a0
-min1:
-    bgt a1, v0, min2
-    nop
-    move v0, a1
-min2:
-    bgt a2, v0, min3
-    nop
-    move v0, a2
-min3:
+min_max: // a0-a1: values - v0: min, v1: max
+    // Create a third value by adding the first two
+    add a2, a0, a1
+    li t0, 1
 
-    // Find the maximum out of 4 values, including zero
-    blez a0, max1
+find_min:
+    // Find the minimum out of 4 values, including zero
+    bgtz a0, min_skip1
     move v1, zero
     move v1, a0
-max1:
-    ble a1, v1, max2
-    nop
+min_skip1:
+    bgt a1, v1, min_skip2
+    sub a0, zero, a0
     move v1, a1
-max2:
-    ble a2, v1, max3
-    nop
+min_skip2:
+    bgt a2, v1, find_max
+    sub a1, zero, a1
     move v1, a2
-max3:
+
+find_max:
+    // Repeat with inverse values to find the maximum
+    beqz t0, set_max
+    sub a2, zero, a2
+    move v0, v1
+    b find_min
+    li t0, 0
+set_max:
     jr ra
+    sub v1, zero, v1
 
 
 dma_write: // a0: RSP address, a1: DRAM address, a2: size
@@ -1643,5 +1644,6 @@ rdp_send: // a0: start address, a1: end address
     bnez t0, rdp_send
     mtc0 a0, COP0_DP_START
     mtc0 a1, COP0_DP_END
+ret_jump:
     jr ra
     nop
