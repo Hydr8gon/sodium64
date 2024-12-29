@@ -129,6 +129,7 @@ shift_table: .byte 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 // Lookup tabl
 texrec_ofs: .word 0x22020020
 fillrec_mask: .word 0xFF000FFF
 ldblk_bits: .word 0x01000200
+mode7_mask: .word 0x0003FFFF
 
 // Gap to ensure vector data is aligned
 .byte 0:(VEC_DATA - PRIO_CHECKS)
@@ -294,9 +295,8 @@ cache_object:
     andi t4, t4, 0xE0
     srl t4, t4, 3
     or v0, t3, t4
-    lhu s0, OBJ_SIZES(v0)
-    andi s1, s0, 0xFF // Y-size
-    srl s0, s0, 8 // X-size
+    lbu s0, OBJ_SIZES + 0(v0) // X-size
+    lbu s1, OBJ_SIZES + 1(v0) // Y-size
 
     // Get the object's Y-coordinate, wrapped past screen bounds
     srl t3, t1, 24
@@ -1050,24 +1050,20 @@ calc_tofs:
     li v1, 4 // Max
 
 check_wrap:
-    // Check if tiles should wrap out of bounds
+    // Check if areas out of bounds should be empty
     // TODO: handle this better and use screen flip bits
     lbu t0, M7SEL
-    andi t0, t0, 0x80
-    beqz t0, set_texels
-    lui t1, 0x3
-    ori t1, t1, 0xFFFF
+    li t1, 0x80 // Empty
+    andi t6, t0, 0xC0
+    bne t6, t1, set_texels
+    lw t1, MODE7_MASK
 
-    // Skip the tile if it's out of X-bounds without wrap
+    // Skip the tile if it's out of bounds and empty
+    or t2, t2, t4
     sltu t2, t1, t2
+    or t3, t3, t5
     sltu t3, t1, t3
     and t0, t2, t3
-    bnez t0, finish_tile7
-
-    // Skip the tile if it's out of Y-bounds without wrap
-    sltu t4, t1, t4
-    sltu t5, t1, t5
-    and t0, t4, t5
     bnez t0, finish_tile7
 
 set_texels:
@@ -1101,38 +1097,31 @@ set_texels:
     li a2, 0x7
     move t5, v1
 
-    // Calculate the Y-offset for the texture's first tile row
+    // Calculate offsets for the texture's first tile row
     sra t2, t9, 3
     sll t0, gp, 8
-    sub t2, t2, t0
-    andi t2, t2, 0x7F00
-
-    // Calculate the X-offsets for the texture's first tile row
+    sub t2, t2, t0 // Y-offset
     sra t3, t8, 10
     sll t0, s8, 1
-    sub t3, t3, t0
-    andi t3, t3, 0xFE
-    addi t6, t3, 0x8
-    andi t6, t6, 0xFE
+    sub t3, t3, t0 // X-offset
 
 entry_row:
-    // Load a row of BG entries for a tile row in the texture
-    add a3, t1, t2
-    jal dma_read
-    add a1, a3, t3
+    // Load a row of mode 7 BG entries for the texture
+    jal mode7_read
+    sra t4, t2, 15
     addi a0, a0, 0x8
-    jal dma_read
-    add a1, a3, t6
+    jal mode7_read
+    addi t3, t3, 0x8
 
     // Move to the next row and loop until complete
     addi t2, t2, 0x100
-    andi t2, t2, 0x7F00
+    addi t3, t3, -0x8
     addi t5, t5, -1
     bnez t5, entry_row
     addi a0, a0, 0x8
 
     // Set some values for building the texture
-    andi a3, t3, 0x7 // DMA offset
+    andi a3, t3, 0x6 // DMA offset
     move t5, v0 // Row width
     sll t3, v1, 8 // Texture size
 
@@ -1272,9 +1261,8 @@ check_object:
     sra s8, t0, 7 // Y-coordinate
     sra s2, t1, 7 // X-coordinate
     andi t3, t1, 0x1E
-    lhu s0, OBJ_SIZES(t3)
-    andi s1, s0, 0xFF // Y-size
-    srl s0, s0, 8 // X-size
+    lbu s0, OBJ_SIZES + 0(t3) // X-size
+    lbu s1, OBJ_SIZES + 1(t3) // Y-size
 
     // Skip the object if it doesn't intersect with the current section
     add t4, s8, s1
@@ -1622,6 +1610,22 @@ dma_write: // a0: RSP address, a1: DRAM address, a2: size
     mtc0 a1, COP0_DMA_RAMADDR
     b dma_wait
     mtc0 a2, COP0_DMA_WRITE
+
+mode7_out:
+    // Fill outside of bounds with tile 0, or wrap around if enabled
+    andi t0, t6, 0x80
+    beqz t0, dma_read
+    sdv $v31, 0, 0, a0
+    jr ra
+
+mode7_read: // t1: base, t2: Y-offset, t3: X-offset, t4: Y-out, t6: wrap
+    // Check bounds and build a DRAM address for mode 7 BG entries
+    andi t0, t2, 0x7F00
+    add a1, t1, t0
+    andi t0, t3, 0xFF
+    bne t0, t3, mode7_out
+    add a1, a1, t0
+    bnez t4, mode7_out
 
 dma_read: // a0: RSP address, a1: DRAM address, a2: size
     // Transfer data to the RSP via DMA
