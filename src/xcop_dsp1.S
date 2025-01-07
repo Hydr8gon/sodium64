@@ -26,13 +26,18 @@
 .data
 
 .align 4
-input_buf: .hword 0:8
-output_buf: .hword 0:8
 cmd_func: .word 0
 cmd_count: .word 0
 dsp1_sr: .hword 0x8400
 dsp1_dr: .hword 0x80
 sr_toggle: .byte 0
+
+.align 4
+input_buf: .hword 0:8
+output_buf: .hword 0:8
+matrix_a: .hword 0:9
+matrix_b: .hword 0:9
+matrix_c: .hword 0:9
 
 .align 4
 les: .hword 0
@@ -75,22 +80,22 @@ azsc_bounds:
 
 .align 4
 dsp1_cmds: // Lookup table for DSP1 command functions and parameter counts
-    .word dsp1_multip, 0x20001,  dsp1_unimpl, 0x40000,  dsp1_params, 0x70004,  dsp1_unimpl, 0x30003 // 0x00-0x03
-    .word dsp1_triang, 0x20002,  dsp1_unimpl, 0x40000,  dsp1_projec, 0x30003,  dsp1_unimpl, 0x10001 // 0x04-0x07
-    .word dsp1_radius, 0x30002,  dsp1_unimpl, 0x30003,  dsp1_raster, 0x10004,  dsp1_unimpl, 0x30001 // 0x08-0x0B
-    .word dsp1_rotate, 0x30002,  dsp1_unimpl, 0x30003,  dsp1_unimpl, 0x20002,  dsp1_unimpl, 0x10001 // 0x0C-0x0F
-    .word dsp1_unimpl, 0x20002,  dsp1_unimpl, 0x40000,  dsp1_params, 0x70004,  dsp1_unimpl, 0x30003 // 0x10-0x13
-    .word dsp1_unimpl, 0x60003,  dsp1_unimpl, 0x40000,  dsp1_projec, 0x30003,  dsp1_unimpl, 0x10400 // 0x14-0x17
-    .word dsp1_unimpl, 0x40001,  dsp1_unimpl, 0x30003,  dsp1_unimpl, 0x00000,  dsp1_unimpl, 0x30001 // 0x18-0x1B
-    .word dsp1_unimpl, 0x60003,  dsp1_unimpl, 0x30003,  dsp1_unimpl, 0x20002,  dsp1_unimpl, 0x10400 // 0x1C-0x1F
-    .word dsp1_unimpl, 0x20001,  dsp1_unimpl, 0x40000,  dsp1_params, 0x70004,  dsp1_unimpl, 0x30003 // 0x20-0x23
-    .word dsp1_triang, 0x20002,  dsp1_unimpl, 0x40000,  dsp1_projec, 0x30003,  dsp1_unimpl, 0x10001 // 0x24-0x27
-    .word dsp1_distan, 0x30001,  dsp1_unimpl, 0x30003,  dsp1_unimpl, 0x00000,  dsp1_unimpl, 0x30001 // 0x28-0x2B
-    .word dsp1_rotate, 0x30002,  dsp1_unimpl, 0x30003,  dsp1_unimpl, 0x20002,  dsp1_unimpl, 0x10001 // 0x2C-0x2F
-    .word dsp1_unimpl, 0x20002,  dsp1_unimpl, 0x40000,  dsp1_params, 0x70004,  dsp1_unimpl, 0x30003 // 0x30-0x33
-    .word dsp1_unimpl, 0x60003,  dsp1_unimpl, 0x40000,  dsp1_projec, 0x30003,  dsp1_unimpl, 0x10400 // 0x34-0x37
-    .word dsp1_unimpl, 0x40001,  dsp1_unimpl, 0x30003,  dsp1_unimpl, 0x00000,  dsp1_unimpl, 0x30001 // 0x38-0x3B
-    .word dsp1_unimpl, 0x60003,  dsp1_unimpl, 0x30003,  dsp1_unimpl, 0x20002,  dsp1_unimpl, 0x10400 // 0x3C-0x3F
+    .word dsp1_multip, 0x20001,  dsp1_atti_a, 0x40000,  dsp1_params, 0x70004,  dsp1_subj_a, 0x30003 // 0x00-0x03
+    .word dsp1_triang, 0x20002,  dsp1_atti_a, 0x40000,  dsp1_projec, 0x30003,  dsp1_unimpl, 0x10001 // 0x04-0x07
+    .word dsp1_radius, 0x30002,  dsp1_obje_a, 0x30003,  dsp1_raster, 0x10004,  dsp1_unimpl, 0x30001 // 0x08-0x0B
+    .word dsp1_rotate, 0x30002,  dsp1_obje_a, 0x30003,  dsp1_target, 0x20002,  dsp1_unimpl, 0x10001 // 0x0C-0x0F
+    .word dsp1_unimpl, 0x20002,  dsp1_atti_b, 0x40000,  dsp1_params, 0x70004,  dsp1_subj_b, 0x30003 // 0x10-0x13
+    .word dsp1_gyrate, 0x60003,  dsp1_atti_b, 0x40000,  dsp1_projec, 0x30003,  dsp1_unimpl, 0x10400 // 0x14-0x17
+    .word dsp1_unimpl, 0x40001,  dsp1_obje_b, 0x30003,  dsp1_unimpl, 0x00000,  dsp1_unimpl, 0x30001 // 0x18-0x1B
+    .word dsp1_unimpl, 0x60003,  dsp1_obje_b, 0x30003,  dsp1_target, 0x20002,  dsp1_unimpl, 0x10400 // 0x1C-0x1F
+    .word dsp1_unimpl, 0x20001,  dsp1_atti_c, 0x40000,  dsp1_params, 0x70004,  dsp1_subj_c, 0x30003 // 0x20-0x23
+    .word dsp1_triang, 0x20002,  dsp1_atti_c, 0x40000,  dsp1_projec, 0x30003,  dsp1_unimpl, 0x10001 // 0x24-0x27
+    .word dsp1_distan, 0x30001,  dsp1_obje_c, 0x30003,  dsp1_unimpl, 0x00000,  dsp1_unimpl, 0x30001 // 0x28-0x2B
+    .word dsp1_rotate, 0x30002,  dsp1_obje_c, 0x30003,  dsp1_target, 0x20002,  dsp1_unimpl, 0x10001 // 0x2C-0x2F
+    .word dsp1_unimpl, 0x20002,  dsp1_atti_a, 0x40000,  dsp1_params, 0x70004,  dsp1_subj_a, 0x30003 // 0x30-0x33
+    .word dsp1_gyrate, 0x60003,  dsp1_atti_a, 0x40000,  dsp1_projec, 0x30003,  dsp1_unimpl, 0x10400 // 0x34-0x37
+    .word dsp1_unimpl, 0x40001,  dsp1_obje_a, 0x30003,  dsp1_unimpl, 0x00000,  dsp1_unimpl, 0x30001 // 0x38-0x3B
+    .word dsp1_unimpl, 0x60003,  dsp1_obje_a, 0x30003,  dsp1_target, 0x20002,  dsp1_unimpl, 0x10400 // 0x3C-0x3F
 
 .align 4
 data_rom: // Data ROM from bsnes containing lookup tables and constants
@@ -278,6 +283,7 @@ check_cmd:
 
 finish_cmd:
     // Report command completion and wait for the next one
+    lhu a0, dsp1_sr
     li t0, 0x80
     sh t0, dsp1_dr
     ori a0, a0, 0x400 // DRC
@@ -339,8 +345,8 @@ calc_cos: // a0: angle - a0: result
     jr ra
     li a0, -0x8000
 cos_valid:
-    sub t5, zero, t4
-    xor a0, a0, t5
+    sub t0, zero, t4
+    xor a0, a0, t0
     add a0, a0, t4
 
     // Look up values in the sine table and wrap/negate on overflow
@@ -696,6 +702,346 @@ distan_set:
     nop
 
 .align 5
+dsp1_atti_a:
+    // Choose which matrix to calculate based on the command
+    b dsp1_attitu
+    li t0, 9 * 0
+dsp1_atti_b:
+    b dsp1_attitu
+    li t0, 9 * 2
+dsp1_atti_c:
+    li t0, 9 * 4
+dsp1_attitu:
+    la a1, matrix_a
+    add a1, a1, t0
+
+    // Calculate the sine and cosine of each input angle
+    lh sp, input_buf + 0
+    jal calc_sin
+    move a0, sp
+    move t9, a0
+    jal calc_cos
+    move a0, sp
+    move t8, a0
+    lh sp, input_buf + 2
+    jal calc_sin
+    move a0, sp
+    move t7, a0
+    jal calc_cos
+    move a0, sp
+    move t6, a0
+    lh sp, input_buf + 4
+    jal calc_sin
+    move a0, sp
+    move t5, a0
+    jal calc_cos
+    move a0, sp
+    lh sp, input_buf + 6
+    sra sp, sp, 1
+
+    // Calculate the first row of an attitude matrix
+    mult sp, a0
+    mflo a0
+    sra a0, a0, 15
+    mult a0, t6
+    mflo t0
+    sra t0, t0, 15
+    sh t0, 0(a1)
+    mult sp, t5
+    mflo t5
+    sra t5, t5, 15
+    mult t5, t8
+    mflo t0
+    mult a0, t9
+    sra t0, t0, 15
+    mflo t1
+    sra t1, t1, 15
+    mult t1, t7
+    mflo t1
+    sra t1, t1, 15
+    add t0, t0, t1
+    sh t0, 2(a1)
+    mult t5, t9
+    mflo t0
+    mult a0, t8
+    sra t0, t0, 15
+    mflo t1
+    sra t1, t1, 15
+    mult t1, t7
+    mflo t1
+    sra t1, t1, 15
+    sub t0, t0, t1
+    sh t0, 4(a1)
+
+    // Calculate the second row of an attitude matrix
+    mult t5, t6
+    mflo t0
+    sra t0, t0, 15
+    sub t0, zero, t0
+    sh t0, 6(a1)
+    mult a0, t8
+    mflo t0
+    mult t5, t9
+    sra t0, t0, 15
+    mflo t1
+    sra t1, t1, 15
+    mult t1, t7
+    mflo t1
+    sra t1, t1, 15
+    add t0, t0, t1
+    sh t0, 8(a1)
+    mult a0, t9
+    mflo t0
+    mult t5, t8
+    sra t0, t0, 15
+    mflo t1
+    sra t1, t1, 15
+    mult t1, t7
+    mflo t1
+    sra t1, t1, 15
+    add t0, t0, t1
+    sh t0, 10(a1)
+
+    // Calculate the third row of an attitude matrix
+    mult sp, t7
+    mflo t0
+    sra t0, t0, 15
+    sh t0, 12(a1)
+    mult sp, t9
+    mflo t0
+    sra t0, t0, 15
+    mult t0, t6
+    mflo t0
+    sra t0, t0, 15
+    sub t0, zero, t0
+    sh t0, 14(a1)
+    mult sp, t8
+    mflo t0
+    sra t0, t0, 15
+    mult t0, t6
+    mflo t0
+    sra t0, t0, 15
+    j check_output
+    sh t0, 16(a1)
+
+.align 5
+dsp1_subj_a:
+    // Choose which matrix to use based on the command
+    b dsp1_subjec
+    li t0, 9 * 0
+dsp1_subj_b:
+    b dsp1_subjec
+    li t0, 9 * 2
+dsp1_subj_c:
+    li t0, 9 * 4
+dsp1_subjec:
+    la a1, matrix_a
+    add a1, a1, t0
+
+    // Multiply object coordinates with a matrix to get a global X-coordinate
+    lh t9, input_buf + 4
+    lh t0, 0(a1)
+    lh t8, input_buf + 2
+    mult t0, t9
+    lh t7, input_buf + 0
+    mflo t0
+    lh t1, 2(a1)
+    sra t0, t0, 15
+    mult t1, t8
+    lh t2, 4(a1)
+    mflo t1
+    mult t2, t7
+    sra t1, t1, 15
+    add t0, t0, t1
+    mflo t2
+    sra t2, t2, 15
+    add t0, t0, t2
+    sh t0, output_buf + 4
+
+    // Multiply object coordinates with a matrix to get a global Y-coordinate
+    lh t0, 6(a1)
+    mult t0, t9
+    lh t1, 8(a1)
+    mflo t0
+    sra t0, t0, 15
+    mult t1, t8
+    lh t2, 10(a1)
+    mflo t1
+    mult t2, t7
+    sra t1, t1, 15
+    add t0, t0, t1
+    mflo t2
+    sra t2, t2, 15
+    add t0, t0, t2
+    sh t0, output_buf + 2
+
+    // Multiply object coordinates with a matrix to get a global Z-coordinate
+    lh t0, 12(a1)
+    mult t0, t9
+    lh t1, 14(a1)
+    mflo t0
+    sra t0, t0, 15
+    mult t1, t8
+    lh t2, 16(a1)
+    mflo t1
+    mult t2, t7
+    sra t1, t1, 15
+    add t0, t0, t1
+    mflo t2
+    sra t2, t2, 15
+    add t0, t0, t2
+    sh t0, output_buf + 0
+    j check_output
+    nop
+
+.align 5
+dsp1_obje_a:
+    // Choose which matrix to use based on the command
+    b dsp1_object
+    li t0, 9 * 0
+dsp1_obje_b:
+    b dsp1_object
+    li t0, 9 * 2
+dsp1_obje_c:
+    li t0, 9 * 4
+dsp1_object:
+    la a1, matrix_a
+    add a1, a1, t0
+
+    // Multiply global coordinates with a matrix to get an object F-coordinate
+    lh t9, input_buf + 4
+    lh t0, 0(a1)
+    lh t8, input_buf + 2
+    mult t0, t9
+    lh t7, input_buf + 0
+    mflo t0
+    lh t1, 6(a1)
+    sra t0, t0, 15
+    mult t1, t8
+    lh t2, 12(a1)
+    mflo t1
+    mult t2, t7
+    sra t1, t1, 15
+    add t0, t0, t1
+    mflo t2
+    sra t2, t2, 15
+    add t0, t0, t2
+    sh t0, output_buf + 4
+
+    // Multiply global coordinates with a matrix to get an object L-coordinate
+    lh t0, 2(a1)
+    mult t0, t9
+    lh t1, 8(a1)
+    mflo t0
+    sra t0, t0, 15
+    mult t1, t8
+    lh t2, 14(a1)
+    mflo t1
+    mult t2, t7
+    sra t1, t1, 15
+    add t0, t0, t1
+    mflo t2
+    sra t2, t2, 15
+    add t0, t0, t2
+    sh t0, output_buf + 2
+
+    // Multiply global coordinates with a matrix to get an object U-coordinate
+    lh t0, 4(a1)
+    mult t0, t9
+    lh t1, 10(a1)
+    mflo t0
+    sra t0, t0, 15
+    mult t1, t8
+    lh t2, 16(a1)
+    mflo t1
+    mult t2, t7
+    sra t1, t1, 15
+    add t0, t0, t1
+    mflo t2
+    sra t2, t2, 15
+    add t0, t0, t2
+    sh t0, output_buf + 0
+    j check_output
+    nop
+
+.align 5
+dsp1_gyrate:
+    // Calculate the X-angle secant and Y-angle sine and cosine
+    lh a0, input_buf + 8
+    jal calc_cos
+    nop
+    jal calc_inverse
+    li a1, 0
+    move t8, a0
+    move t9, a1
+    lh a0, input_buf + 6
+    jal calc_cos
+    move t7, a0
+    move t6, a0
+    jal calc_sin
+    move a0, t7
+    move t5, a0
+
+    // Rotate the X-angle by the minor angular displacements
+    lh t3, input_buf + 4
+    mult t3, t5
+    lh t4, input_buf + 2
+    mflo t0
+    mult t4, t6
+    lh t2, input_buf + 8
+    mflo t1
+    sra t0, t0, 15
+    add t0, t0, t2
+    sra t1, t1, 15
+    add t0, t0, t1
+    sh t0, output_buf + 2
+
+    // Rotate the Z-angle by the minor angular displacements
+    mult t3, t6
+    mflo t6
+    mult t4, t5
+    mflo t5
+    jal calc_norm32
+    sub a0, t6, t5
+    mult a0, t8
+    sub a1, t9, a1
+    mflo a0
+    jal calc_normal
+    sra a0, a0, 15
+    jal calc_denorm
+    nop
+    lh t0, input_buf + 10
+    add t0, t0, a0
+    sh t0, output_buf + 4
+
+    // Rotate the Y-angle by the minor angular displacements
+    jal calc_norm32
+    add a0, t6, t5
+    move t7, a0
+    lh a0, input_buf + 8
+    jal calc_sin
+    sub a1, t9, a1
+    jal calc_normal
+    nop
+    mult t8, a0
+    mflo t0
+    sra t0, t0, 15
+    mult t0, t7
+    mflo t0
+    sra t0, t0, 15
+    jal calc_normal
+    sub a0, zero, t0
+    jal calc_denorm
+    nop
+    lh t0, input_buf + 6
+    lh t1, input_buf + 0
+    add t0, t0, a0
+    add t0, t0, t1
+    sh t0, output_buf + 0
+    j check_output
+    nop
+
+.align 5
 dsp1_params:
     // Save the sine and cosine of the azimuth angle
     lh t9, input_buf + 2
@@ -988,6 +1334,79 @@ dsp1_raster:
     sh t1, output_buf + 0
     j check_output
     nop
+
+.align 5
+dsp1_target:
+    // Calculate the base value for projecting a vector over the ground
+    lh t9, input_buf + 0
+    lh t1, azs_sin
+    mult t9, t1
+    lh t2, v_offset
+    mflo a0
+    sra a0, a0, 15
+    add a0, a0, t2
+    jal calc_inverse
+    li a1, 8
+
+    // Apply the center Z-coordinate and calculate horizontal length
+    lh t0, center_zc
+    lh t1, center_ze
+    mult a0, t0
+    add a1, a1, t1
+    mflo t8
+    jal calc_normal
+    sra a0, t8, 15
+    lh t7, input_buf + 2
+    jal calc_denorm
+    sll t7, t7, 8
+    mult a0, t7
+    mflo a0
+    sra a0, a0, 15
+
+    // Add projected horizontal offsets to the center coordinates
+    lh t2, aas_cos
+    lh t0, center_x
+    mult a0, t2
+    lh t3, aas_sin
+    mflo t2
+    sra t2, t2, 15
+    mult a0, t3
+    lh t1, center_y
+    mflo t3
+    sra t3, t3, 15
+    add t6, t0, t2
+    sub t7, t1, t3
+
+    // Apply the zenith angle secant and calculate vertical length
+    sra a0, t8, 15
+    lh t0, azs_sec1c
+    lh t1, azs_sec1e
+    mult a0, t0
+    add a1, a1, t1
+    mflo a0
+    jal calc_normal
+    sra a0, a0, 15
+    jal calc_denorm
+    sll t9, t9, 8
+    mult a0, t9
+    mflo a0
+    sra a0, a0, 15
+
+    // Add projected vertical offsets to the final coordinates
+    lh t2, aas_sin
+    mult a0, t2
+    lh t3, aas_cos
+    mflo t2
+    mult a0, t3
+    sra t2, t2, 15
+    mflo t3
+    sra t3, t3, 15
+    sub t6, t6, t2
+    add t7, t7, t3
+    la t0, output_buf
+    sh t6, 2(t0)
+    j check_output
+    sh t7, 0(t0)
 
 .align 5
 dsp1_projec:
