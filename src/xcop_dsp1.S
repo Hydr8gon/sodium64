@@ -82,19 +82,19 @@ azsc_bounds:
 dsp1_cmds: // Lookup table for DSP1 command functions and parameter counts
     .word dsp1_multip, 0x20001,  dsp1_atti_a, 0x40000,  dsp1_params, 0x70004,  dsp1_subj_a, 0x30003 // 0x00-0x03
     .word dsp1_triang, 0x20002,  dsp1_atti_a, 0x40000,  dsp1_projec, 0x30003,  dsp1_unimpl, 0x10001 // 0x04-0x07
-    .word dsp1_radius, 0x30002,  dsp1_obje_a, 0x30003,  dsp1_raster, 0x10004,  dsp1_unimpl, 0x30001 // 0x08-0x0B
+    .word dsp1_radius, 0x30002,  dsp1_obje_a, 0x30003,  dsp1_raster, 0x10004,  dsp1_scal_a, 0x30001 // 0x08-0x0B
     .word dsp1_rotate, 0x30002,  dsp1_obje_a, 0x30003,  dsp1_target, 0x20002,  dsp1_unimpl, 0x10001 // 0x0C-0x0F
-    .word dsp1_unimpl, 0x20002,  dsp1_atti_b, 0x40000,  dsp1_params, 0x70004,  dsp1_subj_b, 0x30003 // 0x10-0x13
+    .word dsp1_invers, 0x20002,  dsp1_atti_b, 0x40000,  dsp1_params, 0x70004,  dsp1_subj_b, 0x30003 // 0x10-0x13
     .word dsp1_gyrate, 0x60003,  dsp1_atti_b, 0x40000,  dsp1_projec, 0x30003,  dsp1_unimpl, 0x10400 // 0x14-0x17
-    .word dsp1_unimpl, 0x40001,  dsp1_obje_b, 0x30003,  dsp1_unimpl, 0x00000,  dsp1_unimpl, 0x30001 // 0x18-0x1B
+    .word dsp1_range1, 0x40001,  dsp1_obje_b, 0x30003,  dsp1_unimpl, 0x00000,  dsp1_scal_b, 0x30001 // 0x18-0x1B
     .word dsp1_unimpl, 0x60003,  dsp1_obje_b, 0x30003,  dsp1_target, 0x20002,  dsp1_unimpl, 0x10400 // 0x1C-0x1F
     .word dsp1_unimpl, 0x20001,  dsp1_atti_c, 0x40000,  dsp1_params, 0x70004,  dsp1_subj_c, 0x30003 // 0x20-0x23
     .word dsp1_triang, 0x20002,  dsp1_atti_c, 0x40000,  dsp1_projec, 0x30003,  dsp1_unimpl, 0x10001 // 0x24-0x27
-    .word dsp1_distan, 0x30001,  dsp1_obje_c, 0x30003,  dsp1_unimpl, 0x00000,  dsp1_unimpl, 0x30001 // 0x28-0x2B
+    .word dsp1_distan, 0x30001,  dsp1_obje_c, 0x30003,  dsp1_unimpl, 0x00000,  dsp1_scal_c, 0x30001 // 0x28-0x2B
     .word dsp1_rotate, 0x30002,  dsp1_obje_c, 0x30003,  dsp1_target, 0x20002,  dsp1_unimpl, 0x10001 // 0x2C-0x2F
-    .word dsp1_unimpl, 0x20002,  dsp1_atti_a, 0x40000,  dsp1_params, 0x70004,  dsp1_subj_a, 0x30003 // 0x30-0x33
+    .word dsp1_invers, 0x20002,  dsp1_atti_a, 0x40000,  dsp1_params, 0x70004,  dsp1_subj_a, 0x30003 // 0x30-0x33
     .word dsp1_gyrate, 0x60003,  dsp1_atti_a, 0x40000,  dsp1_projec, 0x30003,  dsp1_unimpl, 0x10400 // 0x34-0x37
-    .word dsp1_unimpl, 0x40001,  dsp1_obje_a, 0x30003,  dsp1_unimpl, 0x00000,  dsp1_unimpl, 0x30001 // 0x38-0x3B
+    .word dsp1_unimpl, 0x40001,  dsp1_obje_a, 0x30003,  dsp1_unimpl, 0x00000,  dsp1_scal_a, 0x30001 // 0x38-0x3B
     .word dsp1_unimpl, 0x60003,  dsp1_obje_a, 0x30003,  dsp1_target, 0x20002,  dsp1_unimpl, 0x10400 // 0x3C-0x3F
 
 .align 4
@@ -570,6 +570,18 @@ inverse_exp:
     addi a1, a1, 1
 
 .align 5
+dsp1_invers:
+    // Calculate the inverse of a coefficient and exponent
+    la t0, input_buf
+    lh a0, 2(t0)
+    jal calc_inverse
+    lh a1, 0(t0)
+    la t0, output_buf
+    sh a0, 2(t0)
+    j check_output
+    sh a1, 0(t0)
+
+.align 5
 dsp1_multip:
     // Multiply two 16-bit values
     lh t0, input_buf + 2
@@ -656,6 +668,29 @@ dsp1_radius:
     // Output the result as two 16-bit halves
     sh t0, output_buf + 2
     sra t0, t0, 16
+    sh t0, output_buf + 0
+    j check_output
+    nop
+
+.align 5
+dsp1_range1:
+    // Calculate the distance between a 3D point and a radius
+    lh t0, input_buf + 6
+    mult t0, t0
+    lh t1, input_buf + 4
+    mflo t0
+    mult t1, t1
+    lh t2, input_buf + 2
+    mflo t1
+    mult t2, t2
+    lh t3, input_buf + 0
+    mflo t2
+    mult t3, t3
+    add t0, t0, t1
+    add t0, t0, t2
+    mflo t3
+    sub t0, t0, t3
+    sra t0, t0, 15
     sh t0, output_buf + 0
     j check_output
     nop
@@ -960,6 +995,40 @@ dsp1_object:
     mflo t2
     sra t2, t2, 15
     add t0, t0, t2
+    sh t0, output_buf + 0
+    j check_output
+    nop
+
+.align 5
+dsp1_scal_a:
+    // Choose which matrix to use based on the command
+    b dsp1_scalar
+    li t0, 9 * 0
+dsp1_scal_b:
+    b dsp1_scalar
+    li t0, 9 * 2
+dsp1_scal_c:
+    li t0, 9 * 4
+dsp1_scalar:
+    la a1, matrix_a
+    add a1, a1, t0
+
+    // Calculate the dot product of a vector and the first matrix column
+    lh t9, input_buf + 4
+    lh t0, 0(a1)
+    lh t8, input_buf + 2
+    mult t0, t9
+    lh t7, input_buf + 0
+    mflo t0
+    lh t1, 6(a1)
+    mult t1, t8
+    lh t2, 12(a1)
+    mflo t1
+    mult t2, t7
+    add t0, t0, t1
+    mflo t2
+    add t0, t0, t2
+    sra t0, t0, 15
     sh t0, output_buf + 0
     j check_output
     nop
