@@ -131,7 +131,7 @@ fillrec_mask: .word 0xFF000FFF
 ldblk_bits: .word 0x01000200
 mode7_mask: .word 0x0003FFFF
 
-// Gap to ensure vector data is aligned
+// Gap to align vector data to the end of DMEM
 .byte 0:(VEC_DATA - PRIO_CHECKS)
 
 vec_data:
@@ -150,16 +150,15 @@ vec_data:
 
 main:
     // Load the constants for vector math
-    li t0, VEC_DATA
-    lqv $v23, 0, 0x00, t0
-    lqv $v24, 0, 0x10, t0
-    lqv $v25, 0, 0x20, t0
-    lqv $v26, 0, 0x30, t0
-    lqv $v27, 0, 0x40, t0
-    lqv $v28, 0, 0x50, t0
-    lqv $v29, 0, 0x60, t0
-    lqv $v30, 0, 0x70, t0
-    lqv $v31, 0, 0x80, t0
+    lqv $v23, 0, -0x90, zero
+    lqv $v24, 0, -0x80, zero
+    lqv $v25, 0, -0x70, zero
+    lqv $v26, 0, -0x60, zero
+    lqv $v27, 0, -0x50, zero
+    lqv $v28, 0, -0x40, zero
+    lqv $v29, 0, -0x30, zero
+    lqv $v30, 0, -0x20, zero
+    lqv $v31, 0, -0x10, zero
 
     // Run the RDP initialization commands
     li t0, 0x2 // Use DMEM
@@ -167,9 +166,7 @@ main:
     li a0, RDP_INIT
     jal rdp_send
     li a1, RDP_FRAME
-
-    // Set the initial frame queue offset
-    li sp, 0
+    li sp, 0 // Frame index
 
 draw_frame:
     // Set initial values for copying VRAM
@@ -177,8 +174,7 @@ draw_frame:
     li a2, 0x3FF
     lw t4, VRAM_ADDRS + 4
     lw t3, VRAM_ADDRS
-    li t2, 0xFC00
-    li t1, 0
+    li t1, 0xFC00
 
 vram_loop:
     // Copy VRAM for the current frame using RSP DMA for speed
@@ -186,27 +182,25 @@ vram_loop:
     add a1, t4, t1
     jal dma_write
     add a1, t3, t1
-    bne t1, t2, vram_loop
-    addi t1, t1, 0x400
+    bnez t1, vram_loop
+    addi t1, t1, -0x400
     mtc0 zero, COP0_SEMAPHORE
 
     // Load the VRAM dirty table for the current frame
     li a0, TILE_TABLE
-    lw a1, DIRTY_PTR(sp)
     jal dma_read
-    li a2, 0x3FF
+    lw a1, DIRTY_PTR(sp)
 
     // Combine new dirty bits with the previous table
     li t1, VRAM_TABLE
-    li t2, 0x400
+    addi t2, t1, 0x400
 table_loop:
-    addi t2, t2, -16
     lqv $v00, 0, 0, t1
     lqv $v01, 0, 0, a0
     addi a0, a0, 16
     vor $v00, $v00, $v01, 0
     sqv $v00, 0, 0, t1
-    bnez t2, table_loop
+    bne t1, t2, table_loop
     addi t1, t1, 16
 
     // Update the RDP framebuffer and palette addresses
@@ -220,9 +214,7 @@ table_loop:
     li a0, RDP_FRAME
     jal rdp_send
     li a1, RDP_FILL
-
-    // Set the initial section bound
-    li k1, 0
+    li k1, 0 // Section bound
 
 next_section:
     // Finish the frame after the last section is done
@@ -267,7 +259,7 @@ init_cache:
     li t8, 239 + 16
     sll t0, t0, 1
     sub t8, t8, t0 // Y-bound
-    move t7, zero // Priority
+    li t7, 0x3000 // Priority
 
 next_priority:
     // Reset indices for the next object priority
@@ -278,8 +270,7 @@ next_priority:
 cache_object:
     // Read object data and skip if it doesn't match the current priority
     lw t1, OAM(t9)
-    srl t0, t1, 12
-    andi t0, t0, 0x3
+    andi t0, t1, 0x3000
     bne t0, t7, cache_next
 
     // Read the 2 additional object bits
@@ -349,14 +340,14 @@ finish_cache:
     // DMA the current priority's cache list to RDRAM
     li a0, TILE_TABLE + 0x200
     lw a1, CACHE_PTRS + 16
-    sll t0, t7, 9
+    srl t0, t7, 3
     add a1, a1, t0
     jal dma_write
     li a2, 0x1FF
 
     // Move to the next priority until finished
-    bne t7, 3, next_priority
-    addi t7, t7, 1
+    bnez t7, next_priority
+    addi t7, t7, -0x1000
 
 oam_skip:
     // Update the RDP scissor and fill bounds for the section
@@ -465,8 +456,11 @@ fill_backdrop:
     bne t7, 255, fill_backdrop
     lbu t8, WIN_BOUNDS(t9)
 
-    // Don't draw any layers if force blank was set
+    // Skip layers for force blank, or set the initial lookup offset
+    lbu s3, BG_MODE
     bnez t4, next_section
+    andi s3, s3, 0xF
+    sll s3, s3, 4
 
     // Reset the background priority status
     sw zero, PRIO_CHECKS + 0
@@ -481,36 +475,30 @@ fill_backdrop:
     and t1, t0, s7 // Shared
     sub s7, s7, t1
     sll t0, t0, 8
-    b first_layer
     or s7, s7, t0
 
 next_layer:
     // Look up the next layer and check if it's BG or OBJ
     // Layers are drawn in an order that mimics priority without slow depth testing
     // This isn't fully accurate; OBJ priority effects like SMB3 pipes won't work
-    lbu t0, LAYER_CHART(s3)
-    bge t0, 0x80, draw_obj
+    lb t0, LAYER_CHART(s3)
     addi s3, s3, 1
-    beq t0, 0x40, draw_mode7
-    nop
+    bltz t0, draw_obj
+    li t1, 0x40
+    beq t0, t1, draw_mode7
+    andi t1, s7, 0x1 // Enable
     bnez t0, draw_bg
-    nop
+    andi t3, t0, 0x3 // Index
 
     // Move to the next screen's layers until the section is finished
     srl s7, s7, 8
     beqz s7, next_section
-
-first_layer:
-    // Set the initial layer lookup offset
-    lbu s3, BG_MODE
-    andi s3, s3, 0xF
+    andi s3, s3, 0xF0
     b next_layer
-    sll s3, s3, 4
 
 
 draw_bg:
     // Skip the layer if the BG is disabled
-    andi t3, t0, 0x3 // Index
     lbu a3, SHIFT_TABLE(t3) // Mask
     and t1, s7, a3
     beqz t1, next_layer
@@ -795,15 +783,14 @@ decode_tile4:
 decode_tile:
     // Decode a tile and mark it as empty if it has no visible pixels
     jal shared_decode
-    li t0, 0xFF0
-    sqv $v10, 0, 0, t0
-    li t1, 0x1000
+    li t0, 0xC
+    sqv $v10, 0, -0x10, zero
 empty_loop:
-    lw t2, (t0)
-    bnez t2, not_empty
-    addi t0, t0, 4
-    bne t0, t1, empty_loop
+    lw t1, -0x10(t0)
+    bnez t1, not_empty
     li t2, 0xFF
+    bnez t0, empty_loop
+    addi t0, t0, -4
     b finish_tile
     sb t2, TILE_TABLE(s8)
 
@@ -885,11 +872,8 @@ skip_upload:
 draw_mode7:
     // Skip the layer if the BG is disabled
     // TODO: implement windows for mode 7
-    andi t1, s7, 0x1
     beqz t1, next_layer
-
-    // Set the initial tile Y-coordinate
-    move s1, k0
+    move s1, k0 // Tile Y-coordinate
 
     // Calculate the initial screen X-coordinate
     lh t0, M7HOFS
