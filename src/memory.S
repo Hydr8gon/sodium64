@@ -1,5 +1,5 @@
 /*
-    Copyright 2021-2024 Hydr8gon
+    Copyright 2021-2025 Hydr8gon
 
     This file is part of sodium64.
 
@@ -21,6 +21,7 @@
 
 .globl sram
 .globl sram_dirty
+.globl io_disable
 .globl read_iomap
 .globl write_iomap
 
@@ -45,6 +46,7 @@ rom_entries: .word 0:0x100
 wmadd: .word 0
 rom_pointer: .byte 0
 sram_dirty: .byte 0
+io_disable: .byte 0
 
 .align 4
 dsp1_reads: .word read_dsp1dr, read_dsp1sr
@@ -581,8 +583,10 @@ pi_wait:
 
 .align 5
 tlbl_io:
-    // Set the function return to the address after the read opcode
+    // Check if I/O is disabled and set the return address to the next opcode
+    lbu t0, io_disable
     mfc0 k0, $14 // EPC
+    bnez t0, tlbl_skip
     addi ra, k0, 4
 
     // Look up an I/O read function if no memory is mapped
@@ -612,6 +616,13 @@ tlbl_unk:
     lw k0, dsp1_reads(t0)
     b tlbl_ret
     nop
+
+tlbl_skip:
+    // Ignore I/O reads if disabled
+    mtc0 ra, $14 // EPC
+    li v0, 0
+    nop
+    eret
 
 .align 5
 tlbl_sram:
@@ -659,8 +670,10 @@ tlbs_exception:
 
 .align 5
 tlbs_io:
-    // Set the function return to the address after the write opcode
+    // Check if I/O is disabled and set the return address to the next opcode
+    lbu t0, io_disable
     mfc0 k0, $14 // EPC
+    bnez t0, tlbs_skip
     addi ra, k0, 4
 
     // Look up an I/O write function if no memory is mapped
@@ -690,6 +703,13 @@ tlbs_unk:
     lw k0, dsp1_writes(t0)
     b tlbs_ret
     nop
+
+tlbs_skip:
+    // Ignore I/O writes if disabled
+    mtc0 ra, $14 // EPC
+    nop
+    nop
+    eret
 
 .align 5
 tlbs_sram:

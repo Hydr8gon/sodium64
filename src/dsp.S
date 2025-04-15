@@ -1,5 +1,5 @@
 /*
-    Copyright 2021-2024 Hydr8gon
+    Copyright 2021-2025 Hydr8gon
 
     This file is part of sodium64.
 
@@ -29,7 +29,7 @@
 
 .align 4
 dsp_buffer: .word 0:0x800
-dsp_regs: .byte 0:0x100
+dsp_regs: .byte 0:0x80
 
 .align 4
 noise_sample: .hword 0x4000
@@ -641,7 +641,7 @@ read_dspaddr: // v0: value
 
 .align 5
 read_dspdata: // v0: value
-    // Read a value from the DSP registers
+    // Read a value from a DSP register
     lbu t0, dsp_addr
     andi t0, t0, 0x7F // Mirror
     lbu v0, dsp_regs(t0)
@@ -657,12 +657,14 @@ write_dspaddr: // a1: value
 
 .align 5
 write_dspdata: // a1: value
-    // Write a value to a DSP register
+    // Write a value to a DSP register if within bounds
     lbu t0, dsp_addr
+    andi t1, t0, 0x80
+    bnez t1, write_reg
+    sll t1, t0, 2
     sb a1, dsp_regs(t0)
 
     // Jump to the register's handler function
-    sll t1, t0, 2
     lw t1, write_iomap(t1)
     jr t1
     nop

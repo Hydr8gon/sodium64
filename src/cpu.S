@@ -1,5 +1,5 @@
 /*
-    Copyright 2021-2024 Hydr8gon
+    Copyright 2021-2025 Hydr8gon
 
     This file is part of sodium64.
 
@@ -453,6 +453,7 @@ trigger_nmi: // a1: vector offset
     andi s0, s4, 0x100
     lhu s1, stack_ptr
     beqz s0, nmi_notemu
+    move s2, ra
 
     // Set the vector to jump to for emulation mode
     li s0, 0xFFFA // NMI vector (emulation mode)
@@ -486,7 +487,7 @@ nmi_cont:
 
     // Jump to the NMI vector
     MEM_READ16
-    jr ra
+    jr s2
     move s7, v0
 
 .align 5

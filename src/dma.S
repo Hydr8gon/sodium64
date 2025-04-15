@@ -1,5 +1,5 @@
 /*
-    Copyright 2021-2024 Hydr8gon
+    Copyright 2021-2025 Hydr8gon
 
     This file is part of sodium64.
 
@@ -121,6 +121,11 @@ trigger_hdma:
     jr gp
 
 hdma_start:
+    // Disable TLB-mapped I/O registers during HDMA
+    li t0, 0x1
+    sb t0, io_disable
+
+hdma_next:
     // Check if the current HDMA channel is enabled
     andi t0, s0, 0x1
     beqz t0, hdma_end
@@ -257,8 +262,9 @@ hdma_disable:
 hdma_end:
     // Move to the next channel until no more are enabled
     srl s0, s0, 1
-    bnez s0, hdma_start
+    bnez s0, hdma_next
     addi s1, s1, 1
+    sb zero, io_disable
     jr gp
     nop
 
@@ -270,7 +276,11 @@ write_mdmaen: // a1: value
     andi t8, a1, 0xFF // Mask
     move t9, zero // Index
 
-dma_start:
+    // Disable TLB-mapped I/O registers during DMA
+    li t0, 0x1
+    sb t0, io_disable
+
+dma_next:
     // Check if the current DMA channel is enabled
     andi t0, t8, 0x1
     beqz t0, dma_end
@@ -364,9 +374,10 @@ io_cpu:
 dma_end:
     // Move to the next channel until no more are enabled
     srl t8, t8, 1
-    bnez t8, dma_start
+    bnez t8, dma_next
     addi t9, t9, 1
     lhu a1, dma_stack
+    sb zero, io_disable
     jr gp
     nop
 

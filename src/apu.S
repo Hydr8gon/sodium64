@@ -1,5 +1,5 @@
 /*
-    Copyright 2021-2024 Hydr8gon
+    Copyright 2021-2025 Hydr8gon
 
     This file is part of sodium64.
 
@@ -480,16 +480,15 @@ read_t0out: // v0: value
     // Update timers if timer 0 should overflow
     lw t0, apu_ocycles + 0
     bgt s3, t0, end_t0out
-    move gp, ra
+    move t7, ra
     jal update_timers
     nop
-    move ra, gp
 
 end_t0out:
     // Read timer 0's overflow count and reset it
     lbu v0, apu_tmouts + 0
     sb zero, apu_tmouts + 0
-    jr ra
+    jr t7
     nop
 
 .align 5
@@ -497,16 +496,15 @@ read_t1out: // v0: value
     // Update timers if timer 1 should overflow
     lw t0, apu_ocycles + 4
     bgt s3, t0, end_t1out
-    move gp, ra
+    move t7, ra
     jal update_timers
     nop
-    move ra, gp
 
 end_t1out:
     // Read timer 1's overflow count and reset it
     lbu v0, apu_tmouts + 1
     sb zero, apu_tmouts + 1
-    jr ra
+    jr t7
     nop
 
 .align 5
@@ -514,25 +512,25 @@ read_t2out: // v0: value
     // Update timers if timer 2 should overflow
     lw t0, apu_ocycles + 8
     bgt s3, t0, end_t2out
-    move gp, ra
+    move t7, ra
     jal update_timers
-    move ra, gp
+    nop
 
 end_t2out:
     // Read timer 2's overflow count and reset it
     lbu v0, apu_tmouts + 2
     sb zero, apu_tmouts + 2
-    jr ra
+    jr t7
     nop
 
 .align 5
 write_control: // a1: value
     // Update timers and write to the APU control register
-    move gp, ra
+    move t7, ra
     jal update_timers
     nop
     lbu t0, apu_control
-    move ra, gp
+    move ra, t7
     sb a1, apu_control
 
     // Update the APU ROM mapping
@@ -609,32 +607,32 @@ write_cpuio3: // a1: value
 .align 5
 write_t0div: // a1: value
     // Update timers and write timer 0's divider value
-    move gp, ra
+    move t7, ra
     jal update_timers
     nop
     sb a1, apu_tmdivs + 0
     j update_overflows
-    move ra, gp
+    move ra, t7
 
 .align 5
 write_t1div: // a1: value
     // Update timers and write timer 1's divider value
-    move gp, ra
+    move t7, ra
     jal update_timers
     nop
     sb a1, apu_tmdivs + 1
     j update_overflows
-    move ra, gp
+    move ra, t7
 
 .align 5
 write_t2div: // a1: value
     // Update timers and write timer 2's divider value
-    move gp, ra
+    move t7, ra
     jal update_timers
     nop
     sb a1, apu_tmdivs + 2
     j update_overflows
-    move ra, gp
+    move ra, t7
 
 .align 5
 read_apuio0: // v0: value
