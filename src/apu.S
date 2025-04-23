@@ -22,12 +22,13 @@
 
 .globl apu_map
 .globl apu_ram
+.globl apu_count
 .globl apu_reg_x
 .globl apu_reg_y
 .globl apu_accum
 .globl apu_stack
 .globl apu_flags
-.globl apu_count
+.globl apu_clock
 
 .globl apu_execute
 .globl apu_read8
@@ -75,6 +76,7 @@ apu_reg_y: .byte 0
 apu_accum: .byte 0
 apu_stack: .byte 0xFF
 apu_flags: .byte 0
+apu_clock: .byte APU_CYCLE * 2
 
 .align 4
 read_iomap:
@@ -129,8 +131,9 @@ apu_read8: // a0: address - v0: value
     lbu v0, apu_ram(t0)
 
     // Check if the address is an I/O port and decrease the cycle count
+    lbu t0, apu_clock
     beq t2, 0xF0, io_read8
-    addi s3, s3, -APU_CYCLE
+    sub s3, s3, t0
 read_unk: // Unknown I/O register read; do nothing
     jr ra
 
@@ -155,9 +158,10 @@ apu_write8: // a0: address, a1: value
     sw t1, jit_tags(t0)
 
     // Check if the address is an I/O port and decrease the cycle count
+    lbu t0, apu_clock
     andi t2, a0, 0xFFF0
     beq t2, 0xF0, io_write8
-    addi s3, s3, -APU_CYCLE
+    sub s3, s3, t0
 write_unk:// Unknown I/O register write; do nothing
     jr ra
 
@@ -480,7 +484,7 @@ read_t0out: // v0: value
     // Update timers if timer 0 should overflow
     lw t0, apu_ocycles + 0
     bgt s3, t0, end_t0out
-    move t7, ra
+    move gp, ra
     jal update_timers
     nop
 
@@ -488,7 +492,7 @@ end_t0out:
     // Read timer 0's overflow count and reset it
     lbu v0, apu_tmouts + 0
     sb zero, apu_tmouts + 0
-    jr t7
+    jr gp
     nop
 
 .align 5
@@ -496,7 +500,7 @@ read_t1out: // v0: value
     // Update timers if timer 1 should overflow
     lw t0, apu_ocycles + 4
     bgt s3, t0, end_t1out
-    move t7, ra
+    move gp, ra
     jal update_timers
     nop
 
@@ -504,7 +508,7 @@ end_t1out:
     // Read timer 1's overflow count and reset it
     lbu v0, apu_tmouts + 1
     sb zero, apu_tmouts + 1
-    jr t7
+    jr gp
     nop
 
 .align 5
@@ -512,7 +516,7 @@ read_t2out: // v0: value
     // Update timers if timer 2 should overflow
     lw t0, apu_ocycles + 8
     bgt s3, t0, end_t2out
-    move t7, ra
+    move gp, ra
     jal update_timers
     nop
 
@@ -520,17 +524,17 @@ end_t2out:
     // Read timer 2's overflow count and reset it
     lbu v0, apu_tmouts + 2
     sb zero, apu_tmouts + 2
-    jr t7
+    jr gp
     nop
 
 .align 5
 write_control: // a1: value
     // Update timers and write to the APU control register
-    move t7, ra
+    move gp, ra
     jal update_timers
     nop
     lbu t0, apu_control
-    move ra, t7
+    move ra, gp
     sb a1, apu_control
 
     // Update the APU ROM mapping
@@ -607,32 +611,32 @@ write_cpuio3: // a1: value
 .align 5
 write_t0div: // a1: value
     // Update timers and write timer 0's divider value
-    move t7, ra
+    move gp, ra
     jal update_timers
     nop
     sb a1, apu_tmdivs + 0
     j update_overflows
-    move ra, t7
+    move ra, gp
 
 .align 5
 write_t1div: // a1: value
     // Update timers and write timer 1's divider value
-    move t7, ra
+    move gp, ra
     jal update_timers
     nop
     sb a1, apu_tmdivs + 1
     j update_overflows
-    move ra, t7
+    move ra, gp
 
 .align 5
 write_t2div: // a1: value
     // Update timers and write timer 2's divider value
-    move t7, ra
+    move gp, ra
     jal update_timers
     nop
     sb a1, apu_tmdivs + 2
     j update_overflows
-    move ra, t7
+    move ra, gp
 
 .align 5
 read_apuio0: // v0: value

@@ -34,6 +34,7 @@ layer_set: .byte 0 << 2
 precision_set: .byte 2 << 2
 skipped_set: .byte 0 << 2
 audio_set: .byte 1 << 2
+underclk_set: .byte 1 << 2
 left_str: .string "<"
 right_str: .string ">"
 
@@ -44,6 +45,7 @@ layer_str: .string "SUB LAYER ORDER"
 precision_str: .string "FRAME PRECISION"
 skipped_str: .string "FRAMES SKIPPED"
 audio_str: .string "AUDIO OUTPUT"
+underclk_str: .string "APU UNDERCLOCK"
 
 .align 4
 on_str: .string "     ON "
@@ -62,9 +64,9 @@ two_str: .string "      2 "
 three_str: .string "      3 "
 
 .align 4
-menu_items: .word counter_str, layer_str, precision_str, skipped_str, audio_str, 0
-menu_opts: .word toggle_opts, layer_opts, precision_opts, skipped_opts, toggle_opts
-menu_sets: .word counter_set, layer_set, precision_set, skipped_set, audio_set
+menu_items: .word counter_str, layer_str, precision_str, skipped_str, audio_str, underclk_str, 0
+menu_opts: .word toggle_opts, layer_opts, precision_opts, skipped_opts, toggle_opts, toggle_opts
+menu_sets: .word counter_set, layer_set, precision_set, skipped_set, audio_set, underclk_set
 
 .align 4
 toggle_opts: .word off_str, on_str, 0
@@ -148,7 +150,7 @@ update_menu: // a0: framebuffer
     jal get_pressed
     li v1, 0 // Index
     andi t0, v0, 0x10 // Start
-    bnez t0, draw_menu
+    bnez t0, start_menu
     move t7, a0
 
     // Draw the FPS counter if running and enabled
@@ -161,26 +163,27 @@ update_menu: // a0: framebuffer
     b menu_return
     nop
 
-draw_menu:
+start_menu:
     // Wait until there are no extra frames queued
     lbu t0, frame_count
-    bnez t0, draw_menu
+    bnez t0, start_menu
     nop
-    lw t7, framebuffer
 
     // Clear the current framebuffer
-    move t0, t7
+    lw t0, framebuffer
     add t1, t0, FRAMEBUFFER2 - FRAMEBUFFER1
 clear_buffer:
     sd zero, (t0)
     bne t0, t1, clear_buffer
     addi t0, t0, 8
 
+draw_menu:
     // Draw the title and initialize values for menu items
+    lw t7, framebuffer
     la a0, title_str
     jal draw_string
-    addi a1, t7, 47 * 560 + 72 * 2
-    addi t7, t7, 47 * 560 + 48 * 2
+    addi a1, t7, 39 * 560 + 72 * 2
+    addi t7, t7, 39 * 560 + 48 * 2
     li t3, 0
 
 menu_loop:
@@ -219,7 +222,7 @@ menu_idle:
     jal get_pressed
     nop
     andi t0, v0, 0x10 // Start
-    bnez t0, menu_return
+    bnez t0, menu_close
 
     // Move to an upper item if up is pressed
     andi t0, v0, 0x8 // Up
@@ -268,3 +271,20 @@ check_right:
     addi t1, t1, 4
     b draw_menu
     sb t1, (t0)
+
+menu_close:
+    // Check if the APU underclock setting changed
+    lbu t0, underclk_set
+    lbu t1, apu_clock
+    li t2, APU_CYCLE
+    srl t0, t0, 2
+    sll t2, t2, t0
+    beq t1, t2, menu_return
+    nop
+
+    // Update the clock and invalidate the JIT buffer if changed
+    sb t2, apu_clock
+    li t0, ROM_BUFFER
+    sw t0, jit_pointer
+    b menu_return
+    nop

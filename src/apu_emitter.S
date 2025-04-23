@@ -21,6 +21,7 @@
 
 .globl jit_tags
 .globl jit_lookup
+.globl jit_pointer
 
 .globl jit_read8
 .globl compile_block
@@ -117,9 +118,10 @@ jit_opcodes: // Lookup table for addressing and operation functions
 .align 5
 jit_read8: // a0: address - v0: value
     // Read a byte from memory, count cycles, and increment the address
+    lbu v0, apu_clock
     srl t0, a0, 6
     lbu t1, apu_map(t0)
-    addi s2, s2, -APU_CYCLE
+    sub s2, s2, v0
     add t0, a0, t1
     lbu v0, apu_ram(t0)
     jr ra
@@ -143,7 +145,7 @@ compile_block:
 
     // Check JIT bounds and invalidate data cache for the header
     li a2, ROM_BUFFER // Bounds
-    bge a1, a2, reset_buffer
+    bgeu a1, a2, reset_buffer
     srl t1, a0, 6
     cache 0x11, CACHED(0)(t0)
 

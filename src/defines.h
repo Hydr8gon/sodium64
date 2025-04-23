@@ -23,8 +23,8 @@
 #define RAM_CYCLE 8
 #define IO_CYCLE 6
 
-// Approximate master cycle counts for APU components (underclocked)
-#define APU_CYCLE 21 * 2 // 21477000Hz / 1024000Hz = 20.973632812
+// Approximate master cycle counts for APU components
+#define APU_CYCLE 21 // 21477000Hz / 1024000Hz = 20.973632812
 #define APU_TIMER1 2688 // 21477000Hz / 8000Hz = 2684.625
 #define APU_TIMER2 336 // 21477000Hz / 64000Hz = 335.578125
 
