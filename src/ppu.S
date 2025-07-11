@@ -277,6 +277,10 @@ vblank_start:
     ori t0, t0, 0x80
     sb t0, hvbjoy
 
+    // Flush input state to registers every frame
+    jal input_flush
+    nop
+
     // Skip handling the frame if it was already done
     lbu t0, frame_done
     bnez t0, skip_frame

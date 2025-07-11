@@ -21,14 +21,19 @@
 
 .globl input_init
 .globl input_update
+.globl input_flush
 .globl get_pressed
-.globl read_joyx
+.globl read_joya
+.globl read_joyb
 .globl read_joyxl
 .globl read_joyxh
+.globl write_joywr
 
 .data
 
 .align 4
+joyxlh: .hword 0:4
+joy_shifts: .hword 0
 btn_state: .byte 0xFF
 
 .align 4
@@ -66,6 +71,71 @@ input_update:
     eret
 
 .align 5
+input_flush:
+    // Prepare to loop through 4 controllers
+    li a0, 6
+
+flush_loop:
+    // Check if a controller is connected, and skip it if not
+    sll t2, a0, 2
+    lbu t0, UNCACHED(joybus_cmd + 2)(t2)
+    andi t0, t0, 0xC0 // Error bits
+    beqz t0, joyx_conn
+    nop
+    sh zero, joyxlh(a0)
+    b flush_next
+    nop
+
+joyx_conn:
+    // Read button data for the controller
+    lhu t0, UNCACHED(joybus_cmd + 4)(t2)
+
+    // Map N64 LR to SNES LR
+    andi v0, t0, 0x30
+
+    // Map N64 C-up to SNES X
+    andi t1, t0, 0x8
+    sll t1, t1, 3
+    or v0, v0, t1
+
+    // Map N64 C-right to SNES A
+    andi t1, t0, 0x1
+    sll t1, t1, 7
+    or v0, v0, t1
+
+    // Map N64 D-pad to SNES D-pad
+    andi t1, t0, 0xF00
+    or v0, v0, t1
+
+    // Map N64 A to SNES Start
+    andi t1, t0, 0x8000
+    srl t1, t1, 3
+    or v0, v0, t1
+
+    // Map N64 B to SNES Select
+    andi t1, t0, 0x4000
+    srl t1, t1, 1
+    or v0, v0, t1
+
+    // Map N64 C-left and C-down to SNES Y and B
+    andi t1, t0, 0x6
+    sll t1, t1, 13
+    or v0, v0, t1
+
+    // Write mapped data to the SNES registers
+    sh v0, joyxlh(a0)
+
+flush_next:
+    // Move to the next controller or return if finished
+    beqz a0, flush_end
+    addi a0, a0, -2
+    b flush_loop
+    nop
+flush_end:
+    jr ra
+    nop
+
+.align 5
 get_pressed: // v0: button mask
     // Check if controller 1 is connected
     lbu t1, UNCACHED(joybus_cmd + 2)
@@ -84,74 +154,74 @@ end_pressed:
     nop
 
 .align 5
-read_joyx: // a0: address
-    // Stub to fix input in games like Donkey Kong Country
-    // TODO: actually implement manual controller ports
+read_done: // v0: value
+    // Return high bits once manual reading is done to indicate a connected controller
     jr ra
-    li v0, 0x1
+    li v0, 0x3
 
 .align 5
-read_joyxl: // a0: address
-    // Check if the controller is connected, and return 0 if not
-    andi t2, a0, 0x6
-    sll t2, t2, 2
-    lbu t0, UNCACHED(joybus_cmd + 2)(t2)
-    andi t0, t0, 0xC0 // Error bits
-    beqz t0, joyxl_conn
-    li v0, 0
+read_joya: // v0: value
+    // Get the controller 1 and 3 states and increment their shift
+    lbu t0, joy_shifts + 0
+    lhu t1, joyxlh + 0
+    lhu t2, joyxlh + 4
+    slti t3, t0, 16
+    beqz t3, read_done
+    add t0, t0, t3
+    sb t0, joy_shifts + 0
+
+    // Shift out one bit for each controller and return them
+    sll t1, t1, t0
+    srl t1, t1, 16
+    andi t1, t1, 0x1
+    sll t2, t2, t0
+    srl t2, t2, 15
+    andi t2, t2, 0x2
+    jr ra
+    or v0, t1, t2
+
+read_joyb: // v0: value
+    // Get the controller 2 and 4 states and increment their shift
+    lbu t0, joy_shifts + 1
+    lhu t1, joyxlh + 2
+    lhu t2, joyxlh + 6
+    slti t3, t0, 16
+    beqz t3, read_done
+    add t0, t0, t3
+    sb t0, joy_shifts + 1
+
+    // Shift out one bit for each controller and return them
+    sll t1, t1, t0
+    srl t1, t1, 16
+    andi t1, t1, 0x1
+    sll t2, t2, t0
+    srl t2, t2, 15
+    andi t2, t2, 0x2
+    jr ra
+    or v0, t1, t2
+
+.align 5
+read_joyxl: // a0: address - v0: value
+    // Read from one of the JOYxL registers
+    andi t0, a0, 0x6
+    lbu v0, joyxlh + 1(t0)
     jr ra
     nop
 
-joyxl_conn:
-    // Read button data for the controller
-    lhu t0, UNCACHED(joybus_cmd + 4)(t2)
-
-    // Map N64 LR to SNES LR
-    andi v0, t0, 0x30
-
-    // Map N64 C-up to SNES X
-    andi t1, t0, 0x8
-    sll t1, t1, 3
-    or v0, v0, t1
-
-    // Map N64 C-right to SNES A
-    andi t1, t0, 0x1
-    sll t1, t1, 7
-    jr ra
-    or v0, v0, t1
-
 .align 5
-read_joyxh: // a0: address
-    // Check if the controller is connected, and return 0 if not
-    andi t2, a0, 0x6
-    sll t2, t2, 2
-    lbu t0, UNCACHED(joybus_cmd + 2)(t2)
-    andi t0, t0, 0xC0 // Error bits
-    beqz t0, joyxh_conn
-    li v0, 0
+read_joyxh: // a0: address - v0: value
+    // Read from one of the JOYxH registers
+    andi t0, a0, 0x6
+    lbu v0, joyxlh + 0(t0)
     jr ra
     nop
 
-joyxh_conn:
-    // Read button data for the controller
-    lhu t0, UNCACHED(joybus_cmd + 4)(t2)
-
-    // Map N64 D-pad to SNES D-pad
-    srl t1, t0, 8
-    andi v0, t1, 0xF
-
-    // Map N64 A to SNES Start
-    andi t1, t0, 0x8000
-    srl t1, t1, 11
-    or v0, v0, t1
-
-    // Map N64 B to SNES Select
-    andi t1, t0, 0x4000
-    srl t1, t1, 9
-    or v0, v0, t1
-
-    // Map N64 C-left and C-down to SNES Y and B
-    andi t1, t0, 0x6
-    sll t1, t1, 5
+write_joywr: // a1: value
+    // Reset manual controller reads if the strobe bit is set
+    andi t0, a1, 0x1
+    beqz t0, joywr_skip
+    nop
+    sh zero, joy_shifts
+joywr_skip:
     jr ra
-    or v0, v0, t1
+    nop
