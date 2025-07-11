@@ -204,18 +204,20 @@ check_header:
     srl t0, t0, 16
     xor t0, t0, t1
     xori t0, t0, 0xFFFF
-    beqz t0, map_hirom
+    beqz t0, check_hirom
     nop
 
+hirom_ret:
     // Detect LoROM headers with a rudimentary checksum check
     lw t0, 0xA0007FDC(t8)
     andi t1, t0, 0xFFFF
     srl t0, t0, 16
     xor t0, t0, t1
     xori t0, t0, 0xFFFF
-    beqz t0, map_lorom
+    beqz t0, check_lorom
     nop
 
+lorom_ret:
     // Move to the next ROM offset if no header was found
     beq t8, t9, map_lorom // Fallback
     move t8, t9
@@ -223,6 +225,13 @@ check_header:
     nop
 
 .align 5
+check_lorom:
+    // Further verify LoROM by checking if vector data seems legit
+    lw t0, 0xA0007FE0(t8)
+    lw t1, 0xA0007FFC(t8)
+    xor t0, t0, t1
+    beqz t0, lorom_ret
+
 map_lorom:
     // Set initial values for building the memory map
     li t0, 0x000000 // Current address
@@ -356,7 +365,13 @@ map_lonone:
     nop
 
 .align 5
-map_hirom:
+check_hirom:
+    // Further verify HiROM by checking if vector data seems legit
+    lw t0, 0xA000FFE0(t8)
+    lw t1, 0xA000FFFC(t8)
+    xor t0, t0, t1
+    beqz t0, hirom_ret
+
     // Set initial values for building the memory map
     li t0, 0x000000 // Current address
     li t1, 0xFFFFFF // Maximum address
